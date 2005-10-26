@@ -98,7 +98,7 @@ public:
 		vector_iterator (const _Self & a):
 			offset (a.offset),
 			p_vector (a.p_vector) {}
-				
+		
 		vector_iterator (const const_iterator & a):
 			offset (a.offset),
 			p_vector (a.p_vector) {}
@@ -371,16 +371,19 @@ public:
 
 		enum{ 
 			block_size = BlkSize_, 
-			page_size = PgSz_,
-			n_pages = pager_type::n_pages,
+			default_page_size = PgSz_,
+			default_n_pages = pager_type::default_n_pages,
 			on_disk = -1 };
 
+		const unsigned n_pages;
+		const unsigned page_size;
+
 		typedef vector_iterator < value_type, alloc_strategy, size_type,
-			difference_type,block_size,pager_type,page_size > iterator;
-		friend class vector_iterator < value_type, alloc_strategy, size_type, difference_type,block_size,pager_type,page_size >;
+			difference_type,block_size,pager_type,default_page_size > iterator;
+		friend class vector_iterator < value_type, alloc_strategy, size_type, difference_type,block_size,pager_type,default_page_size >;
 		typedef const_vector_iterator < value_type, alloc_strategy,
-			size_type,difference_type, block_size,pager_type,page_size > const_iterator;
-		friend class const_vector_iterator < value_type, alloc_strategy, size_type,difference_type, block_size,pager_type,page_size >;
+			size_type,difference_type, block_size,pager_type,default_page_size > const_iterator;
+		friend class const_vector_iterator < value_type, alloc_strategy, size_type,difference_type, block_size,pager_type,default_page_size >;
 
 		typedef bid_vector < block_size > bids_container_type;
 		typedef typename bids_container_type::
@@ -427,9 +430,12 @@ private:
 			return size_type(_bids.size())*size_type(block_type::raw_size);
 		}
 public:
-		vector (size_type n = 0):
+		vector (size_type n = 0, unsigned page_size_ = 0, unsigned n_pages_ = 0):
+			page_size(page_size_?page_size_:default_page_size),
+			n_pages(n_pages_?n_pages_:default_n_pages),
 			_size (n),
 			_bids (div_and_round_up (n, block_type::size)),
+			pager(n_pages),
 			_page_status(div_and_round_up (_bids.size(), page_size)),
 			_last_page(div_and_round_up (_bids.size(), page_size)),
 			_page_no(n_pages),
@@ -570,9 +576,12 @@ public:
 	//! \param from file to be constructed from
 	//! \warning Only one \c vector can be assigned to a file 
 	//! (does not matter whether the files are different \c file objects).
-    vector (file * from):
+    vector (file * from, unsigned page_size_ = 0, unsigned n_pages_ = 0):
+			page_size(page_size_?page_size_:default_page_size),
+			n_pages(n_pages_?n_pages_:default_n_pages),
 			_size(size_from_file_length(from->size())),
 			_bids(div_and_round_up(_size,size_type(block_type::size))),
+			pager(n_pages),
 			_page_status(div_and_round_up (_bids.size(), page_size)),
 			_last_page(div_and_round_up (_bids.size(), page_size)),
 			_page_no(n_pages),
@@ -710,7 +719,7 @@ private:
 			STXXL_VERBOSE1("vector: reading page_no="<<page_no<<" cache_page="<<cache_page)
 			request_ptr * reqs = new request_ptr [page_size];
 			int block_no = page_no*page_size;
-			int last_block = STXXL_MIN(block_no + page_size,int(_bids.size()));
+			int last_block = STXXL_MIN(int(block_no + page_size),int(_bids.size()));
 			int i=cache_page*page_size,j=0;
 			for(;block_no < last_block; ++block_no,++i,++j)
 				reqs[j] = _cache[i].read(_bids[block_no]);
@@ -722,7 +731,7 @@ private:
 			STXXL_VERBOSE1("vector: writing page_no="<<page_no<<" cache_page="<<cache_page)
 			request_ptr * reqs = new request_ptr [page_size];
 			int block_no = page_no*page_size;
-			int last_block = STXXL_MIN(block_no + page_size,int(_bids.size()));
+			int last_block = STXXL_MIN(int(block_no + page_size),int(_bids.size()));
 			int i=cache_page*page_size,j=0;
 			for(;block_no < last_block; ++block_no,++i,++j)
 			{
@@ -895,7 +904,7 @@ private:
   struct VECTOR_GENERATOR
   {
       typedef typename IF<Pager_==lru,
-        lru_pager<Pages_>,random_pager<Pages_> >::result PagerType;
+        lru_pager<Pages_> ,random_pager<Pages_> >::result PagerType;
     
       typedef vector<Tp_,PgSz_,PagerType,BlkSize_,AllocStr_> result;
   };

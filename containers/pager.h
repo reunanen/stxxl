@@ -32,14 +32,19 @@ enum pager_type
 };
 
 //! \brief Pager with \b random replacement strategy
-template <unsigned npages_>
+template <unsigned DefNPages>
 class random_pager
 {
 	random_number<random_uniform_fast> rnd;
+	const unsigned npages_;
+	
+	random_pager(); // forbidden
 public:
-	enum { n_pages = npages_ };
-	random_pager() {};
-	~random_pager() {};
+	
+	enum { default_n_pages = DefNPages };
+
+	random_pager(unsigned n_pages):  npages_(n_pages) {};
+	~random_pager() {}
 	int kick()
 	{
 		return rnd(npages_);
@@ -52,9 +57,10 @@ public:
 };
 
 //! \brief Pager with \b LRU replacement strategy
-template <unsigned npages_>
+template <unsigned DefNPages>
 class lru_pager
 {
+	const unsigned npages_;
 	typedef std::list<int> list_type;
 	
 	list_type history;
@@ -63,10 +69,12 @@ class lru_pager
 private:
 	lru_pager(const lru_pager &);
 	lru_pager & operator = (const lru_pager &); // forbidden
+	lru_pager();
 public:
-	enum { n_pages = npages_ };
 	
-	lru_pager(): history_entry(npages_)
+	enum { default_n_pages = DefNPages };
+	
+	lru_pager(unsigned npages): npages_(npages),history_entry(npages_)
 	{
 		for(unsigned i=0;i<npages_;i++)
 			history_entry[i] = history.insert(history.end(),static_cast<int>(i));
@@ -95,9 +103,9 @@ __STXXL_END_NAMESPACE
 
 namespace std
 {
-	template <unsigned npages_>
-	void swap(	stxxl::lru_pager<npages_> & a,
-				stxxl::lru_pager<npages_> & b)
+	template <unsigned PgNr>
+	void swap(	stxxl::lru_pager<PgNr> & a,
+						stxxl::lru_pager<PgNr> & b)
 	{
 		a.swap(b);
 	}
