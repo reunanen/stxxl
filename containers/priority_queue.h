@@ -15,6 +15,7 @@
 #include <queue>
 #include <list>
 #include <iterator>
+#include <functional>
 
 #define STXXL_PARALLEL_MULTIWAY_MERGE
 #if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
@@ -510,8 +511,8 @@ public:
 private:
   struct Entry 
   {
-    value_type key;   // Key of Looser element (winner for 0)
-    int_type index;        // number of loosing segment
+    value_type key;   // Key of Loser element (winner for 0)
+    int_type index;        // number of losing segment
   };
 
   comparator_type cmp;
@@ -523,7 +524,7 @@ private:
   unsigned logK; // log of current tree size
   unsigned_type k; // invariant k = 1 << logK
 
-  Element dummy; // target of empty segment pointers
+  Element shared_sentinel; // target of empty segment pointers
 
   // upper levels of loser trees
   // entry[0] contains the winner info
@@ -546,7 +547,7 @@ private:
   void deallocateSegment(int_type index);
   void doubleK();
   void compactTree();
-  void rebuildLooserTree();
+  void rebuildLoserTree();
   bool segmentIsEmpty(int_type i);
   void multi_merge_k(Element * to, int_type l);
   template <unsigned LogK>
@@ -564,7 +565,7 @@ private:
     int_type      winnerIndex = regEntry[0].index;
     Element  winnerKey   = regEntry[0].key;
     Element *winnerPos;
-    //Element sup = dummy; // supremum
+    //Element sup = shared_sentinel; // supremum
     
     assert(logK >= LogK);
     while (to != done)
@@ -640,7 +641,7 @@ public:
 		std::swap(size_,obj.size_);
   		std::swap(logK,obj.logK);
   		std::swap(k,obj.k);
- 		std::swap(dummy,obj.dummy);
+ 		std::swap(shared_sentinel,obj.shared_sentinel);
 		swap_1D_arrays(entry,obj.entry,KNKMAX);
 		swap_1D_arrays(current,obj.current,KNKMAX);
 		swap_1D_arrays(current_end,obj.current_end,KNKMAX);
@@ -663,15 +664,15 @@ public:
   unsigned_type  size() { return size_; }
 };  
 
-///////////////////////// LooserTree ///////////////////////////////////
+///////////////////////// LoserTree ///////////////////////////////////
 template <class ValTp_,class Cmp_,unsigned KNKMAX>
 loser_tree<ValTp_,Cmp_,KNKMAX>::loser_tree() : lastFree(0), size_(0), logK(0), k(1),mem_cons_(0)
 {
   empty  [0] = 0;
   segment[0] = 0;
-  current[0] = &dummy;
-  current_end[0] = &dummy;
-  // entry and dummy are initialized by init
+  current[0] = &shared_sentinel;
+  current_end[0] = &shared_sentinel + 1;
+  // entry and shared_sentinel are initialized by init
   // since they need the value of supremum
   init();
 }
@@ -679,16 +680,15 @@ loser_tree<ValTp_,Cmp_,KNKMAX>::loser_tree() : lastFree(0), size_(0), logK(0), k
 template <class ValTp_,class Cmp_,unsigned KNKMAX>
 void loser_tree<ValTp_,Cmp_,KNKMAX>::init()
 {
-  dummy      = cmp.min_value();
-  rebuildLooserTree();
-  assert(current[entry[0].index] == &dummy);
-  assert(current_end[entry[0].index] == &dummy);
+  shared_sentinel      = cmp.min_value();
+  rebuildLoserTree();
+  assert(current[entry[0].index] == &shared_sentinel);
 }
 
 
 // rebuild loser tree information from the values in current
 template <class ValTp_,class Cmp_,unsigned KNKMAX>
-void loser_tree<ValTp_,Cmp_,KNKMAX>::rebuildLooserTree()
+void loser_tree<ValTp_,Cmp_,KNKMAX>::rebuildLoserTree()
 {  
   int_type winner = initWinner(1);
   entry[0].index = winner;
@@ -711,7 +711,7 @@ int_type loser_tree<ValTp_,Cmp_,KNKMAX>::initWinner(int_type root)
     int_type right = initWinner(2*root + 1);
     Element lk    = *(current[left ]);
     Element rk    = *(current[right]);
-    if (!(cmp(lk,rk))) { // right subtree looses
+    if (!(cmp(lk,rk))) { // right subtree loses
       entry[root].index = right;
       entry[root].key   = rk;
       return left;
@@ -756,7 +756,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::updateOnInsert(
         if (cmp(*winnerKey,newKey) ) { // old winner loses here
           entry[node].key   = *winnerKey;
           entry[node].index = *winnerIndex;
-        } else { // new entry looses here
+        } else { // new entry loses here
           entry[node].key   = newKey;
           entry[node].index = newIndex;
         }
@@ -766,7 +766,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::updateOnInsert(
     }
     // note that nothing needs to be done if
     // the winner came from the same subtree
-    // a) newKey <= winnerKey => even more reason for the other tree to loose
+    // a) newKey <= winnerKey => even more reason for the other tree to lose
     // b) newKey >  winnerKey => the old winner will beat the new
     //                           entry further down the tree
     // also the same old winner is handed down the tree
@@ -787,8 +787,8 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::doubleK()
   assert(k < KNKMAX);
   for (int_type i = 2*k - 1;  i >= int_type(k);  i--)
   {
-    current[i] = &dummy;
-    current_end[i] = &dummy;
+    current[i] = &shared_sentinel;
+    current_end[i] = &shared_sentinel + 1;
     segment[i] = NULL;
     lastFree++;
     empty[lastFree] = i;
@@ -798,7 +798,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::doubleK()
   k *= 2;  logK++;
 
   // recompute loser tree information
-  rebuildLooserTree();
+  rebuildLoserTree();
 }
 
 
@@ -846,12 +846,12 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::compactTree()
     lastFree++;
     empty[lastFree] = to;
 
-    current[to] = &dummy;
-    current_end[to] = &dummy;
+    current[to] = &shared_sentinel;
+    current_end[to] = &shared_sentinel + 1;
   }
 
   // recompute loser tree information
-  rebuildLooserTree();
+  rebuildLoserTree();
 }
 
 
@@ -867,6 +867,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::insert_segment(Element *to, unsigned_type s
   {
     assert( not_sentinel(to[0])   );
     assert( not_sentinel(to[sz-1]));
+    assert( is_sentinel(to[sz]));
     // get a free slot
     if (lastFree < 0) { // tree is too small
       doubleK();
@@ -877,7 +878,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::insert_segment(Element *to, unsigned_type s
 
     // link new segment
     current[index] = segment[index] = to;
-    current_end[index] = to + sz;
+    current_end[index] = to + sz + 1;
     segment_size[index] = (sz + 1)*sizeof(value_type);
     mem_cons_ += (sz + 1)*sizeof(value_type);
     size_ += sz;
@@ -911,7 +912,7 @@ loser_tree<ValTp_,Cmp_,KNKMAX>::~loser_tree()
       mem_cons_ -= segment_size[i];
     }
   }
-  // check whether we did not loose memory
+  // check whether we did not lose memory
   assert(mem_cons_ == 0);
 }
 
@@ -919,12 +920,12 @@ loser_tree<ValTp_,Cmp_,KNKMAX>::~loser_tree()
 template <class ValTp_,class Cmp_,unsigned KNKMAX>
 void loser_tree<ValTp_,Cmp_,KNKMAX>::deallocateSegment(int_type index)
 {
-  // reroute current pointer to some empty dummy segment
+  // reroute current pointer to some empty shared_sentinel segment
   // with a sentinel key
 	STXXL_VERBOSE2("loser_tree::deallocateSegment() deleting segment "<<
 		index<<" address: "<<segment[index]<<" size: "<<segment_size[index])
-  current[index] = &dummy;
-  current_end[index] = &dummy;
+  current[index] = &shared_sentinel;
+  current_end[index] = &shared_sentinel + 1;
 
   // free memory
   delete [] segment[index];
@@ -970,16 +971,16 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     {
     if(l > 0)
     	std::cout << "binary merge " << l << std::endl;
-    std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]), 
-    						std::make_pair(current[1], current_end[1]) };
-    mcstl::multiway_merge(seqs, seqs + 2, to, cmp, l, false);
+    std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0] - 1), 
+    						std::make_pair(current[1], current_end[1] - 1) };
+    mcstl::multiway_merge(seqs, seqs + 2, to, std::not2(cmp), l, false);
     current[0] = seqs[0].first;
     current[1] = seqs[1].first;
     }
 #else
     merge(current + 0, current + 1, to, l,cmp);
 #endif
-    rebuildLooserTree();
+    rebuildLoserTree();
     if (segmentIsEmpty(0)) deallocateSegment(0); 
     if (segmentIsEmpty(1)) deallocateSegment(1); 
     break;
@@ -990,11 +991,11 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     {
     if(l > 0)
     	std::cout << "4-way merge " << l << std::endl;
-    std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]), 
-    						std::make_pair(current[1], current_end[1]),
-    						std::make_pair(current[2], current_end[2]), 
-    						std::make_pair(current[3], current_end[3]) };
-    mcstl::multiway_merge(seqs, seqs + 4, to, cmp, l, false);
+    std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0] - 1), 
+    						std::make_pair(current[1], current_end[1] - 1),
+    						std::make_pair(current[2], current_end[2] - 1), 
+    						std::make_pair(current[3], current_end[3] - 1) };
+    mcstl::multiway_merge(seqs, seqs + 4, to, std::not2(cmp), l, false);
     current[0] = seqs[0].first;
     current[1] = seqs[1].first;
     current[2] = seqs[2].first;
@@ -1003,7 +1004,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
 #else
     merge4(current + 0, current + 1, current + 2, current + 3, to, l, cmp);
 #endif
-    rebuildLooserTree();
+    rebuildLoserTree();
     if (segmentIsEmpty(0)) deallocateSegment(0); 
     if (segmentIsEmpty(1)) deallocateSegment(1); 
     if (segmentIsEmpty(2)) deallocateSegment(2); 
@@ -1016,14 +1017,14 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
 		std::cout << k << "-way merge " << l << std::endl;
 	std::pair<Element*, Element*> seqs[k];
 	for(int i = 0; i < k; i++)
-		seqs[i] = std::make_pair(current[i], current_end[i]);
+		seqs[i] = std::make_pair(current[i], current_end[i] - 1);
 	
-	mcstl::multiway_merge(seqs, seqs + k, to, cmp, l, false);
+	mcstl::multiway_merge(seqs, seqs + k, to, std::not2(cmp), l, false);
 
 	for(int i = 0; i < k; i++)
 		current[i] = seqs[i].first;
 		
-	rebuildLooserTree();
+	rebuildLoserTree();
 	for(int i = 0; i < k; i++)
 		if(segmentIsEmpty(i))
 			deallocateSegment(i); 
@@ -1056,11 +1057,11 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
 }
 
 
-// is this segment empty and does not point to dummy yet?
+// is this segment empty and does not point to shared_sentinel yet?
 template <class ValTp_,class Cmp_,unsigned KNKMAX>
 inline bool loser_tree<ValTp_,Cmp_,KNKMAX>::segmentIsEmpty(int_type i)
 {
-  return (is_sentinel(*(current[i])) &&  (current[i] != &dummy));
+  return (is_sentinel(*(current[i])) &&  (current[i] != &shared_sentinel));
 }
 
 // multi-merge for fixed K
@@ -1760,10 +1761,10 @@ namespace priority_queue_local
     typedef Parameters_for_priority_queue_not_found_Increase_IntM result;
   };
   
-  struct dummy
+  struct shared_sentinel
   {
     enum { fits = false };
-    typedef dummy result;
+    typedef shared_sentinel result;
   };
   
   template <int_type E_,int_type IntM_,unsigned_type MaxS_,int_type B_,int_type m_,bool stop = false>
@@ -1802,7 +1803,7 @@ namespace priority_queue_local
   struct find_B_m<E_,IntM_,MaxS_,B_,m_,true>
   {
     enum { fits = false };
-    typedef dummy result;
+    typedef shared_sentinel result;
   };
   
   template <int_type E_,int_type IntM_,unsigned_type MaxS_>
