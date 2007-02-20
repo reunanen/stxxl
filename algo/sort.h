@@ -573,7 +573,7 @@ void merge_runs(run_type ** in_runs, int_type nruns, run_type * out_run,unsigned
 					
 					rest -= output_size;
 					
-					STXXL_VERBOSE1("so long");
+					STXXL_VERBOSE1("before checking for emptiness");
 					
 					for(int_type i = 0; i < seqs.size(); i++)
 					{
