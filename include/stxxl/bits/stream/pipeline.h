@@ -81,8 +81,6 @@ private:
 	//! \brief Asynchronously pulling thread.
 	pthread_t puller;
 
-	void start_pulling();
-	
 public:
 	//! \brief Constructor.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
@@ -99,8 +97,6 @@ public:
 		
 		pthread_mutex_init(&mtx, 0);
 		pthread_cond_init(&cond, 0);
-
-		start_pulling();
 	}
 	
 	~stage()
@@ -208,6 +204,8 @@ public:
 			}
 		}
 	}
+	
+	void start_pulling();
 };
 
 //! \brief Helper function to call stage::pull() in a Pthread thread.
@@ -220,7 +218,7 @@ void* call_pull(void* param)
 
 //! \brief Start pulling data asynchronously.
 template<class StreamOperation>
-void stage<StreamOperation>::start_pulling()
+void stage<StreamOperation>::stage::start_pulling()
 {
 	pthread_create(&puller, NULL, call_pull<StreamOperation>, this);
 }
@@ -248,6 +246,7 @@ class transform : public stxxl::stream::transform<Operation_, Input1_, Input2_, 
 public:
 	transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_, Input5_ & i5_, Input6_ & i6_, unsigned_type buffer_size = 1000000) : stage(buffer_size, stream_operation), stream_operation(o, i1_, i2_, i3_, i4_, i5_, i6_)
 	{
+		stage::start_pulling();
 	}
 
 	//! \brief Standard stream method
@@ -278,12 +277,61 @@ class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper
 public:
 	transform(Operation_ o, Input1_ & i1_, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(o, i1_)
 	{
+		stage::start_pulling();
 	}
 
 	//! \brief Standard stream method
 	//!
 	//! Cannot be inherited from base class since it must return @c *this.
 	transform&  operator ++()
+	{
+		stage::operator++();
+		return *this;
+	}
+};
+
+
+//! \brief Produces sorted stream from input stream
+//!
+//! Template parameters:
+//! - \c Input_ type of the input stream
+//! - \c Cmp_ type of omparison object used for sorting the runs
+//! - \c BlockSize_ size of blocks used to store the runs
+//! - \c AllocStr_ functor that defines allocation strategy for the runs
+//! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
+template <class Input_, class Cmp_, unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type), class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+class sort : public stage<stxxl::stream::sort<Input_, Cmp_, BlockSize_, AllocStr_> >
+{
+	typedef typename stxxl::stream::sort<Input_, Cmp_, BlockSize_, AllocStr_> StreamOperation;
+	typedef stage<StreamOperation> stage;
+	StreamOperation stream_operation;
+	
+	sort(); // forbidden
+	sort(const sort &); // forbidden
+public:
+	//! \brief Creates the object
+	//! \param in input stream
+	//! \param c comparator object
+	//! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
+	sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(in, c, memory_to_use)
+	{
+		stage::start_pulling();
+	}
+
+	//! \brief Creates the object
+	//! \param in input stream
+	//! \param c comparator object
+	//! \param memory_to_use_rc memory amount that is allowed to be used by the runs creator in bytes
+	//! \param memory_to_use_m memory amount that is allowed to be used by the merger in bytes
+	sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(in, c, memory_to_use_rc, memory_to_use_m)
+	{
+		stage::start_pulling();
+	}
+	
+	//! \brief Standard stream method
+	//!
+	//! Cannot be inherited from base class since it must return @c *this.
+	sort&  operator ++()
 	{
 		stage::operator++();
 		return *this;

@@ -1449,7 +1449,7 @@ namespace stream
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
             creator(in, c, memory_to_use),
-            merger(creator.result(), c, memory_to_use)
+            merger(creator.result(), c, memory_to_use)	//creator.result() implies complete run formation
         { }
 
         //! \brief Creates the object
@@ -1459,7 +1459,7 @@ namespace stream
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
             creator(in, c, memory_to_use_rc),
-            merger(creator.result(), c, memory_to_use_m)
+            merger(creator.result(), c, memory_to_use_m)	//creator.result() implies complete run formation
         { }
 
 
