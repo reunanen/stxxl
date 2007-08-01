@@ -20,46 +20,52 @@ __STXXL_BEGIN_NAMESPACE
 namespace stream
 {
 
+//! \brief Sub-namespace for providing pipelined stream processing.
 namespace pipeline
 {
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
-//! This class should be derived from.
+//! \brief Helper class encapsuling a buffer.
+template<typename value_type>
+class buffer
+{
+private:
+	buffer(const buffer&) { }
+	buffer& operator=(const buffer&) { return *this; }
+
+public:
+	//! \brief Begin iterator of the buffer.
+	value_type* begin;
+	//! \brief End iterator of the buffer.
+	value_type* end;
+	//! \brief In case the buffer is not full, stop differs from end.
+	value_type* stop;
+	//! \brief Currrent read or write position.
+	value_type* current;
+	
+	//! \brief Constructor.
+	//! \param size Size of the buffer in number of elements.
+	buffer(unsigned_type size)
+	{
+		begin = new value_type[size];
+		stop = end = begin + size;
+	}
+	
+	//! \brief Destructor.
+	~buffer()
+	{
+		delete[] begin;
+	}
+};
+
+//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
 template<class StreamOperation>
-class stage
+class stage : private StreamOperation
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
+	typedef buffer<value_type> buffer;
 	
 private:
-	//! \brief Helper class encapsuling a buffer.
-	class buffer
-	{
-	private:
-		buffer(const buffer&) { }
-		buffer& operator=(const buffer&) { return *this; }
-	
-	public:
-		value_type* begin;
-		value_type* end;
-		//! \brief In case the buffer is not full, stop differs from end.
-		value_type* stop;
-		value_type* current;
-		
-		buffer(unsigned_type size)
-		{
-			begin = new value_type[size];
-			stop = end = begin + size;
-		}
-		
-		~buffer()
-		{
-			delete[] begin;
-		}
-	};
-	
-	//! \brief Stream operation that is extended to a pipelined one.
-	StreamOperation& stream_operation;
 	//! \brief First double buffering buffer.
 	buffer block1;
 	//! \brief Second double buffering buffer.
@@ -75,17 +81,14 @@ private:
 	//! \brief The input stream has run empty, the last swap_buffers() has been performed already.
 	volatile bool last_swap_done;
 	//! \brief Mutex variable, to mutual exclude the other thread.
-	pthread_mutex_t mtx;
+	pthread_mutex_t mutex;
 	//! \brief Condition variable, to wait for the other thread.
 	pthread_cond_t cond;
 	//! \brief Asynchronously pulling thread.
 	pthread_t puller;
 
-public:
-	//! \brief Constructor.
-	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
-	//! \param stream_operation Stream operation that is extended to a pipelined one.
-	stage(unsigned_type buffer_size, StreamOperation& stream_operation) : stream_operation(stream_operation), block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	//! \brief Initialize object. Common code for all constructor variants.
+	void init()
 	{
 		input_buffer->current = input_buffer->begin;
 		input_buffer_filled = false;
@@ -95,13 +98,85 @@ public:
 		
 		last_swap_done = false;
 		
-		pthread_mutex_init(&mtx, 0);
+		pthread_mutex_init(&mutex, 0);
 		pthread_cond_init(&cond, 0);
+		
+		start_pulling();
+	}
+
+public:
+	//! \brief Generic Constructor for zero passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	stage(unsigned_type buffer_size) :
+		StreamOperation(),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for one passed argument.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1>
+	stage(unsigned_type buffer_size, T1& t1) :
+		StreamOperation(t1),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for two passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2>
+	stage(unsigned_type buffer_size, T1& t1, T2& t2) :
+		StreamOperation(t1, t2),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3>
+	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3) :
+		StreamOperation(t1, t2, t3),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4>
+	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4) :
+		StreamOperation(t1, t2, t3, t4),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5>
+	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5) :
+		StreamOperation(t1, t2, t3, t4, t5),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
+	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5, T6& t6) :
+		StreamOperation(t1, t2, t3, t4, t5, t6),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
 	}
 	
 	~stage()
 	{
-		pthread_mutex_destroy(&mtx);
+		pthread_mutex_destroy(&mutex);
 		pthread_cond_destroy(&cond);
 	}
 
@@ -115,32 +190,32 @@ private:
 		output_buffer->current = output_buffer->begin;
 		input_buffer_filled = false;
 		output_buffer_consumed = false;
-		last_swap_done = stream_operation.empty();
+		last_swap_done = StreamOperation::empty();
 	}
 	
 	void reload()
 	{
-		//cannot check this in operator++(), because should not block if iterator is only advanced, but not accessed.
+		//should not check this in operator++(), because should not block if iterator is only advanced, but not accessed.
 		if(output_buffer->current >= output_buffer->stop)
 		{
-			pthread_mutex_lock(&mtx);
+			pthread_mutex_lock(&mutex);
 			output_buffer_consumed = true;
 			
 			if(input_buffer_filled)
 			{
 				swap_buffers();
 				
-				pthread_mutex_unlock(&mtx);
+				pthread_mutex_unlock(&mutex);
 				pthread_cond_signal(&cond);	//wake up other thread
 			}
 			else if(!last_swap_done)
 			{
 				while(output_buffer_consumed)	//to be swapped by other thread
-					pthread_cond_wait(&cond, &mtx);
-				pthread_mutex_unlock(&mtx);
+					pthread_cond_wait(&cond, &mutex);
+				pthread_mutex_unlock(&mutex);
 			}
 			else	//no further input, empty will return true
-				pthread_mutex_unlock(&mtx);
+				pthread_mutex_unlock(&mutex);
 		}
 	}	
 
@@ -148,8 +223,6 @@ public:
 	//! \brief Standard stream method.
 	const value_type& operator * ()
 	{
-		//reload();
-		
 		return *output_buffer->current;
 	}
 	
@@ -160,9 +233,10 @@ public:
 	}
 	
 	//! \brief Standard stream method.
-	void operator ++ ()
+	stage<StreamOperation>& operator ++ ()
 	{
 		++output_buffer->current;
+		return *this;
 	}
 	
 	//! \brief Standard stream method
@@ -176,31 +250,31 @@ public:
 	//! \brief Asynchronous method that always tries fill the input stage.
 	void pull()
 	{
-		while(!stream_operation.empty())
+		while(!StreamOperation::empty())
 		{
-			while(input_buffer->current < input_buffer->end && !stream_operation.empty())
+			while(input_buffer->current < input_buffer->end && !StreamOperation::empty())
 			{
-				*input_buffer->current = *stream_operation;
+				*input_buffer->current = StreamOperation::operator*();
 				++input_buffer->current;
-				++stream_operation;
+				StreamOperation::operator++();
 			}
 			input_buffer->stop = input_buffer->current;
 			
-			pthread_mutex_lock(&mtx);
+			pthread_mutex_lock(&mutex);
 			input_buffer_filled = true;
 			
 			if(output_buffer_consumed)
 			{
 				swap_buffers();
 				
-				pthread_mutex_unlock(&mtx);
+				pthread_mutex_unlock(&mutex);
 				pthread_cond_signal(&cond);	//wake up other thread
 			}
 			else
 			{
 				while(input_buffer_filled)	//to be swapped by other thread
-					pthread_cond_wait(&cond, &mtx);
-				pthread_mutex_unlock(&mtx);
+					pthread_cond_wait(&cond, &mutex);
+				pthread_mutex_unlock(&mutex);
 			}
 		}
 	}
@@ -222,121 +296,6 @@ void stage<StreamOperation>::stage::start_pulling()
 {
 	pthread_create(&puller, NULL, call_pull<StreamOperation>, this);
 }
-
-struct Stopper {};
-
-//! \brief Processes (up to) 6 input streams using given operation functor
-//!
-//! Template parameters:
-//! - \c Operation_ type of the operation (type of an
-//! adaptable functor that takes 6 parameters)
-//! - \c Input1_ type of the 1st input
-//! - \c Input2_ type of the 2nd input
-//! - \c Input3_ type of the 3rd input
-//! - \c Input4_ type of the 4th input
-//! - \c Input5_ type of the 5th input
-//! - \c Input6_ type of the 6th input
-template <class Operation_, class Input1_, class Input2_ = Stopper, class Input3_ = Stopper, class Input4_ = Stopper, class Input5_ = Stopper, class Input6_ = Stopper>
-class transform : public stxxl::stream::transform<Operation_, Input1_, Input2_, Input3_, Input4_, Input5_, Input6_>
-{
-	typedef typename stxxl::stream::transform<Operation_, Input1_, Input2_, Input3_, Input4_, Input5_, Input6_> StreamOperation;
-	typedef stage<StreamOperation> stage;
-	StreamOperation stream_operation;
-
-public:
-	transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_, Input5_ & i5_, Input6_ & i6_, unsigned_type buffer_size = 1000000) : stage(buffer_size, stream_operation), stream_operation(o, i1_, i2_, i3_, i4_, i5_, i6_)
-	{
-		stage::start_pulling();
-	}
-
-	//! \brief Standard stream method
-	//!
-	//! Cannot be inherited from base class since it must return @c *this.
-	transform&  operator ++()
-	{
-		stage::operator++();
-		return *this;
-	}
-};
-
-
-//! \brief Processes an input stream using given operation functor.
-//!
-//! Template parameters:
-//! - \c Operation_ type of the operation (type of an
-//! adaptable functor that takes 1 parameter)
-//! - \c Input1_ type of the input
-//! \remark This is a specialization of \c transform .
-template <class Operation_, class Input1_ >
-class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper> : public stage<stxxl::stream::transform<Operation_, Input1_> >
-{
-	typedef typename stxxl::stream::transform<Operation_, Input1_> StreamOperation;
-	typedef stage<StreamOperation> stage;
-	StreamOperation stream_operation;
-
-public:
-	transform(Operation_ o, Input1_ & i1_, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(o, i1_)
-	{
-		stage::start_pulling();
-	}
-
-	//! \brief Standard stream method
-	//!
-	//! Cannot be inherited from base class since it must return @c *this.
-	transform&  operator ++()
-	{
-		stage::operator++();
-		return *this;
-	}
-};
-
-
-//! \brief Produces sorted stream from input stream
-//!
-//! Template parameters:
-//! - \c Input_ type of the input stream
-//! - \c Cmp_ type of omparison object used for sorting the runs
-//! - \c BlockSize_ size of blocks used to store the runs
-//! - \c AllocStr_ functor that defines allocation strategy for the runs
-//! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
-template <class Input_, class Cmp_, unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type), class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
-class sort : public stage<stxxl::stream::sort<Input_, Cmp_, BlockSize_, AllocStr_> >
-{
-	typedef typename stxxl::stream::sort<Input_, Cmp_, BlockSize_, AllocStr_> StreamOperation;
-	typedef stage<StreamOperation> stage;
-	StreamOperation stream_operation;
-	
-	sort(); // forbidden
-	sort(const sort &); // forbidden
-public:
-	//! \brief Creates the object
-	//! \param in input stream
-	//! \param c comparator object
-	//! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-	sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(in, c, memory_to_use)
-	{
-		stage::start_pulling();
-	}
-
-	//! \brief Creates the object
-	//! \param in input stream
-	//! \param c comparator object
-	//! \param memory_to_use_rc memory amount that is allowed to be used by the runs creator in bytes
-	//! \param memory_to_use_m memory amount that is allowed to be used by the merger in bytes
-	sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, unsigned_type buffer_size = 1048576) : stage(buffer_size, stream_operation), stream_operation(in, c, memory_to_use_rc, memory_to_use_m)
-	{
-		stage::start_pulling();
-	}
-	
-	//! \brief Standard stream method
-	//!
-	//! Cannot be inherited from base class since it must return @c *this.
-	sort&  operator ++()
-	{
-		stage::operator++();
-		return *this;
-	}
-};
 
 }	//namespace pipeline
 
