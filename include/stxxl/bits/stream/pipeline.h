@@ -59,7 +59,7 @@ public:
 
 //! \brief Asynchronous stage wrapper to allow concurrent pipelining.
 template<class StreamOperation>
-class stage : private StreamOperation
+class stage : public StreamOperation
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
@@ -71,19 +71,19 @@ private:
 	//! \brief Second double buffering buffer.
 	buffer block2;
 	//! \brief Buffer that is currently input from.
-	buffer* input_buffer;
+	mutable buffer* input_buffer;
 	//! \brief Buffer that is currently output to.
-	buffer* output_buffer;
+	mutable buffer* output_buffer;
 	//! \brief The input buffer has been filled (completely, or the input stream has run empty).
-	volatile bool input_buffer_filled;
+	mutable volatile bool input_buffer_filled;
 	//! \brief The output buffer has been consumed.
-	volatile bool output_buffer_consumed;
+	mutable volatile bool output_buffer_consumed;
 	//! \brief The input stream has run empty, the last swap_buffers() has been performed already.
-	volatile bool last_swap_done;
+	mutable volatile bool last_swap_done;
 	//! \brief Mutex variable, to mutual exclude the other thread.
-	pthread_mutex_t mutex;
+	mutable pthread_mutex_t mutex;
 	//! \brief Condition variable, to wait for the other thread.
-	pthread_cond_t cond;
+	mutable pthread_cond_t cond;
 	//! \brief Asynchronously pulling thread.
 	pthread_t puller;
 
@@ -182,7 +182,7 @@ public:
 
 private:
 	//! \brief Swap input and output buffers.
-	void swap_buffers()
+	void swap_buffers() const
 	{
 		std::swap(input_buffer, output_buffer);
 
@@ -193,7 +193,7 @@ private:
 		last_swap_done = StreamOperation::empty();
 	}
 	
-	void reload()
+	void reload() const
 	{
 		//should not check this in operator++(), because should not block if iterator is only advanced, but not accessed.
 		if(output_buffer->current >= output_buffer->stop)
@@ -221,7 +221,7 @@ private:
 
 public:
 	//! \brief Standard stream method.
-	const value_type& operator * ()
+	const value_type& operator * () const
 	{
 		return *output_buffer->current;
 	}
@@ -240,7 +240,7 @@ public:
 	}
 	
 	//! \brief Standard stream method
-	bool empty()
+	bool empty() const
 	{
 		reload();
 	
@@ -296,6 +296,87 @@ void stage<StreamOperation>::stage::start_pulling()
 {
 	pthread_create(&puller, NULL, call_pull<StreamOperation>, this);
 }
+
+
+//further redefinitions
+
+//! \brief Produces sorted stream from input stream
+//!
+//! Template parameters:
+//! - \c Input_ type of the input stream
+//! - \c Cmp_ type of omparison object used for sorting the runs
+//! - \c BlockSize_ size of blocks used to store the runs
+//! - \c AllocStr_ functor that defines allocation strategy for the runs
+//! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
+template <  class Input_,
+class Cmp_,
+unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
+class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+class sort
+{
+	typedef runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> runs_creator_type;
+	typedef typename runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::sorted_runs_type sorted_runs_type;
+	typedef stage<runs_merger<sorted_runs_type, Cmp_, AllocStr_> > runs_merger_type;
+
+	runs_creator_type creator;
+	runs_merger_type merger;
+
+	sort(); // forbidden
+	sort(const sort &); // forbidden
+public:
+	//! \brief Standard stream typedef
+	typedef typename Input_::value_type value_type;
+
+	//! \brief Creates the object
+	//! \param in input stream
+	//! \param c comparator object
+	//! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
+	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
+			creator(/*buffer_size,*/ in, c, memory_to_use),
+			merger(buffer_size, creator.result(), c, memory_to_use)	//creator.result() implies complete run formation
+	{ printf("Finished constructing sorter.\n"); }
+
+	//! \brief Creates the object
+	//! \param in input stream
+	//! \param c comparator object
+	//! \param memory_to_use_rc memory amount that is allowed to used by the runs creator in bytes
+	//! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
+	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
+			creator(/*buffer_size, */in, c, memory_to_use_rc),
+			merger(buffer_size, creator.result(), c, memory_to_use_m)	//creator.result() implies complete run formation
+	{ printf("Finished constructing sorter.\n"); }
+
+
+	//! \brief Standard stream method
+	const value_type & operator * () const
+	{
+/*		printf("1\n");*/
+		assert(!empty());
+		return *merger;
+	}
+
+	const value_type * operator -> () const
+	{
+/*		printf("2\n");*/
+		assert(!empty());
+		return merger.operator->();
+	}
+
+	//! \brief Standard stream method
+	sort & operator ++()
+	{
+/*		printf("3\n");*/
+		++merger;
+		return *this;
+	}
+
+	//! \brief Standard stream method
+	bool empty() const
+	{
+/*		printf("4\n");*/
+		return merger.empty();
+	}
+};
 
 }	//namespace pipeline
 

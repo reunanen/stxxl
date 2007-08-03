@@ -133,6 +133,8 @@ namespace stream
             else
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
         }
+        
+        value_type dummy_element;
     public:
         //! \brief Creates the object
         //! \param i input stream
@@ -159,6 +161,33 @@ namespace stream
             }
             return result_;
         }
+        
+	//! \brief Standard stream method.
+	const value_type& operator * ()
+	{
+		result();	//do computation if not yet done
+		return dummy_element;
+	}
+	
+	//! \brief Standard stream method.
+	const value_type* operator -> () const
+	{
+		return &(operator*());
+	}
+	
+	//! \brief Standard stream method.
+	runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>& operator ++ ()
+	{
+		return *this;
+	}
+	
+	//! \brief Standard stream method
+	bool empty()
+	{
+		return result_computed;	//only one fake element
+	}
+	
+
     };
 
 
@@ -1200,6 +1229,7 @@ namespace stream
         {
             return elements_remaining == 0;
         }
+        
         //! \brief Standard stream method
         runs_merger & operator ++() // preincrement operator
         {
