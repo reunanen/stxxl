@@ -93,10 +93,10 @@ private:
 		input_buffer->current = input_buffer->begin;
 		input_buffer_filled = false;
 		
-		output_buffer->current = input_buffer->end;
+		output_buffer->current = output_buffer->end;
 		output_buffer_consumed = true;
 		
-		last_swap_done = false;
+		last_swap_done = StreamOperation::empty();
 		
 		pthread_mutex_init(&mutex, 0);
 		pthread_cond_init(&cond, 0);
@@ -334,7 +334,7 @@ public:
 	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
 			creator(/*buffer_size,*/ in, c, memory_to_use),
 			merger(buffer_size, creator.result(), c, memory_to_use)	//creator.result() implies complete run formation
-	{ printf("Finished constructing sorter.\n"); }
+	{ }
 
 	//! \brief Creates the object
 	//! \param in input stream
@@ -344,20 +344,18 @@ public:
 	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
 			creator(/*buffer_size, */in, c, memory_to_use_rc),
 			merger(buffer_size, creator.result(), c, memory_to_use_m)	//creator.result() implies complete run formation
-	{ printf("Finished constructing sorter.\n"); }
+	{ }
 
 
 	//! \brief Standard stream method
 	const value_type & operator * () const
 	{
-/*		printf("1\n");*/
 		assert(!empty());
 		return *merger;
 	}
 
 	const value_type * operator -> () const
 	{
-/*		printf("2\n");*/
 		assert(!empty());
 		return merger.operator->();
 	}
@@ -365,7 +363,6 @@ public:
 	//! \brief Standard stream method
 	sort & operator ++()
 	{
-/*		printf("3\n");*/
 		++merger;
 		return *this;
 	}
@@ -373,7 +370,6 @@ public:
 	//! \brief Standard stream method
 	bool empty() const
 	{
-/*		printf("4\n");*/
 		return merger.empty();
 	}
 };
