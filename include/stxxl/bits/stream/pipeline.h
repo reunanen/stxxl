@@ -57,9 +57,9 @@ public:
 	}
 };
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous pull_stage wrapper to allow concurrent pipelining.
 template<class StreamOperation>
-class stage : public StreamOperation
+class pull_stage : public StreamOperation
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
@@ -107,7 +107,7 @@ private:
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
-	stage(unsigned_type buffer_size) :
+	pull_stage(unsigned_type buffer_size) :
 		StreamOperation(),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -117,7 +117,7 @@ public:
 	//! \brief Generic Constructor for one passed argument.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1>
-	stage(unsigned_type buffer_size, T1& t1) :
+	pull_stage(unsigned_type buffer_size, T1& t1) :
 		StreamOperation(t1),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -127,7 +127,7 @@ public:
 	//! \brief Generic Constructor for two passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1, typename T2>
-	stage(unsigned_type buffer_size, T1& t1, T2& t2) :
+	pull_stage(unsigned_type buffer_size, T1& t1, T2& t2) :
 		StreamOperation(t1, t2),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -137,7 +137,7 @@ public:
 	//! \brief Generic Constructor for three passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1, typename T2, typename T3>
-	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3) :
+	pull_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3) :
 		StreamOperation(t1, t2, t3),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -147,7 +147,7 @@ public:
 	//! \brief Generic Constructor for three passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1, typename T2, typename T3, typename T4>
-	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4) :
+	pull_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4) :
 		StreamOperation(t1, t2, t3, t4),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -157,7 +157,7 @@ public:
 	//! \brief Generic Constructor for three passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1, typename T2, typename T3, typename T4, typename T5>
-	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5) :
+	pull_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5) :
 		StreamOperation(t1, t2, t3, t4, t5),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
@@ -167,14 +167,14 @@ public:
 	//! \brief Generic Constructor for three passed arguments.
 	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
 	template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
-	stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5, T6& t6) :
+	pull_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5, T6& t6) :
 		StreamOperation(t1, t2, t3, t4, t5, t6),
 		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
 	{
 		init();
 	}
 	
-	~stage()
+	~pull_stage()
 	{
 		pthread_mutex_destroy(&mutex);
 		pthread_cond_destroy(&cond);
@@ -184,12 +184,17 @@ private:
 	//! \brief Swap input and output buffers.
 	void swap_buffers() const
 	{
+		assert(output_buffer_consumed);
+		assert(input_buffer_filled);
+	
 		std::swap(input_buffer, output_buffer);
 
 		input_buffer->current = input_buffer->begin;
 		output_buffer->current = output_buffer->begin;
+		
 		input_buffer_filled = false;
 		output_buffer_consumed = false;
+		
 		last_swap_done = StreamOperation::empty();
 	}
 	
@@ -233,7 +238,7 @@ public:
 	}
 	
 	//! \brief Standard stream method.
-	stage<StreamOperation>& operator ++ ()
+	pull_stage<StreamOperation>& operator ++ ()
 	{
 		++output_buffer->current;
 		return *this;
@@ -247,7 +252,7 @@ public:
 		return last_swap_done && output_buffer_consumed;
 	}
 	
-	//! \brief Asynchronous method that always tries fill the input stage.
+	//! \brief Asynchronous method that always tries fill the input pull_stage.
 	void pull()
 	{
 		while(!StreamOperation::empty())
@@ -282,19 +287,267 @@ public:
 	void start_pulling();
 };
 
-//! \brief Helper function to call stage::pull() in a Pthread thread.
+//! \brief Helper function to call pull_stage::pull() in a Pthread thread.
 template<class StreamOperation>
 void* call_pull(void* param)
 {
-	static_cast<stage<StreamOperation>*>(param)->pull();
+	static_cast<pull_stage<StreamOperation>*>(param)->pull();
 	return NULL;
 }
 
 //! \brief Start pulling data asynchronously.
 template<class StreamOperation>
-void stage<StreamOperation>::stage::start_pulling()
+void pull_stage<StreamOperation>::pull_stage::start_pulling()
 {
 	pthread_create(&puller, NULL, call_pull<StreamOperation>, this);
+}
+
+
+//! \brief Asynchronous push_stage wrapper to allow concurrent pipelining.
+template<class StreamOperation>
+class push_stage : public StreamOperation
+{
+public:
+	typedef typename StreamOperation::value_type value_type;
+	typedef buffer<value_type> buffer;
+	
+private:
+	//! \brief First double buffering buffer.
+	buffer block1;
+	//! \brief Second double buffering buffer.
+	buffer block2;
+	//! \brief Buffer that is currently input from.
+	mutable buffer* input_buffer;
+	//! \brief Buffer that is currently output to.
+	mutable buffer* output_buffer;
+	//! \brief The input buffer has been filled (completely, or the input stream has run empty).
+	mutable volatile bool input_buffer_filled;
+	//! \brief The output buffer has been consumed.
+	mutable volatile bool output_buffer_consumed;
+	//! \brief The input had finished, the last swap_buffers() has been performed already.
+	mutable volatile bool last_swap_done;
+	//! \brief The input is finished.
+	mutable volatile bool input_finished;
+	//! \brief Mutex variable, to mutual exclude the other thread.
+	mutable pthread_mutex_t mutex;
+	//! \brief Condition variable, to wait for the other thread.
+	mutable pthread_cond_t cond;
+	//! \brief Asynchronously pushing thread.
+	pthread_t pusher;
+
+	//! \brief Initialize object. Common code for all constructor variants.
+	void init()
+	{
+		input_buffer->current = input_buffer->begin;
+		input_buffer_filled = false;
+		
+		output_buffer->current = output_buffer->end;
+		output_buffer_consumed = true;
+		
+		input_finished = false;
+		last_swap_done = input_finished;
+		
+		pthread_mutex_init(&mutex, 0);
+		pthread_cond_init(&cond, 0);
+		
+		start_pushing();
+	}
+
+public:
+	//! \brief Generic Constructor for zero passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	push_stage(unsigned_type buffer_size) :
+		StreamOperation(),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for one passed argument.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1>
+	push_stage(unsigned_type buffer_size, T1& t1) :
+		StreamOperation(t1),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for two passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2>
+	push_stage(unsigned_type buffer_size, T1& t1, T2& t2) :
+		StreamOperation(t1, t2),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3>
+	push_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3) :
+		StreamOperation(t1, t2, t3),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4>
+	push_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4) :
+		StreamOperation(t1, t2, t3, t4),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5>
+	push_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5) :
+		StreamOperation(t1, t2, t3, t4, t5),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
+	push_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5, T6& t6) :
+		StreamOperation(t1, t2, t3, t4, t5, t6),
+		block1(buffer_size), block2(buffer_size), input_buffer(&block1), output_buffer(&block2)
+	{
+		init();
+	}
+	
+	~push_stage()
+	{
+		pthread_mutex_destroy(&mutex);
+		pthread_cond_destroy(&cond);
+	}
+
+private:
+	//! \brief Swap input and output buffers.
+	void swap_buffers() const
+	{
+		assert(output_buffer_consumed);
+		assert(input_buffer_filled);
+	
+		std::swap(input_buffer, output_buffer);
+
+		input_buffer->current = input_buffer->begin;
+		output_buffer->current = output_buffer->begin;
+		
+		input_buffer_filled = false;
+		output_buffer_consumed = false;
+		
+		last_swap_done = input_finished;
+	}
+	
+	void repush() const
+	{
+		if(input_buffer->current >= input_buffer->end || input_finished)
+		{
+			input_buffer->stop = input_buffer->current;
+		
+			pthread_mutex_lock(&mutex);
+			input_buffer_filled = true;
+			
+			if(output_buffer_consumed)
+			{
+				swap_buffers();
+				
+				pthread_mutex_unlock(&mutex);
+				pthread_cond_signal(&cond);	//wake up other thread
+			}
+			else
+			{
+				while(input_buffer_filled)	//to be swapped by other thread
+					pthread_cond_wait(&cond, &mutex);
+				pthread_mutex_unlock(&mutex);
+			}
+		}
+	}	
+
+public:
+	//! \brief Standard stream method.
+	//! \param val value to be pushed
+	void push(const value_type & val)
+	{
+		*input_buffer->current = val;
+		++input_buffer->current;
+		
+		repush();
+	}
+	
+	//! \brief Returns result
+	const typename StreamOperation::result_type& result()
+	{
+		if(!input_finished)
+		{
+			input_finished = true;
+			
+			repush();
+			
+			void* return_code;
+			pthread_join(pusher, &return_code);
+		}
+		
+		return StreamOperation::result();
+	}
+
+	//! \brief Asynchronous method that tries to push into the output buffer.
+	void push()
+	{
+		while(true)
+		{
+			while(output_buffer->current < output_buffer->stop)
+			{
+				StreamOperation::push(*output_buffer->current);
+				++output_buffer->current;
+			}
+			
+			if(last_swap_done)
+				break;
+			
+			pthread_mutex_lock(&mutex);
+			output_buffer_consumed = true;
+			
+			if(input_buffer_filled)
+			{
+				swap_buffers();
+				
+				pthread_mutex_unlock(&mutex);
+				pthread_cond_signal(&cond);	//wake up other thread
+			}
+			else
+			{
+				while(output_buffer_consumed && !last_swap_done)	//to be swapped by other thread
+					pthread_cond_wait(&cond, &mutex);
+				pthread_mutex_unlock(&mutex);
+			}
+		}
+	}
+
+	void start_pushing();
+};
+
+//! \brief Helper function to call push_stage::push() in a Pthread thread.
+template<class StreamOperation>
+void* call_push(void* param)
+{
+	static_cast<push_stage<StreamOperation>*>(param)->push();
+	return NULL;
+}
+
+//! \brief Start pushing data asynchronously.
+template<class StreamOperation>
+void push_stage<StreamOperation>::push_stage::start_pushing()
+{
+	pthread_create(&pusher, NULL, call_push<StreamOperation>, this);
 }
 
 
@@ -316,7 +569,7 @@ class sort
 {
 	typedef runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> runs_creator_type;
 	typedef typename runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::sorted_runs_type sorted_runs_type;
-	typedef stage<runs_merger<sorted_runs_type, Cmp_, AllocStr_> > runs_merger_type;
+	typedef pull_stage<runs_merger<sorted_runs_type, Cmp_, AllocStr_> > runs_merger_type;
 
 	runs_creator_type creator;
 	runs_merger_type merger;

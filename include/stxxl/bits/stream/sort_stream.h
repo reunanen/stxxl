@@ -465,6 +465,7 @@ namespace stream
         typedef typed_block<BlockSize_, value_type> block_type;
         typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
+        typedef sorted_runs_type result_type;
     private:
         typedef typename sorted_runs_type::run_type run_type;
         sorted_runs_type result_; // stores the result (sorted runs)
@@ -628,6 +629,7 @@ namespace stream
 
             std::swap(Blocks1, Blocks2);
 
+            //remaining element
             push(val);
         }
 
