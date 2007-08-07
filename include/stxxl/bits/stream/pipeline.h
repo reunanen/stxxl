@@ -59,7 +59,7 @@ public:
 
 //! \brief Asynchronous pull_stage wrapper to allow concurrent pipelining.
 template<class StreamOperation>
-class pull_stage : public StreamOperation
+class pull_stage : private StreamOperation
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
@@ -305,11 +305,12 @@ void pull_stage<StreamOperation>::pull_stage::start_pulling()
 
 //! \brief Asynchronous push_stage wrapper to allow concurrent pipelining.
 template<class StreamOperation>
-class push_stage : public StreamOperation
+class push_stage : private StreamOperation
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
 	typedef buffer<value_type> buffer;
+	typedef typename StreamOperation::result_type result_type;
 	
 private:
 	//! \brief First double buffering buffer.
@@ -550,80 +551,67 @@ void push_stage<StreamOperation>::push_stage::start_pushing()
 	pthread_create(&pusher, NULL, call_push<StreamOperation>, this);
 }
 
-
-//further redefinitions
-
-//! \brief Produces sorted stream from input stream
-//!
-//! Template parameters:
-//! - \c Input_ type of the input stream
-//! - \c Cmp_ type of omparison object used for sorting the runs
-//! - \c BlockSize_ size of blocks used to store the runs
-//! - \c AllocStr_ functor that defines allocation strategy for the runs
-//! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
-template <  class Input_,
-class Cmp_,
-unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
-class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
-class sort
+//! \brief Asynchronous push_stage wrapper to allow concurrent pipelining.
+template<class StreamOperation>
+class dummy_stage : public StreamOperation
 {
-	typedef runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> runs_creator_type;
-	typedef typename runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::sorted_runs_type sorted_runs_type;
-	typedef pull_stage<runs_merger<sorted_runs_type, Cmp_, AllocStr_> > runs_merger_type;
-
-	runs_creator_type creator;
-	runs_merger_type merger;
-
-	sort(); // forbidden
-	sort(const sort &); // forbidden
 public:
-	//! \brief Standard stream typedef
-	typedef typename Input_::value_type value_type;
-
-	//! \brief Creates the object
-	//! \param in input stream
-	//! \param c comparator object
-	//! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
-			creator(/*buffer_size,*/ in, c, memory_to_use),
-			merger(buffer_size, creator.result(), c, memory_to_use)	//creator.result() implies complete run formation
-	{ }
-
-	//! \brief Creates the object
-	//! \param in input stream
-	//! \param c comparator object
-	//! \param memory_to_use_rc memory amount that is allowed to used by the runs creator in bytes
-	//! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
-	sort(unsigned_type buffer_size, Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
-			creator(/*buffer_size, */in, c, memory_to_use_rc),
-			merger(buffer_size, creator.result(), c, memory_to_use_m)	//creator.result() implies complete run formation
-	{ }
-
-
-	//! \brief Standard stream method
-	const value_type & operator * () const
+	typedef typename StreamOperation::value_type value_type;
+	
+public:
+	//! \brief Generic Constructor for zero passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	dummy_stage(unsigned_type buffer_size) :
+		StreamOperation()
 	{
-		assert(!empty());
-		return *merger;
 	}
-
-	const value_type * operator -> () const
+	
+	//! \brief Generic Constructor for one passed argument.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1>
+	dummy_stage(unsigned_type buffer_size, T1& t1) :
+		StreamOperation(t1)
 	{
-		assert(!empty());
-		return merger.operator->();
 	}
-
-	//! \brief Standard stream method
-	sort & operator ++()
+	
+	//! \brief Generic Constructor for two passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2>
+	dummy_stage(unsigned_type buffer_size, T1& t1, T2& t2) :
+		StreamOperation(t1, t2)
 	{
-		++merger;
-		return *this;
 	}
-
-	//! \brief Standard stream method
-	bool empty() const
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3>
+	dummy_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3) :
+		StreamOperation(t1, t2, t3)
 	{
-		return merger.empty();
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4>
+	dummy_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4) :
+		StreamOperation(t1, t2, t3, t4)
+	{
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5>
+	dummy_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5) :
+		StreamOperation(t1, t2, t3, t4, t5)
+	{
+	}
+	
+	//! \brief Generic Constructor for three passed arguments.
+	//! \param buffer_size Size of each of the two buffers in number of elements. The total consumed memory will be \c 2*buffer_size*sizeof(value_type).
+	template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6>
+	dummy_stage(unsigned_type buffer_size, T1& t1, T2& t2, T3& t3, T4& t4, T5& t5, T6& t6) :
+		StreamOperation(t1, t2, t3, t4, t5, t6)
+	{
 	}
 };
 
