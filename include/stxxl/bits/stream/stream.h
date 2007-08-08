@@ -383,6 +383,25 @@ namespace stream
     }
 
 
+    //! \brief Stores consecutively stream content to an output iterator
+    //! \param in stream to be stored used as source
+    //! \param out output iterator used as destination
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output (range) is large enough to hold the all elements in the input stream
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_block(StreamAlgorithm_ & in, OutputIterator_ out)
+    {
+        unsigned_type block;
+        while (block = in.size() > 0)
+        {
+            out = std::copy(in.begin(), in.end(), out);
+            in += block;
+        }
+        return out;
+    }
+
+
     //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
     //! \param outbegin output iterator used as destination
@@ -404,6 +423,106 @@ namespace stream
         return outbegin;
     }
 
+
+    //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_block(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+        unsigned_type block;
+        while ((block = in.size()) > 0 && outbegin != outend)
+        {
+            unsigned_type length = std::min<unsigned_type>(block, outend - outbegin);
+            outbegin = std::copy(in.begin(), in.begin() + length, outbegin);
+            in += block;
+        }
+        return outbegin;
+     }
+
+
+    //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <class _ExtIterator, class StreamAlgorithm_>
+    _ExtIterator materialize_block_blocked(StreamAlgorithm_ & in, _ExtIterator _begin, _ExtIterator _end, int_type nbuffers)
+    {
+
+    typedef typename _ExtIterator::block_type block_type;
+    typedef buf_ostream < block_type, typename _ExtIterator::bids_container_iterator > buf_ostream_type;
+
+
+    while (_begin.block_offset() != 0)    //  go to the beginning of the block
+    //  of the external vector
+    {
+        if (_begin == _end || in.empty())
+            return _begin;
+
+        *_begin = *in;
+        ++in;
+        ++_begin;
+    }
+
+    _begin.flush();     // flush container
+
+    // create buffered write stream for blocks
+    buf_ostream_type outstream(_begin.bid(), nbuffers);
+
+    assert(_begin.block_offset() == 0);
+
+    unsigned_type block;
+    while ((block = in.size()) > 0 && _end != _begin)
+        {
+        if (_begin.block_offset() == 0)
+            _begin.touch();
+            
+            unsigned_type length = std::min<unsigned_type>(block, std::min<unsigned_type>(_end - _begin, _ExtIterator::block_type::size - _begin.block_offset()));
+            typename StreamAlgorithm_::value_type* p = in.begin();
+            for(unsigned_type i = 0; i < length; i++)
+            {
+              *outstream = *p;
+              ++outstream;
+              ++p;
+            }
+            in += length;
+            _begin += length;
+        }
+        
+//     while (_end != _begin && !in.empty())
+//     {
+//         if (_begin.block_offset() == 0)
+//             _begin.touch();
+// 
+//         *outstream = *in;
+//         ++in;
+//         ++_begin;
+//         ++outstream;
+//     }
+
+    typename _ExtIterator::const_iterator out = _begin;
+
+    while (out.block_offset() > 0)    // filling the rest of the block
+    {
+        *outstream = *out;
+        ++out;
+        ++outstream;
+    }
+    _begin.flush();
+    
+    return _begin;
+}
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
@@ -1001,6 +1120,498 @@ namespace stream
             return i1.empty() || i2.empty() || i3.empty() || i4.empty() || i5.empty();
         }
     };
+
+
+    //! \brief Processes (up to) 6 input streams using given operation functor
+    //!
+    //! Template parameters:
+    //! - \c Operation_ type of the operation (type of an
+    //! adaptable functor that takes 6 parameters)
+    //! - \c Input1_ type of the 1st input
+    //! - \c Input2_ type of the 2nd input
+    //! - \c Input3_ type of the 3rd input
+    //! - \c Input4_ type of the 4th input
+    //! - \c Input5_ type of the 5th input
+    //! - \c Input6_ type of the 6th input
+    template <class Input1_,
+              class Input2_ = Stopper,
+              class Input3_ = Stopper,
+              class Input4_ = Stopper,
+              class Input5_ = Stopper,
+              class Input6_ = Stopper
+    >
+    class round_robin
+    {
+        Input1_ &i1;
+        Input2_ &i2;
+        Input3_ &i3;
+        Input4_ &i4;
+        Input5_ &i5;
+        Input6_ &i6;
+    public:
+        //! \brief Standard stream typedef
+        typedef typename Input1_::value_type value_type;
+
+    private:
+        value_type current;
+        int position;
+        Input1_* i[6];
+    public:
+
+        //! \brief Construction
+        round_robin(Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_,
+                  Input5_ & i5_, Input5_ & i6_) :
+            i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_)
+            {
+              i[0] = &i1;
+              i[1] = &i2;
+              i[2] = &i3;
+              i[3] = &i4;
+              i[4] = &i5;
+              i[5] = &i6;
+              position = 0;
+	      while((*i[position]).empty())
+		position = (position + 1) % 6;
+//              operator++();
+            }
+
+        //! \brief Standard stream method
+        const value_type & operator * () const
+        {
+            return current;
+        }
+
+        const value_type * operator -> () const
+        {
+            return &current;
+        }
+
+        //! \brief Standard stream method
+        round_robin& operator ++()
+        {
+          position = (position + 1) % 6;
+          (*i[position]).empty();
+          current = *(*i[position]);
+          ++(*i[position]);
+
+          return *this;
+
+/*          while(true)
+          {
+            position = (position + 1) % 6;
+            switch(position)
+            {
+              case 0:
+            	if(!i1.empty())
+            	{
+            	  current = *i1;
+            	  ++i1;
+            	  return *this;
+            	}
+            	break;
+              case 1:
+            	if(!i2.empty())
+            	{
+            	  current = *i2;
+            	  ++i2;
+            	  return *this;
+            	}
+            	break;
+              case 2:
+            	if(!i3.empty())
+            	{
+            	  current = *i3;
+            	  ++i3;
+            	  return *this;
+            	}
+            	break;
+              case 3:
+            	if(!i4.empty())
+            	{
+            	  current = *i4;
+            	  ++i4;
+            	  return *this;
+            	}
+            	break;
+              case 4:
+            	if(!i5.empty())
+            	{
+            	  current = *i5;
+            	  ++i5;
+            	  return *this;
+            	}
+            	break;
+              case 5:
+            	if(!i6.empty())
+            	{
+            	  current = *i6;
+            	  ++i6;
+            	  return *this;
+            	}
+            	break;
+            }
+          }
+
+          return *this;*/
+        }
+
+        //! \brief Standard stream method
+        round_robin& operator +=(unsigned_type size)
+        {
+          do
+	    position = (position + 1) % 6;
+          while((*i[position]).empty());
+
+          return *this;
+        }
+
+        unsigned_type size()
+        {
+          return (*i[position]).size();
+        }
+
+        value_type* begin()
+        {
+          return (*i[position]).begin();
+        }
+
+        value_type* end()
+        {
+          return (*i[position]).end();
+        }
+        
+        value_type& operator[](unsigned_type index)
+        {
+          return (*i[position])[index];
+        }
+
+
+        //! \brief Standard stream method
+        bool empty() const
+        {
+            return false;
+            //return i1.empty() && i2.empty() && i3.empty() && i4.empty() && i5.empty() && i6.empty();
+        }
+    };
+
+//     // Specializations
+// 
+//     //! \brief Processes an input stream using given operation functor
+//     //!
+//     //! Template parameters:
+//     //! - \c Operation_ type of the operation (type of an
+//     //! adaptable functor that takes 1 parameter)
+//     //! - \c Input1_ type of the input
+//     //! \remark This is a specialization of \c round_robin .
+//     template <class Operation_, class Input1_ >
+//     class round_robin<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper>
+//     {
+//         Operation_ op;
+//         Input1_ &i1;
+//     public:
+//         //! \brief Standard stream typedef
+//         typedef typename Operation_::value_type value_type;
+// 
+//     private:
+//         value_type current;
+//     public:
+// 
+//         //! \brief Construction
+//         round_robin(Operation_ o, Input1_ & i1_) : op(o), i1(i1_),
+//                                                  current(op(*i1)) { }
+// 
+//         //! \brief Standard stream method
+//         const value_type & operator * () const
+//         {
+//             return current;
+//         }
+// 
+//         const value_type * operator -> () const
+//         {
+//             return &current;
+//         }
+// 
+//         //! \brief Standard stream method
+//         round_robin &  operator ++()
+//         {
+//             ++i1;
+//             if (!empty())
+//                 current = op(*i1);
+// 
+// 
+//             return *this;
+//         }
+// 
+//         //! \brief Standard stream method
+//         bool empty() const
+//         {
+//             return i1.empty();
+//         }
+//     };
+// 
+// 
+//     //! \brief Processes 2 input streams using given operation functor
+//     //!
+//     //! Template parameters:
+//     //! - \c Operation_ type of the operation (type of an
+//     //! adaptable functor that takes 2 parameters)
+//     //! - \c Input1_ type of the 1st input
+//     //! - \c Input2_ type of the 2nd input
+//     //! \remark This is a specialization of \c round_robin .
+//     template <class Operation_, class Input1_,
+//               class Input2_
+//     >
+//     class round_robin<Operation_, Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
+//     {
+//         Operation_ op;
+//         Input1_ &i1;
+//         Input2_ &i2;
+//     public:
+//         //! \brief Standard stream typedef
+//         typedef typename Operation_::value_type value_type;
+// 
+//     private:
+//         value_type current;
+//     public:
+// 
+//         //! \brief Construction
+//         round_robin(Operation_ o, Input1_ & i1_, Input2_ & i2_) : op(o), i1(i1_), i2(i2_),
+//                                                                 current(op(*i1, *i2)) { }
+// 
+//         //! \brief Standard stream method
+//         const value_type & operator * () const
+//         {
+//             return current;
+//         }
+// 
+//         const value_type * operator -> () const
+//         {
+//             return &current;
+//         }
+// 
+//         //! \brief Standard stream method
+//         round_robin &  operator ++()
+//         {
+//             ++i1;
+//             ++i2;
+//             if (!empty())
+//                 current = op(*i1, *i2);
+// 
+// 
+//             return *this;
+//         }
+// 
+//         //! \brief Standard stream method
+//         bool empty() const
+//         {
+//             return i1.empty() && i2.empty();
+//         }
+//     };
+// 
+// 
+//     //! \brief Processes 3 input streams using given operation functor
+//     //!
+//     //! Template parameters:
+//     //! - \c Operation_ type of the operation (type of an
+//     //! adaptable functor that takes 3 parameters)
+//     //! - \c Input1_ type of the 1st input
+//     //! - \c Input2_ type of the 2nd input
+//     //! - \c Input3_ type of the 3rd input
+//     //! \remark This is a specialization of \c round_robin .
+//     template <class Operation_, class Input1_,
+//               class Input2_,
+//               class Input3_
+//     >
+//     class round_robin<Operation_, Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
+//     {
+//         Operation_ op;
+//         Input1_ &i1;
+//         Input2_ &i2;
+//         Input3_ &i3;
+//     public:
+//         //! \brief Standard stream typedef
+//         typedef typename Operation_::value_type value_type;
+// 
+//     private:
+//         value_type current;
+//     public:
+// 
+//         //! \brief Construction
+//         round_robin(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_) :
+//             op(o), i1(i1_), i2(i2_), i3(i3_),
+//             current(op(*i1, *i2, *i3)) { }
+// 
+//         //! \brief Standard stream method
+//         const value_type & operator * () const
+//         {
+//             return current;
+//         }
+// 
+//         const value_type * operator -> () const
+//         {
+//             return &current;
+//         }
+// 
+//         //! \brief Standard stream method
+//         round_robin &  operator ++()
+//         {
+//             ++i1;
+//             ++i2;
+//             ++i3;
+//             if (!empty())
+//                 current = op(*i1, *i2, *i3);
+// 
+// 
+//             return *this;
+//         }
+// 
+//         //! \brief Standard stream method
+//         bool empty() const
+//         {
+//             return i1.empty() && i2.empty() && i3.empty();
+//         }
+//     };
+// 
+// 
+//     //! \brief Processes 4 input streams using given operation functor
+//     //!
+//     //! Template parameters:
+//     //! - \c Operation_ type of the operation (type of an
+//     //! adaptable functor that takes 4 parameters)
+//     //! - \c Input1_ type of the 1st input
+//     //! - \c Input2_ type of the 2nd input
+//     //! - \c Input3_ type of the 3rd input
+//     //! - \c Input4_ type of the 4th input
+//     //! \remark This is a specialization of \c round_robin .
+//     template <class Operation_, class Input1_,
+//               class Input2_,
+//               class Input3_,
+//               class Input4_
+//     >
+//     class round_robin<Operation_, Input1_, Input2_, Input3_, Input4_, Stopper, Stopper>
+//     {
+//         Operation_ op;
+//         Input1_ &i1;
+//         Input2_ &i2;
+//         Input3_ &i3;
+//         Input4_ &i4;
+//     public:
+//         //! \brief Standard stream typedef
+//         typedef typename Operation_::value_type value_type;
+// 
+//     private:
+//         value_type current;
+//     public:
+// 
+//         //! \brief Construction
+//         round_robin(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_) :
+//             op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_),
+//             current(op(*i1, *i2, *i3, *i4)) { }
+// 
+//         //! \brief Standard stream method
+//         const value_type & operator * () const
+//         {
+//             return current;
+//         }
+// 
+//         const value_type * operator -> () const
+//         {
+//             return &current;
+//         }
+// 
+//         //! \brief Standard stream method
+//         round_robin &  operator ++()
+//         {
+//             ++i1;
+//             ++i2;
+//             ++i3;
+//             ++i4;
+//             if (!empty())
+//                 current = op(*i1, *i2, *i3, *i4);
+// 
+// 
+//             return *this;
+//         }
+// 
+//         //! \brief Standard stream method
+//         bool empty() const
+//         {
+//             return i1.empty() && i2.empty() && i3.empty() && i4.empty();
+//         }
+//     };
+// 
+// 
+//     //! \brief Processes 5 input streams using given operation functor
+//     //!
+//     //! Template parameters:
+//     //! - \c Operation_ type of the operation (type of an
+//     //! adaptable functor that takes 5 parameters)
+//     //! - \c Input1_ type of the 1st input
+//     //! - \c Input2_ type of the 2nd input
+//     //! - \c Input3_ type of the 3rd input
+//     //! - \c Input4_ type of the 4th input
+//     //! - \c Input5_ type of the 5th input
+//     //! \remark This is a specialization of \c round_robin .
+//     template <class Operation_, class Input1_,
+//               class Input2_,
+//               class Input3_,
+//               class Input4_,
+//               class Input5_
+//     >
+//     class round_robin<Operation_, Input1_, Input2_, Input3_, Input4_, Input5_, Stopper>
+//     {
+//         Operation_ op;
+//         Input1_ &i1;
+//         Input2_ &i2;
+//         Input3_ &i3;
+//         Input4_ &i4;
+//         Input5_ &i5;
+//     public:
+//         //! \brief Standard stream typedef
+//         typedef typename Operation_::value_type value_type;
+// 
+//     private:
+//         value_type current;
+//     public:
+// 
+//         //! \brief Construction
+//         round_robin(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_,
+//                   Input5_ & i5_) :
+//             op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_),
+//             current(op(*i1, *i2, *i3, *i4, *i5)) { }
+// 
+//         //! \brief Standard stream method
+//         const value_type & operator * () const
+//         {
+//             return current;
+//         }
+// 
+//         const value_type * operator -> () const
+//         {
+//             return &current;
+//         }
+// 
+//         //! \brief Standard stream method
+//         round_robin &  operator ++()
+//         {
+//             ++i1;
+//             ++i2;
+//             ++i3;
+//             ++i4;
+//             ++i5;
+//             if (!empty())
+//                 current = op(*i1, *i2, *i3, *i4, *i5);
+// 
+// 
+//             return *this;
+//         }
+// 
+//         //! \brief Standard stream method
+//         bool empty() const
+//         {
+//             return i1.empty() && i2.empty() && i3.empty() && i4.empty() && i5.empty();
+//         }
+//     };
 
 
     //! \brief Creates stream of 6-tuples from 6 input streams

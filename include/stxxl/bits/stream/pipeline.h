@@ -287,6 +287,41 @@ public:
 		return last_swap_done && output_buffer_consumed;
 	}
 	
+	//! \brief Advanced stream method.
+	pull_stage<StreamOperation>& operator += (unsigned_type size)
+	{
+		outgoing_buffer->current += size;
+		return *this;
+	}
+	
+	//! \brief Advanced stream method.
+	unsigned_type size()
+	{
+		reload();
+		
+		return outgoing_buffer->stop - outgoing_buffer->current;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* begin()
+	{
+		return outgoing_buffer->current;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* end()
+	{
+		return outgoing_buffer->stop;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type& operator[](unsigned_type index)
+	{
+		return *(outgoing_buffer->begin + index);
+	}
+	
+	
+	
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	void pull()
 	{
