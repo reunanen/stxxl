@@ -47,6 +47,7 @@ protected:
     bool not_finished;
 #endif
 public:
+    typedef typename block_type::value_type value_type;
     typedef typename block_type::reference reference;
     typedef buf_istream<block_type, bid_iterator_type> _Self;
 
@@ -141,6 +142,42 @@ public:
         }
         return *this;
     }
+
+    //! \brief Standard stream method
+    buf_istream& operator +=(unsigned_type size)
+    {
+      assert(size <= block_type::size - current_elem);
+      if(size > 0)
+      {
+        current_elem += size - 1;
+        operator++();
+      }
+
+      return *this;
+    }
+
+    unsigned_type size()
+    {
+      return block_type::size - current_elem;
+    }
+
+    value_type* begin()
+    {
+      return current_blk->elem + current_elem;
+    }
+
+    value_type* end()
+    {
+      return current_blk->elem + block_type::size;
+    }
+
+    value_type& operator[](unsigned_type index)
+    {
+      assert(current_elem + index < block_type::size);
+      return current_blk->elem[current_elem + index];
+    }
+
+
 
     //! \brief Frees used internal objects
     virtual ~buf_istream()

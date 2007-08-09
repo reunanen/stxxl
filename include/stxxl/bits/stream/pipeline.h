@@ -263,6 +263,7 @@ public:
 	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
+		assert(!empty());
 		return *outgoing_buffer->current;
 	}
 	
@@ -288,18 +289,19 @@ public:
 	}
 	
 	//! \brief Advanced stream method.
-	pull_stage<StreamOperation>& operator += (unsigned_type size)
-	{
-		outgoing_buffer->current += size;
-		return *this;
-	}
-	
-	//! \brief Advanced stream method.
 	unsigned_type size()
 	{
 		reload();
 		
 		return outgoing_buffer->stop - outgoing_buffer->current;
+	}
+	
+	//! \brief Advanced stream method.
+	pull_stage<StreamOperation>& operator += (unsigned_type size)
+	{
+		outgoing_buffer->current += size;
+		assert(outgoing_buffer->current <= outgoing_buffer->stop);
+		return *this;
 	}
 	
 	//! \brief Advanced stream method.
@@ -317,6 +319,7 @@ public:
 	//! \brief Advanced stream method.
 	value_type& operator[](unsigned_type index)
 	{
+		assert(outgoing_buffer->begin + index < outgoing_buffer->stop);
 		return *(outgoing_buffer->begin + index);
 	}
 	
@@ -653,6 +656,8 @@ class dummy_stage : public StreamOperation
 public:
 	typedef typename StreamOperation::value_type value_type;
 	
+	value_type current;
+	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
@@ -729,6 +734,41 @@ public:
 		StreamOperation(t1, t2, t3, t4, t5, t6)
 	{
 	}
+
+	//! \brief Advanced stream method.
+	unsigned_type size()
+	{
+		current = StreamOperation::operator*();
+		return 1;
+	}
+	
+	//! \brief Advanced stream method.
+	dummy_stage<StreamOperation>& operator += (unsigned_type size)
+	{
+		assert(size == 1);
+		StreamOperation::operator++();
+		return *this;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* begin()
+	{
+		return &current;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* end()
+	{
+		return (&current) + 1;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type& operator[](unsigned_type index)
+	{
+		assert(index == 0);
+		return current;
+	}
+
 };
 
 //! \}
