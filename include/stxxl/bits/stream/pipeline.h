@@ -119,8 +119,6 @@ public:
 		
 		pthread_mutex_init(&mutex, 0);
 		pthread_cond_init(&cond, 0);
-		
-		start_pulling();
 	}
 	
 	//! \brief Destructor.
@@ -229,7 +227,7 @@ public:
 		return *this;
 	}
 	
-	//! \brief Advanced stream method.
+/*	//! \brief Advanced stream method.
 	value_type* begin() const
 	{
 		return outgoing_buffer->current;
@@ -239,13 +237,13 @@ public:
 	value_type* end() const
 	{
 		return outgoing_buffer->stop;
-	}
+	}*/
 	
 	//! \brief Advanced stream method.
 	value_type& operator[](unsigned_type index) const
 	{
-		assert(outgoing_buffer->begin + index < outgoing_buffer->stop);
-		return *(outgoing_buffer->begin + index);
+		assert(outgoing_buffer->current + index < outgoing_buffer->stop);
+		return *(outgoing_buffer->current + index);
 	}
 	
 	virtual void async_pull() = 0;
@@ -276,7 +274,10 @@ template<class StreamOperation>
 class pull_stage : public basic_pull_stage<StreamOperation>
 {
 public:
-	pull_stage(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so) { }
+	pull_stage(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so)
+	{
+		basic_pull_stage<StreamOperation>::start_pulling();
+	}
 
 protected:
 	using basic_pull_stage<StreamOperation>::so;
@@ -331,7 +332,11 @@ template<class StreamOperation>
 class pull_stage_block : public basic_pull_stage<StreamOperation>
 {
 public:
-	pull_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so) { }
+	pull_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so)
+	{
+		basic_pull_stage<StreamOperation>::start_pulling();
+	}
+	
 	typedef typename StreamOperation::value_type value_type;
 
 protected:
@@ -443,8 +448,6 @@ public:
 		
 		pthread_mutex_init(&mutex, 0);
 		pthread_cond_init(&cond, 0);
-		
-		start_pushing();
 	}
 	
 	//! \brief Destructor.
@@ -553,7 +556,10 @@ template<class StreamOperation>
 class push_stage : public basic_push_stage<StreamOperation>
 {
 public:
-	push_stage(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so) { }
+	push_stage(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so)
+	{
+		basic_push_stage<StreamOperation>::start_pushing();
+	}
 
 protected:
 	using basic_push_stage<StreamOperation>::so;
@@ -610,7 +616,10 @@ template<class StreamOperation>
 class push_stage_block : public basic_push_stage<StreamOperation>
 {
 public:
-	push_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so) { }
+	push_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so)
+	{
+		basic_push_stage<StreamOperation>::start_pushing();
+	}
 
 protected:
 	using basic_push_stage<StreamOperation>::so;

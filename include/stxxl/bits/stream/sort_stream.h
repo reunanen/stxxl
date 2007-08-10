@@ -1301,8 +1301,9 @@ namespace stream
 
             if (buffer_pos != block_type::size)
             {
-                current_value = current_block->elem[buffer_pos];
-                ++buffer_pos;
+//              printf("single %lld\n", block_type::size - buffer_pos);
+              current_value = current_block->elem[buffer_pos];
+              ++buffer_pos;
             }
             else
             {
@@ -1340,30 +1341,30 @@ namespace stream
         }
 
         //! \brief Standard stream method
-//         const value_type * operator -> () const
-//         {
-//             assert(!empty());
-//             return &current_value;
-//         }
+        const value_type * operator -> () const
+        {
+            assert(!empty());
+            return &current_value;
+        }
 
-	//! \brief Advanced stream method.
-	unsigned_type size()
-	{
-	  assert((block_type::size - buffer_pos) > 0);
-	  assert(elements_remaining > 0);
+        //! \brief Advanced stream method.
+        unsigned_type size()
+        {
           return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
-	}
-	
-	//! \brief Advanced stream method.
-	runs_merger& operator += (unsigned_type size)
-	{
-		elements_remaining -= size - 1;
-		buffer_pos += size - 1;
-		
-		operator++();
-		
-		return *this;
-	}
+        }
+
+        //! \brief Advanced stream method.
+        runs_merger& operator += (unsigned_type length)
+        {
+          assert(length > 0);
+
+          elements_remaining -= (length - 1);
+          buffer_pos += (length - 1);
+
+          operator++();
+
+          return *this;
+        }
 	
 /*	//! \brief Advanced stream method.
 	value_type* begin()
@@ -1378,8 +1379,9 @@ namespace stream
 	}*/
 	
 	//! \brief Advanced stream method.
-	value_type& operator[](unsigned_type index)
+	const value_type& operator[](unsigned_type index)
 	{
+		assert(index < size());
 		return *(current_block->elem + buffer_pos - 1 + index);
 	}
 
@@ -1648,7 +1650,7 @@ namespace stream
 	}*/
 	
 	//! \brief Advanced stream method.
-	value_type& operator[](unsigned_type index)
+	const value_type& operator[](unsigned_type index)
 	{
 		return merger[index];
 	}

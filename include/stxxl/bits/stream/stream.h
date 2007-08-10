@@ -590,21 +590,23 @@ namespace stream
 
         assert(outbegin.block_offset() == 0);
 
-        unsigned_type block;
-        while ((block = in.size()) > 0 && outend != outbegin)
+        unsigned_type length;
+        while ((length = in.size()) > 0 && outend != outbegin)
         {
           if (outbegin.block_offset() == 0)
             outbegin.touch();
-          unsigned_type length = std::min<unsigned_type>(block, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
-          typename StreamAlgorithm_::value_type* p = in.begin();
+          
+          length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
+          
+          //typename StreamAlgorithm_::value_type* p = in.begin();
           for(unsigned_type i = 0; i < length; i++)
           {
-            *outstream = *p;//in[i];
+            *outstream = in[i];
             ++outstream;
-            ++p;
+            //++p;
           }
-          in += length;
           outbegin += length;
+          in += length;
         }
 
         ConstExtIterator const_out = outbegin;
@@ -1477,10 +1479,10 @@ namespace stream
             return value_type(*i1, *i2);
         }
 
-//         const value_type * operator -> () const
-//         {
-//             return &(operator*());
-//         }
+        const value_type * operator -> () const
+        {
+            return &(operator*());
+        }
 
         //! \brief Standard stream method
         make_tuple &  operator ++()
