@@ -679,7 +679,7 @@ namespace stream
 
         unsigned_type push_size()
         {
-          return block_type::size - (cur_el % block_type::size);
+          return el_in_run - cur_el;
         }
 
         //! \brief Adds new element to the sorter
@@ -687,53 +687,35 @@ namespace stream
         void push(value_type * begin, value_type * end)
         {
             assert(output_requested == false);
+            assert((end - begin) > 0);
 
-            for(value_type * i = begin; i != end; i++)
+            --end;	//save last element
+            unsigned_type block_no = cur_el / block_type::size, pos_in_block = cur_el % block_type::size;
+            while(begin < end)
             {
-              push(*begin);
-/*              Blocks1[cur_el / block_type::size][cur_el % block_type::size] = *begin;*/
-              ++begin;
-              //++cur_el;
+              unsigned_type length = std::min<unsigned_type>(end - begin, block_type::size - pos_in_block);
+              typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
+              for(unsigned_type i = 0; i < length; i++)
+              {
+                *bi = *begin;
+                ++bi;
+                ++begin;
+              }
+              cur_el += length;
+              pos_in_block += length;
+              assert(pos_in_block <= block_type::size);
+              if(pos_in_block == block_type::size)
+              {
+                block_no++;
+                pos_in_block = 0;
+              }
+/*              Blocks1[cur_el / block_type::size][cur_el % block_type::size] = *i;
+              ++cur_el;*/
             }
+            assert(begin == end);
+            push(*end);
+
             return;
-
-/*            if (cur_el <= el_in_run)
-                return;
-
-            assert(el_in_run == cur_el);
-            cur_el = 0;
-
-            //sort and store Blocks1
-            sort_run(Blocks1, el_in_run);
-            result_.elements += el_in_run;
-
-            const unsigned_type cur_run_size = div_and_round_up(el_in_run, block_type::size);    // in blocks
-            run.resize(cur_run_size);
-            block_manager * bm = block_manager::get_instance();
-            bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-            );
-
-            disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
-
-            result_.runs_sizes.push_back(el_in_run);
-
-            for (unsigned_type i = 0; i < cur_run_size; ++i)
-            {
-                run[i].value = Blocks1[i][0];
-                if ( write_reqs[i].get() )
-                    write_reqs[i]->wait();
-
-                write_reqs[i] = Blocks1[i].write(run[i].bid);
-            }
-
-            result_.runs.push_back(run);
-
-            std::swap(Blocks1, Blocks2);
-
-            //remaining element
-            push(val);*/
         }
 
         //! \brief Returns the sorted runs object

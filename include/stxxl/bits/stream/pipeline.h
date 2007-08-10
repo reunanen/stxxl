@@ -642,6 +642,7 @@ protected:
 			while(outgoing_buffer->current < outgoing_buffer->stop)
 			{
 				unsigned_type length = std::min<unsigned_type>(so.push_size(), outgoing_buffer->stop - outgoing_buffer->current);
+				assert(length > 0);
 				so.push(outgoing_buffer->current, outgoing_buffer->current + length);
 				outgoing_buffer->current += length;
 			}
