@@ -146,7 +146,7 @@ public:
     //! \brief Standard stream method
     buf_istream& operator +=(unsigned_type size)
     {
-      assert(size <= block_type::size - current_elem);
+      assert(size <= static_cast<unsigned_type>(block_type::size - current_elem));
       if(size > 0)
       {
         current_elem += size - 1;

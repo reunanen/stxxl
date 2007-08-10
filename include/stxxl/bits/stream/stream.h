@@ -599,7 +599,7 @@ namespace stream
           typename StreamAlgorithm_::value_type* p = in.begin();
           for(unsigned_type i = 0; i < length; i++)
           {
-            *outstream = *p;
+            *outstream = *p;//in[i];
             ++outstream;
             ++p;
           }
@@ -935,32 +935,26 @@ namespace stream
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
-    private:
-        value_type current;
     public:
 
         //! \brief Construction
-        transform(Operation_ o, Input1_ & i1_) : op(o), i1(i1_),
-                                                 current(op(*i1)) { }
+        transform(Operation_ o, Input1_ & i1_) : op(o), i1(i1_) { }
 
         //! \brief Standard stream method
-        const value_type & operator * () const
+        const value_type & operator * ()
         {
-            return current;
+            return op(*i1);
         }
 
-        const value_type * operator -> () const
+        const value_type * operator -> ()
         {
-            return &current;
+            return &(operator*());
         }
 
         //! \brief Standard stream method
         transform &  operator ++()
         {
             ++i1;
-            if (!empty())
-                current = op(*i1);
-
 
             return *this;
         }
@@ -1250,6 +1244,7 @@ namespace stream
 
     private:
         Input_** inputs;
+        Input_* current_input;
         bool* already_empty;
         int num_inputs;
         value_type current;
@@ -1261,14 +1256,15 @@ namespace stream
           do
           {
             pos = (pos + 1) % num_inputs;
-            if(inputs[pos]->empty())
+            current_input = inputs[pos];
+            if(current_input->empty())
             {
               if(!already_empty[pos])
               {
                 already_empty[pos] = true;
                 empty_count++;
                 if(empty_count >= num_inputs)
-                  break;
+                  break;	//empty() == true
               }
             }
             else
@@ -1299,18 +1295,18 @@ namespace stream
         //! \brief Standard stream method
         const value_type & operator * () const
         {
-            return *(*inputs[pos]);
+            return *(*current_input);
         }
 
-        const value_type * operator -> () const
-        {
-            return &(operator*());
-        }
+//         const value_type * operator -> () const
+//         {
+//             return &(operator*());
+//         }
 
         //! \brief Standard stream method
         round_robin& operator ++()
         {
-          ++(*inputs[pos]);
+          ++(*current_input);
           next();
 
           return *this;
@@ -1319,30 +1315,30 @@ namespace stream
         //! \brief Standard stream method
         round_robin& operator +=(unsigned_type size)
         {
-          (*inputs[pos]) += size;
+          (*current_input) += size;
           next();
 
           return *this;
         }
 
-        unsigned_type size()
+        unsigned_type size() const
         {
-          return inputs[pos]->size();
+          return current_input->size();
         }
 
-        value_type* begin()
+        value_type* begin() const
         {
-          return inputs[pos]->begin();
+          return current_input->begin();
         }
 
-        value_type* end()
+/*        value_type* end() const
         {
-          return inputs[pos]->end();
+          return current_input->end();
         }
-
-        value_type& operator[](unsigned_type index)
+*/
+        value_type& operator[](unsigned_type index) const
         {
-          return (*inputs[pos])[index];
+          return (*current_input)[index];
         }
 
         //! \brief Standard stream method
@@ -1464,8 +1460,6 @@ namespace stream
         typename Input2_::value_type
         > value_type;
 
-    private:
-        value_type current;
     public:
 
         //! \brief Construction
@@ -1475,32 +1469,24 @@ namespace stream
         ) :
             i1(i1_), i2(i2_)
         {
-            if (!empty())
-            {
-                current = value_type(*i1, *i2);
-            }
         }
 
         //! \brief Standard stream method
-        const value_type & operator * () const
+        const value_type operator * () const
         {
-            return current;
+            return value_type(*i1, *i2);
         }
 
-        const value_type * operator -> () const
-        {
-            return &current;
-        }
+//         const value_type * operator -> () const
+//         {
+//             return &(operator*());
+//         }
 
         //! \brief Standard stream method
         make_tuple &  operator ++()
         {
             ++i1;
             ++i2;
-
-            if (!empty())
-                current = value_type(*i1, *i2);
-
 
             return *this;
         }
@@ -1510,6 +1496,42 @@ namespace stream
         {
             return i1.empty() || i2.empty();
         }
+
+	//! \brief Advanced stream method.
+	unsigned_type size()
+	{
+	  return std::min(i1.size(), i2.size());
+	}
+	
+	//! \brief Advanced stream method.
+	make_tuple& operator += (unsigned_type size)
+	{
+		i1 += size;
+		i2 += size;
+		
+		return *this;
+	}
+	
+/*	//! \brief Advanced stream method.
+	value_type* begin()
+	{
+		return current_block->elem + buffer_pos - 1;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* end()
+	{
+		return current_block->elem + buffer_pos - 1 + size();
+	}*/
+	
+	//! \brief Advanced stream method.
+	value_type operator[](unsigned_type index) const
+	{
+		return value_type(i1[index], i2[index]);
+	}
+
+
+
     };
 
     //! \brief Creates stream of 3-tuples from 3 input streams

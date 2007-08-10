@@ -632,6 +632,65 @@ namespace stream
             //remaining element
             push(val);
         }
+        
+        unsigned_type push_size()
+        {
+          return block_type::size - (cur_el % block_type::size);
+        }
+
+        //! \brief Adds new element to the sorter
+        //! \param val value to be added
+        void push(value_type * begin, value_type * end)
+        {
+            assert(output_requested == false);
+
+            for(value_type * i = begin; i != end; i++)
+            {
+              push(*begin);
+/*              Blocks1[cur_el / block_type::size][cur_el % block_type::size] = *begin;*/
+              ++begin;
+              //++cur_el;
+            }
+            return;
+
+/*            if (cur_el <= el_in_run)
+                return;
+
+            assert(el_in_run == cur_el);
+            cur_el = 0;
+
+            //sort and store Blocks1
+            sort_run(Blocks1, el_in_run);
+            result_.elements += el_in_run;
+
+            const unsigned_type cur_run_size = div_and_round_up(el_in_run, block_type::size);    // in blocks
+            run.resize(cur_run_size);
+            block_manager * bm = block_manager::get_instance();
+            bm->new_blocks(AllocStr_(),
+                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
+                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
+            );
+
+            disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
+
+            result_.runs_sizes.push_back(el_in_run);
+
+            for (unsigned_type i = 0; i < cur_run_size; ++i)
+            {
+                run[i].value = Blocks1[i][0];
+                if ( write_reqs[i].get() )
+                    write_reqs[i]->wait();
+
+                write_reqs[i] = Blocks1[i].write(run[i].bid);
+            }
+
+            result_.runs.push_back(run);
+
+            std::swap(Blocks1, Blocks2);
+
+            //remaining element
+            push(val);*/
+        }
 
         //! \brief Returns the sorted runs object
         //! \return Sorted runs object.
@@ -1281,11 +1340,49 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        const value_type * operator -> () const
-        {
-            assert(!empty());
-            return &current_value;
-        }
+//         const value_type * operator -> () const
+//         {
+//             assert(!empty());
+//             return &current_value;
+//         }
+
+	//! \brief Advanced stream method.
+	unsigned_type size()
+	{
+	  assert((block_type::size - buffer_pos) > 0);
+	  assert(elements_remaining > 0);
+          return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
+	}
+	
+	//! \brief Advanced stream method.
+	runs_merger& operator += (unsigned_type size)
+	{
+		elements_remaining -= size - 1;
+		buffer_pos += size - 1;
+		
+		operator++();
+		
+		return *this;
+	}
+	
+/*	//! \brief Advanced stream method.
+	value_type* begin()
+	{
+		return current_block->elem + buffer_pos - 1;
+	}
+	
+	//! \brief Advanced stream method.
+	value_type* end()
+	{
+		return current_block->elem + buffer_pos - 1 + size();
+	}*/
+	
+	//! \brief Advanced stream method.
+	value_type& operator[](unsigned_type index)
+	{
+		return *(current_block->elem + buffer_pos - 1 + index);
+	}
+
 
 
         //! \brief Destructor
@@ -1523,6 +1620,39 @@ namespace stream
         {
             return merger.empty();
         }
+        
+	//! \brief Advanced stream method.
+	unsigned_type size()
+	{
+          return merger.size();
+	}
+	
+	//! \brief Advanced stream method.
+	sort& operator += (unsigned_type size)
+	{
+		merger += size;
+		
+		return *this;
+	}
+	
+	//! \brief Advanced stream method.
+/*	value_type* begin()
+	{
+		return merger.begin();
+	}*/
+	
+	//! \brief Advanced stream method.
+/*	value_type* end()
+	{
+		return merger.end();
+	}*/
+	
+	//! \brief Advanced stream method.
+	value_type& operator[](unsigned_type index)
+	{
+		return merger[index];
+	}
+
     };
 
     //! \brief Computes sorted runs type from value type and block size
