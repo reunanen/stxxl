@@ -161,32 +161,6 @@ namespace stream
             }
             return result_;
         }
-        
-	//! \brief Standard stream method.
-	const value_type& operator * ()
-	{
-		result();	//do computation if not yet done
-		return dummy_element;
-	}
-	
-	//! \brief Standard stream method.
-	const value_type* operator -> () const
-	{
-		return &(operator*());
-	}
-	
-	//! \brief Standard stream method.
-	runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>& operator ++ ()
-	{
-		return *this;
-	}
-	
-	//! \brief Standard stream method
-	bool empty()
-	{
-		return result_computed;	//only one fake element
-	}
-	
 
     };
 
@@ -203,23 +177,24 @@ namespace stream
 #ifndef STXXL_SMALL_INPUT_PSORT_OPT
         block_type * Blocks1 = new block_type[m2 * 2];
 #else
-        /*
-           block_type * Blocks1 = new block_type[1];       // allocate only one block first
-                                                                                // if needed reallocate
-           while(!input.empty() && pos != block_type::size)
-           {
-           Blocks1[pos/block_type::size][pos%block_type::size] = *input;
-         ++input;
-         ++pos;
-           }*/
 
+//         while (!input.empty() && pos != block_type::size)
+//         {
+//             result_.small_.push_back(*input);
+//             ++input;
+//             ++pos;
+//         }
 
-        while (!input.empty() && pos != block_type::size)
+        unsigned_type length;
+        while((length = input.size()) > 0) && pos < block_type::size))
         {
-            result_.small_.push_back(*input);
-            ++input;
-            ++pos;
+          length = std::min<unsigned_type>(length, block_type::size - pos);
+          for(unsigned_type i = 0; i < length; i++)
+            result_.small_.push_back(input[i]);
+          input += length;
+          pos += length;
         }
+
 
         block_type * Blocks1;
 
@@ -240,12 +215,34 @@ namespace stream
         }
 #endif
 
-        while (!input.empty() && pos != el_in_run)
+//         while (!input.empty() && pos != el_in_run)
+//         {
+//             Blocks1[pos / block_type::size][pos % block_type::size] = *input;
+//             ++input;
+//             ++pos;
+//         }
+
+        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+        while(((length = input.size()) > 0) && pos < el_in_run)
         {
-            Blocks1[pos / block_type::size][pos % block_type::size] = *input;
-            ++input;
-            ++pos;
+          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
+          typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
+          for(unsigned_type i = 0; i < length; i++)
+          {
+            *bi = input[i];
+            ++bi;
+          }
+          input += length;
+          pos += length;
+          pos_in_block += length;
+          if(pos_in_block == block_type::size)
+          {
+            block_no++;
+            pos_in_block = 0;
+          }
         }
+
+
 
         // sort first run
         sort_run(Blocks1, pos);
@@ -301,12 +298,37 @@ namespace stream
 
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
         pos = 0;
-        while (!input.empty() && pos != el_in_run)
+        
+/*        while (!input.empty() && pos != el_in_run)
         {
             Blocks2[pos / block_type::size][pos % block_type::size] = *input;
             ++input;
             ++pos;
+        }*/
+        
+        {
+        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+        while(((length = input.size()) > 0) && pos < el_in_run)
+        {
+          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
+          typename block_type::iterator bi = Blocks2[block_no].begin() + pos_in_block;
+          for(unsigned_type i = 0; i < length; i++)
+          {
+            *bi = input[i];
+            ++bi;
+          }
+          input += length;
+          pos += length;
+          pos_in_block += length;
+          if(pos_in_block == block_type::size)
+          {
+            block_no++;
+            pos_in_block = 0;
+          }
         }
+        }
+
+        
         result_.elements += pos;
 
         if (input.empty())
@@ -383,12 +405,34 @@ namespace stream
         while (!input.empty())
         {
             pos = 0;
-            while (!input.empty() && pos != el_in_run)
-            {
-                Blocks1[pos / block_type::size][pos % block_type::size] = *input;
-                ++input;
-                ++pos;
-            }
+
+//             while (!input.empty() && pos != el_in_run)
+//             {
+//                 Blocks1[pos / block_type::size][pos % block_type::size] = *input;
+//                 ++input;
+//                 ++pos;
+//             }
+
+        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+        while(((length = input.size()) > 0) && pos < el_in_run)
+        {
+          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
+          typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
+          for(unsigned_type i = 0; i < length; i++)
+          {
+            *bi = input[i];
+            ++bi;
+          }
+          input += length;
+          pos += length;
+          pos_in_block += length;
+          if(pos_in_block == block_type::size)
+          {
+            block_no++;
+            pos_in_block = 0;
+          }
+        }
+
             result_.elements += pos;
             sort_run(Blocks1, pos);
             cur_run_size = div_and_round_up(pos, block_type::size); // in blocks
@@ -632,7 +676,7 @@ namespace stream
             //remaining element
             push(val);
         }
-        
+
         unsigned_type push_size()
         {
           return block_type::size - (cur_el % block_type::size);

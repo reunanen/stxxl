@@ -214,8 +214,10 @@ public:
 	//! \brief Advanced stream method.
 	unsigned_type size() const
 	{
-		reload();
+//		reload();
 		
+		if(empty())
+			return 0;
 		return outgoing_buffer->stop - outgoing_buffer->current;
 	}
 	
