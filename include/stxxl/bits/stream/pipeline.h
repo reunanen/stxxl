@@ -220,9 +220,9 @@ public:
 	}
 	
 	//! \brief Advanced stream method.
-	basic_pull_stage<StreamOperation>& operator += (unsigned_type size)
+	basic_pull_stage<StreamOperation>& operator += (unsigned_type length)
 	{
-		outgoing_buffer->current += size;
+		outgoing_buffer->current += length;
 		assert(outgoing_buffer->current <= outgoing_buffer->stop);
 		return *this;
 	}
@@ -672,19 +672,17 @@ protected:
 
 //! \brief Dummy stage wrapper switch of pipelining by a define.
 template<class StreamOperation>
-class dummy_stage
+class dummy_pull_stage
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
 	
 	StreamOperation& so;
 	
-	value_type current;
-	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
-	dummy_stage(unsigned_type buffer_size, StreamOperation& so) :
+	dummy_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
 	}
@@ -692,7 +690,7 @@ public:
 	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
-		return current;
+		return *so;
 	}
 	
 	//! \brief Standard stream method.
@@ -702,10 +700,9 @@ public:
 	}
 	
 	//! \brief Standard stream method.
-	dummy_stage<StreamOperation>& operator ++ ()
+	dummy_pull_stage<StreamOperation>& operator ++ ()
 	{
 		++so;
-		current = *so;
 		return *this;
 	}
 	
@@ -715,46 +712,69 @@ public:
 		return so.empty();
 	}
 	
-	//! \brief Standard stream method.
-	void push(const value_type& val)
-	{
-		return so.push(val);
-	}
-	
 	//! \brief Advanced stream method.
 	unsigned_type size() const
 	{
-		current = *so;
 		return 1;
 	}
 	
 	//! \brief Advanced stream method.
-	dummy_stage<StreamOperation>& operator += (unsigned_type size)
+	dummy_pull_stage<StreamOperation>& operator += (unsigned_type length)
 	{
-		assert(size == 1);
+		assert(length == 1);
 		++so;
 		return *this;
 	}
 	
 	//! \brief Advanced stream method.
-	value_type* begin() const
-	{
-		return &current;
-	}
-	
-	//! \brief Advanced stream method.
-	value_type* end() const
-	{
-		return (&current) + 1;
-	}
-	
-	//! \brief Advanced stream method.
-	value_type& operator[](unsigned_type index) const
+	const value_type& operator[](unsigned_type index) const
 	{
 		assert(index == 0);
-		return current;
+		return *so;
 	}
+};
 
+//! \brief Dummy stage wrapper switch of pipelining by a define.
+template<class StreamOperation>
+class dummy_push_stage
+{
+public:
+	typedef typename StreamOperation::value_type value_type;
+	typedef typename StreamOperation::result_type result_type;
+	
+	StreamOperation& so;
+	
+public:
+	//! \brief Generic Constructor for zero passed arguments.
+	//! \param buffer_size Total size of the buffers in bytes.
+	dummy_push_stage(unsigned_type buffer_size, StreamOperation& so) :
+		so(so)
+	{
+	}
+	
+	//! \brief Standard stream method.
+	void push(const value_type& val)
+	{
+		so.push(val);
+	}
+	
+	//! \brief Advanced stream method.
+	void push(value_type* begin, value_type* end)
+	{
+		assert((end - begin) == 1);
+		so.push(*begin);
+	}
+	
+	//! \brief Advanced stream method.
+	unsigned_type push_size() const
+	{
+		return 1;
+	}
+	
+	const result_type& result() const
+	{
+		return so.result();
+	}
 };
 
 //! \}

@@ -1338,7 +1338,7 @@ namespace stream
           return current_input->end();
         }
 */
-        value_type& operator[](unsigned_type index) const
+        const value_type& operator[](unsigned_type index) const
         {
           return (*current_input)[index];
         }
