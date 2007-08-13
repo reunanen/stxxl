@@ -73,19 +73,19 @@ class basic_pull_stage
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
-	typedef buffer<value_type> buffer;
+	typedef buffer<value_type> typed_buffer;
 	
 	StreamOperation& so;
 	
 protected:
 	//! \brief First double buffering buffer.
-	buffer block1;
+	typed_buffer block1;
 	//! \brief Second double buffering buffer.
-	buffer block2;
+	typed_buffer block2;
 	//! \brief Buffer that is currently input to.
-	mutable buffer* incoming_buffer;
+	mutable typed_buffer* incoming_buffer;
 	//! \brief Buffer that is currently output from.
-	mutable buffer* outgoing_buffer;
+	mutable typed_buffer* outgoing_buffer;
 	//! \brief The incoming buffer has been filled (completely, or the input stream has run empty).
 	mutable volatile bool input_buffer_filled;
 	//! \brief The outgoing buffer has been consumed.
@@ -403,20 +403,20 @@ class basic_push_stage
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
-	typedef buffer<value_type> buffer;
+	typedef buffer<value_type> typed_buffer;
 	typedef typename StreamOperation::result_type result_type;
 	
 	StreamOperation& so;
 	
 protected:
 	//! \brief First double buffering buffer.
-	buffer block1;
+	typed_buffer block1;
 	//! \brief Second double buffering buffer.
-	buffer block2;
+	typed_buffer block2;
 	//! \brief Buffer that is currently input to.
-	mutable buffer* incoming_buffer;
+	mutable typed_buffer* incoming_buffer;
 	//! \brief Buffer that is currently output from.
-	mutable buffer* outgoing_buffer;
+	mutable typed_buffer* outgoing_buffer;
 	//! \brief The incoming buffer has been filled (completely, or the input stream has run empty).
 	mutable volatile bool input_buffer_filled;
 	//! \brief The outgoing buffer has been consumed.
