@@ -739,6 +739,7 @@ namespace stream
             unsigned_type cur_el_reg = cur_el;
             if (cur_el_reg < el_in_run)
             {
+                //PERFORMANCE: Severe issue, divisions
                 Blocks1[cur_el_reg / block_type::size][cur_el_reg % block_type::size] = val;
                 ++cur_el;
                 return;

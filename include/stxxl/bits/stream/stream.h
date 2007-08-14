@@ -174,7 +174,7 @@ namespace stream
             assert(end_ != current_);
             ++current_;
             ++ (*in);
-            if (empty())
+            if (empty())	//PERFORMANCE issue: better in deconstructor
                 delete_stream();
 
             return *this;
@@ -319,7 +319,7 @@ namespace stream
         //! \brief Standard stream method
         const value_type & operator * () const
         {
-            if (it_stream)
+            if (it_stream)	//PERFORMANCE: Frequent run-time decision
                 return **it_stream;
 
             return **vec_it_stream;
@@ -327,7 +327,7 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            if (it_stream)
+            if (it_stream)	//PERFORMANCE: Frequent run-time decision
                 return &(**it_stream);
 
             return &(**vec_it_stream);
@@ -336,7 +336,7 @@ namespace stream
         //! \brief Standard stream method
         Self_ &  operator ++()
         {
-            if (it_stream)
+            if (it_stream)	//PERFORMANCE: Frequent run-time decision
                 ++ (*it_stream);
 
             else
@@ -349,14 +349,14 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-            if (it_stream)
+            if (it_stream)	//PERFORMANCE: Frequent run-time decision
                 return it_stream->empty();
 
             return vec_it_stream->empty();
         }
         virtual ~vector_iterator2stream_sr()
         {
-            if (it_stream)
+            if (it_stream)	//PERFORMANCE: Frequent run-time decision
                 delete it_stream;
 
             else
@@ -787,12 +787,12 @@ namespace stream
     //! \brief A model of stream that outputs data from an adaptable generator functor
     //! For convenience use \c streamify function instead of direct instantiation
     //! of \c generator2stream .
-    template <class Generator_>
+    template <class Generator_, typename T = typename Generator_::value_type>
     class generator2stream
     {
     public:
         //! \brief Standard stream typedef
-        typedef typename Generator_::value_type value_type;
+        typedef T value_type;
     private:
         Generator_ gen_;
         value_type current_;
@@ -1277,7 +1277,9 @@ namespace stream
         {
           do
           {
-            pos = (pos + 1) % num_inputs;
+            pos = (pos + 1);
+            if(pos == num_inputs)
+              pos = 0;
             current_input = inputs[pos];
             if(current_input->empty())
             {
@@ -1320,10 +1322,10 @@ namespace stream
             return *(*current_input);
         }
 
-//         const value_type * operator -> () const
-//         {
-//             return &(operator*());
-//         }
+        const value_type * operator -> () const
+        {
+            return &(operator*());
+        }
 
         //! \brief Standard stream method
         round_robin& operator ++()

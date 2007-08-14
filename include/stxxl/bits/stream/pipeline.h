@@ -91,7 +91,7 @@ protected:
 	//! \brief The outgoing buffer has been consumed.
 	mutable volatile bool output_buffer_consumed;
 	//! \brief The output is finished.
-	mutable volatile bool output_finished;
+	mutable bool output_finished;
 	//! \brief The input stream has run empty, the last swap_buffers() has been performed already.
 	mutable volatile bool last_swap_done;
 	//! \brief Mutex variable, to mutual exclude the other thread.
@@ -207,17 +207,15 @@ public:
 	bool empty() const
 	{
 		reload();
-	
+
 		return last_swap_done && output_buffer_consumed;
 	}
 	
 	//! \brief Advanced stream method.
 	unsigned_type size() const
 	{
-//		reload();
-		
-		if(empty())
-			return 0;
+		reload();
+
 		return outgoing_buffer->stop - outgoing_buffer->current;
 	}
 	
@@ -242,7 +240,7 @@ public:
 	}*/
 	
 	//! \brief Advanced stream method.
-	value_type& operator[](unsigned_type index) const
+	const value_type& operator[](unsigned_type index) const
 	{
 		assert(outgoing_buffer->current + index < outgoing_buffer->stop);
 		return *(outgoing_buffer->current + index);
@@ -424,7 +422,7 @@ protected:
 	//! \brief The input had finished, the last swap_buffers() has been performed already.
 	mutable volatile bool last_swap_done;
 	//! \brief The input is finished.
-	mutable volatile bool input_finished;
+	mutable bool input_finished;
 	//! \brief Mutex variable, to mutual exclude the other thread.
 	mutable pthread_mutex_t mutex;
 	//! \brief Condition variable, to wait for the other thread.
@@ -681,7 +679,6 @@ public:
 	typedef typename StreamOperation::value_type value_type;
 	
 	StreamOperation& so;
-	mutable value_type current;
 	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
@@ -694,8 +691,7 @@ public:
 	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
-		current = *so;
-		return current;
+		return *so;
 	}
 	
 	//! \brief Standard stream method.
