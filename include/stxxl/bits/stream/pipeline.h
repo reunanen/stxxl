@@ -727,15 +727,14 @@ public:
 	dummy_pull_stage<StreamOperation>& operator += (unsigned_type length)
 	{
 		assert(length == 1);
-		++so;
-		return *this;
+		return operator++();
 	}
 	
 	//! \brief Advanced stream method.
 	const value_type& operator[](unsigned_type index) const
 	{
 		assert(index == 0);
-		return *so;
+		return operator*();
 	}
 };
 
@@ -767,7 +766,7 @@ public:
 	void push(value_type* begin, value_type* end)
 	{
 		assert((end - begin) == 1);
-		so.push(*begin);
+		push(*begin);
 	}
 	
 	//! \brief Advanced stream method.
