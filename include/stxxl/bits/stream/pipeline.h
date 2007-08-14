@@ -331,10 +331,10 @@ protected:
 //!
 //! This wrapper is for regular pipeline stages, for which the stream operations are called.
 template<class StreamOperation>
-class pull_stage_block : public basic_pull_stage<StreamOperation>
+class pull_stage_batch : public basic_pull_stage<StreamOperation>
 {
 public:
-	pull_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so)
+	pull_stage_batch(unsigned_type buffer_size, StreamOperation& so) : basic_pull_stage<StreamOperation>(buffer_size, so)
 	{
 		basic_pull_stage<StreamOperation>::start_pulling();
 	}
@@ -615,10 +615,10 @@ protected:
 //!
 //! This wrapper is for regular pipeline stages, for which the stream operations are called.
 template<class StreamOperation>
-class push_stage_block : public basic_push_stage<StreamOperation>
+class push_stage_batch : public basic_push_stage<StreamOperation>
 {
 public:
-	push_stage_block(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so)
+	push_stage_batch(unsigned_type buffer_size, StreamOperation& so) : basic_push_stage<StreamOperation>(buffer_size, so)
 	{
 		basic_push_stage<StreamOperation>::start_pushing();
 	}

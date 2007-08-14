@@ -418,7 +418,7 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_block(StreamAlgorithm_ & in, OutputIterator_ out)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
         unsigned_type block;
         while (block = in.size() > 0)
@@ -462,7 +462,7 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_block(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
         unsigned_type block;
         while ((block = in.size()) > 0 && outbegin != outend)
@@ -559,7 +559,7 @@ namespace stream
     template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
               unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-    materialize_block(StreamAlgorithm_ & in,
+    materialize_batch(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
                 unsigned_type nbuffers = 0)
@@ -706,7 +706,7 @@ namespace stream
     template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
               unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-    materialize_block(StreamAlgorithm_ & in,
+    materialize_batch(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
                 unsigned_type nbuffers = 0)
     {
@@ -931,7 +931,7 @@ namespace stream
     template <class Operation_, class Input1_ >
     class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper>
     {
-        Operation_ op;
+        Operation_& op;
         Input1_ &i1;
     public:
         //! \brief Standard stream typedef
@@ -940,7 +940,7 @@ namespace stream
     public:
 
         //! \brief Construction
-        transform(Operation_ o, Input1_ & i1_) : op(o), i1(i1_) { }
+        transform(Operation_& o, Input1_ & i1_) : op(o), i1(i1_) { }
 
         //! \brief Standard stream method
         const value_type & operator * ()
@@ -965,6 +965,26 @@ namespace stream
         bool empty() const
         {
             return i1.empty();
+        }
+
+        //! \brief Batched stream method
+        unsigned_type size()
+        {
+            return i1.size();
+        }
+
+        //! \brief Batched stream method
+        const value_type& operator[](unsigned_type index)
+        {
+            return op(i1[index]);
+        }
+        
+        //! \brief Batched stream method
+        transform &  operator +=(unsigned_type length)
+        {
+            i1 += length;
+
+            return *this;
         }
     };
 
@@ -1499,13 +1519,13 @@ namespace stream
             return i1.empty() || i2.empty();
         }
 
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	unsigned_type size()
 	{
 	  return std::min(i1.size(), i2.size());
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	make_tuple& operator += (unsigned_type size)
 	{
 		i1 += size;
@@ -1514,19 +1534,19 @@ namespace stream
 		return *this;
 	}
 	
-/*	//! \brief Advanced stream method.
+/*	//! \brief Batched stream method.
 	value_type* begin()
 	{
-		return current_block->elem + buffer_pos - 1;
+		return current_batch->elem + buffer_pos - 1;
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	value_type* end()
 	{
-		return current_block->elem + buffer_pos - 1 + size();
+		return current_batch->elem + buffer_pos - 1 + size();
 	}*/
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	value_type operator[](unsigned_type index) const
 	{
 		return value_type(i1[index], i2[index]);

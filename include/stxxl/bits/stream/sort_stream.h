@@ -92,8 +92,9 @@ namespace stream
               class Cmp_,
               unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
               class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
-    class runs_creator
+    class basic_runs_creator
     {
+    protected:
         Input_ &input;
         Cmp_ cmp;
     public:
@@ -109,9 +110,9 @@ namespace stream
         unsigned_type m_; // memory for internal use in blocks
         bool result_computed; // true result is already computed (used in 'result' method)
 
-        runs_creator(); // default construction is forbidden
-        runs_creator(const runs_creator & ); // copy construction is forbidden
-        runs_creator & operator = (const runs_creator &); // copying is forbidden
+        basic_runs_creator(); // default construction is forbidden
+        basic_runs_creator(const basic_runs_creator & ); // copy construction is forbidden
+        basic_runs_creator & operator = (const basic_runs_creator &); // copying is forbidden
 
 
         void compute_result();
@@ -133,14 +134,16 @@ namespace stream
             else
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
         }
-        
+    protected:
+        virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit) = 0;
+
         value_type dummy_element;
     public:
         //! \brief Creates the object
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
+        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
         {
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
@@ -166,7 +169,7 @@ namespace stream
 
 
     template <class Input_, class Cmp_, unsigned BlockSize_, class AllocStr_>
-    void runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::compute_result()
+    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::compute_result()
     {
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
@@ -178,21 +181,12 @@ namespace stream
         block_type * Blocks1 = new block_type[m2 * 2];
 #else
 
-//         while (!input.empty() && pos != block_type::size)
-//         {
-//             result_.small_.push_back(*input);
-//             ++input;
-//             ++pos;
-//         }
-
-        unsigned_type length;
-        while((length = input.size()) > 0) && pos < block_type::size))
+        //prologue unbatched
+        while (!input.empty() && pos != block_type::size)
         {
-          length = std::min<unsigned_type>(length, block_type::size - pos);
-          for(unsigned_type i = 0; i < length; i++)
-            result_.small_.push_back(input[i]);
-          input += length;
-          pos += length;
+             result_.small_.push_back(*input);
+             ++input;
+             ++pos;
         }
 
 
@@ -215,6 +209,8 @@ namespace stream
         }
 #endif
 
+        fetch(Blocks1, pos, el_in_run);
+
 //         while (!input.empty() && pos != el_in_run)
 //         {
 //             Blocks1[pos / block_type::size][pos % block_type::size] = *input;
@@ -222,7 +218,7 @@ namespace stream
 //             ++pos;
 //         }
 
-        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+/*        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
         while(((length = input.size()) > 0) && pos < el_in_run)
         {
           length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
@@ -241,7 +237,7 @@ namespace stream
             pos_in_block = 0;
           }
         }
-
+*/
 
 
         // sort first run
@@ -298,7 +294,9 @@ namespace stream
 
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
         pos = 0;
-        
+
+        fetch(Blocks2, pos, el_in_run);
+
 /*        while (!input.empty() && pos != el_in_run)
         {
             Blocks2[pos / block_type::size][pos % block_type::size] = *input;
@@ -306,7 +304,7 @@ namespace stream
             ++pos;
         }*/
         
-        {
+/*        {
         unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
         while(((length = input.size()) > 0) && pos < el_in_run)
         {
@@ -326,7 +324,7 @@ namespace stream
             pos_in_block = 0;
           }
         }
-        }
+        }*/
 
         
         result_.elements += pos;
@@ -405,6 +403,8 @@ namespace stream
         while (!input.empty())
         {
             pos = 0;
+            
+            fetch(Blocks1, pos, el_in_run);
 
 //             while (!input.empty() && pos != el_in_run)
 //             {
@@ -413,7 +413,7 @@ namespace stream
 //                 ++pos;
 //             }
 
-        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+/*        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
         while(((length = input.size()) > 0) && pos < el_in_run)
         {
           length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
@@ -431,7 +431,7 @@ namespace stream
             block_no++;
             pos_in_block = 0;
           }
-        }
+        }*/
 
             result_.elements += pos;
             sort_run(Blocks1, pos);
@@ -464,6 +464,109 @@ namespace stream
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
     }
+    
+    //! \brief Forms sorted runs of data from a stream
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input stream
+    //! - \c Cmp_ type of omparison object used for sorting the runs
+    //! - \c BlockSize_ size of blocks used to store the runs
+    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    template <
+              class Input_,
+              class Cmp_,
+              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+    class runs_creator : public basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>
+    {
+    private:
+      typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+      typedef typename base::block_type block_type;
+
+      using base::input;
+
+      virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit)
+      {
+        while (!input.empty() && pos != limit)
+        {
+            Blocks[pos / block_type::size][pos % block_type::size] = *input;
+            ++input;
+            ++pos;
+        }
+      }
+
+      runs_creator(); // default construction is forbidden
+      runs_creator(const runs_creator & ); // copy construction is forbidden
+      runs_creator & operator = (const runs_creator &); // copying is forbidden
+
+    public:
+        //! \brief Creates the object
+        //! \param i input stream
+        //! \param c comparator object
+        //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
+        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
+        {
+        }
+
+    };
+        
+    //! \brief Forms sorted runs of data from a stream
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input stream
+    //! - \c Cmp_ type of omparison object used for sorting the runs
+    //! - \c BlockSize_ size of blocks used to store the runs
+    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    template <
+              class Input_,
+              class Cmp_,
+              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+    class runs_creator_batch : public basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>
+    {
+    private:
+      typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+      typedef typename base::block_type block_type;
+      
+      using base::input;
+      
+      virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit)
+      {
+        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+        while(((length = input.size()) > 0) && pos != limit)
+        {
+          length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
+          typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
+          for(unsigned_type i = 0; i < length; i++)
+          {
+            *bi = input[i];
+            ++bi;
+          }
+          input += length;
+          pos += length;
+          pos_in_block += length;
+          if(pos_in_block == block_type::size)
+          {
+            block_no++;
+            pos_in_block = 0;
+          }
+        }
+      }
+
+      runs_creator_batch(); // default construction is forbidden
+      runs_creator_batch(const runs_creator_batch & ); // copy construction is forbidden
+      runs_creator_batch & operator = (const runs_creator_batch &); // copying is forbidden
+
+    public:
+        //! \brief Creates the object
+        //! \param i input stream
+        //! \param c comparator object
+        //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
+        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
+        {
+        }
+
+    };
 
 
     //! \brief Input strategy for \c runs_creator class
@@ -674,12 +777,12 @@ namespace stream
             std::swap(Blocks1, Blocks2);
 
             //remaining element
-            push(val);
+            push(val);	//recursive call
         }
 
         unsigned_type push_size()
         {
-          return el_in_run - cur_el;
+          return el_in_run - cur_el + 1;
         }
 
         //! \brief Adds new element to the sorter
@@ -709,8 +812,6 @@ namespace stream
                 block_no++;
                 pos_in_block = 0;
               }
-/*              Blocks1[cur_el / block_type::size][cur_el % block_type::size] = *i;
-              ++cur_el;*/
             }
             assert(begin == end);
             push(*end);
@@ -1585,10 +1686,10 @@ namespace stream
     template <  class Input_,
               class Cmp_,
               unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY,
+              class runs_creator_type = runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> >
     class sort
     {
-        typedef runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> runs_creator_type;
         typedef typename runs_creator_type::sorted_runs_type sorted_runs_type;
         typedef runs_merger<sorted_runs_type, Cmp_, AllocStr_> runs_merger_type;
 
