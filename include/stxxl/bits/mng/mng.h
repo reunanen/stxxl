@@ -447,6 +447,12 @@ public:
 
 class DiskAllocator
 {
+#ifdef STXXL_BOOST_THREADS
+    boost::mutex mutex;
+#else
+    stxxl::mutex mutex;
+#endif
+
     typedef std::pair < stxxl::int64, stxxl::int64 > place;
     struct FirstFit : public std::binary_function < place, stxxl::int64, bool >
     {
@@ -467,6 +473,7 @@ class DiskAllocator
 
     DiskAllocator ()
     { };
+
 protected:
 
     typedef std::map < stxxl::int64, stxxl::int64 > sortseq;
@@ -547,6 +554,12 @@ template < unsigned BLK_SIZE >
 stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
                                         BID<BLK_SIZE> * end)
 {
+#ifdef STXXL_BOOST_THREADS
+    boost::mutex::scoped_lock lock(mutex);
+#else
+    mutex.lock();
+#endif
+
     STXXL_VERBOSE2("DiskAllocator::new_blocks<BLK_SIZE>,  BLK_SIZE = " << BLK_SIZE
                                                                        << ", free:" << free_bytes << " total:" << disk_bytes <<
                    " begin: " << ((void *)(begin)) << " end: " << ((void *)(end)));
@@ -574,7 +587,11 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
         }
         disk_bytes += requested_size;
 
-        return disk_bytes;
+#ifndef STXXL_BOOST_THREADS
+        mutex.unlock();
+#endif
+
+         return disk_bytes;
     }
 
     // dump();
@@ -598,6 +615,11 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
         }
         free_bytes -= requested_size;
         //dump();
+
+#ifndef STXXL_BOOST_THREADS
+        mutex.unlock();
+#endif
+
         return disk_bytes;
     }
 
@@ -608,7 +630,7 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
     {
         assert(end - begin == 1);
 
-        STXXL_ERRMSG("Warning: Severe external memory space defragmentation!");
+        STXXL_ERRMSG("Warning: Severe external memory space fragmentation!");
         dump();
 
         STXXL_ERRMSG( "External memory block allocation error: " << requested_size <<
@@ -617,6 +639,10 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
 
         begin->offset = disk_bytes; // allocate at the end
         disk_bytes += BLK_SIZE;
+
+#ifndef STXXL_BOOST_THREADS
+        mutex.unlock();
+#endif
 
         return disk_bytes;
     }
@@ -628,6 +654,10 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
     new_blocks(begin, middle);
     new_blocks(middle, end);
 
+#ifndef STXXL_BOOST_THREADS
+    mutex.unlock();
+#endif
+
     return disk_bytes;
 }
 
@@ -636,6 +666,12 @@ stxxl::int64 DiskAllocator::new_blocks (BID < BLK_SIZE > * begin,
 template < unsigned BLK_SIZE >
 void DiskAllocator::delete_block (const BID < BLK_SIZE > &bid)
 {
+#ifdef STXXL_BOOST_THREADS
+    boost::mutex::scoped_lock lock(mutex);
+#else
+    mutex.lock();
+#endif
+    
     STXXL_VERBOSE2("DiskAllocator::delete_block<BLK_SIZE>,  BLK_SIZE = " << BLK_SIZE
                                                                          << ", free:" << free_bytes << " total:" << disk_bytes);
     STXXL_VERBOSE2("Deallocating a block with size: " << bid.size);
@@ -733,6 +769,10 @@ void DiskAllocator::delete_block (const BID < BLK_SIZE > &bid)
     free_bytes += stxxl::int64 (bid.size);
 
     //dump();
+    
+#ifndef STXXL_BOOST_THREADS
+    mutex.unlock();
+#endif
 }
 /*
     template < unsigned BLK_SIZE >

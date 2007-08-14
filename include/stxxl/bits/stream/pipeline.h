@@ -681,6 +681,7 @@ public:
 	typedef typename StreamOperation::value_type value_type;
 	
 	StreamOperation& so;
+	mutable value_type current;
 	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
@@ -693,7 +694,8 @@ public:
 	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
-		return *so;
+		current = *so;
+		return current;
 	}
 	
 	//! \brief Standard stream method.
