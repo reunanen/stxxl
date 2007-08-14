@@ -40,6 +40,69 @@ namespace stream
 {
     //! \addtogroup streampack Stream package
     //! \{
+    
+    template <unsigned_type modulo>
+    class blocked_index
+    {
+      unsigned_type pos;
+      unsigned_type block;
+      unsigned_type offset;
+    
+      void set(unsigned_type pos)
+      {
+        this->pos = pos;
+        block = pos / modulo;
+        offset = pos % modulo;
+      }
+    
+    public:
+      blocked_index()
+      {
+        set(0);
+      }
+      
+      blocked_index(unsigned_type pos)
+      {
+        set(pos);
+      }
+      
+      void operator=(unsigned_type pos)
+      {
+        set(pos);
+      }
+      
+      blocked_index& operator++()
+      {
+        ++pos;
+        if(offset == modulo)
+        {
+          offset = 0;
+          block++;
+        }
+        return *this;
+      }
+
+      blocked_index& operator+=(unsigned_type addend)
+      {
+        set(pos + addend);
+        return *this;
+      }
+
+      operator const unsigned_type() const
+      {
+        return pos;
+      }
+
+      const unsigned_type& get_block() const
+      {
+        return block;
+      }
+
+      const unsigned_type& get_offset() const
+      {
+        return offset;
+      }
+    };
 
     template <class ValueType, class TriggerEntryType>
     struct sorted_runs
@@ -135,7 +198,7 @@ namespace stream
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
         }
     protected:
-        virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit) = 0;
+        virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit) = 0;
 
         value_type dummy_element;
     public:
@@ -175,7 +238,7 @@ namespace stream
         unsigned_type m2 = m_ / 2;
         const unsigned_type el_in_run = m2 * block_type::size; // # el in a run
         STXXL_VERBOSE1("runs_creator::compute_result m2=" << m2);
-        unsigned_type pos = 0;
+        blocked_index<block_type::size> pos = 0;
 
 #ifndef STXXL_SMALL_INPUT_PSORT_OPT
         block_type * Blocks1 = new block_type[m2 * 2];
@@ -211,35 +274,6 @@ namespace stream
 
         fetch(Blocks1, pos, el_in_run);
 
-//         while (!input.empty() && pos != el_in_run)
-//         {
-//             Blocks1[pos / block_type::size][pos % block_type::size] = *input;
-//             ++input;
-//             ++pos;
-//         }
-
-/*        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
-        while(((length = input.size()) > 0) && pos < el_in_run)
-        {
-          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
-          typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
-          for(unsigned_type i = 0; i < length; i++)
-          {
-            *bi = input[i];
-            ++bi;
-          }
-          input += length;
-          pos += length;
-          pos_in_block += length;
-          if(pos_in_block == block_type::size)
-          {
-            block_no++;
-            pos_in_block = 0;
-          }
-        }
-*/
-
-
         // sort first run
         sort_run(Blocks1, pos);
         result_.elements = pos;
@@ -272,7 +306,7 @@ namespace stream
 
         // fill the rest of the last block with max values
         for ( ; pos != el_in_run; ++pos)
-            Blocks1[pos / block_type::size][pos % block_type::size] = cmp.max_value();
+            Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
 
 
         for (i = 0; i < cur_run_size; ++i)
@@ -297,36 +331,6 @@ namespace stream
 
         fetch(Blocks2, pos, el_in_run);
 
-/*        while (!input.empty() && pos != el_in_run)
-        {
-            Blocks2[pos / block_type::size][pos % block_type::size] = *input;
-            ++input;
-            ++pos;
-        }*/
-        
-/*        {
-        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
-        while(((length = input.size()) > 0) && pos < el_in_run)
-        {
-          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
-          typename block_type::iterator bi = Blocks2[block_no].begin() + pos_in_block;
-          for(unsigned_type i = 0; i < length; i++)
-          {
-            *bi = input[i];
-            ++bi;
-          }
-          input += length;
-          pos += length;
-          pos_in_block += length;
-          if(pos_in_block == block_type::size)
-          {
-            block_no++;
-            pos_in_block = 0;
-          }
-        }
-        }*/
-
-        
         result_.elements += pos;
 
         if (input.empty())
@@ -348,8 +352,7 @@ namespace stream
             result_.runs_sizes[0] = pos;
             // fill the rest of the last block with max values
             for ( ; pos != 2 * el_in_run; ++pos)
-                Blocks1[pos / block_type::size][pos % block_type::size] = cmp.max_value();
-
+                Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
 
             assert(cur_run_size > m2);
 
@@ -403,35 +406,8 @@ namespace stream
         while (!input.empty())
         {
             pos = 0;
-            
+
             fetch(Blocks1, pos, el_in_run);
-
-//             while (!input.empty() && pos != el_in_run)
-//             {
-//                 Blocks1[pos / block_type::size][pos % block_type::size] = *input;
-//                 ++input;
-//                 ++pos;
-//             }
-
-/*        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
-        while(((length = input.size()) > 0) && pos < el_in_run)
-        {
-          length = std::min<unsigned_type>(length, std::min(el_in_run - pos, block_type::size - pos_in_block));
-          typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
-          for(unsigned_type i = 0; i < length; i++)
-          {
-            *bi = input[i];
-            ++bi;
-          }
-          input += length;
-          pos += length;
-          pos_in_block += length;
-          if(pos_in_block == block_type::size)
-          {
-            block_no++;
-            pos_in_block = 0;
-          }
-        }*/
 
             result_.elements += pos;
             sort_run(Blocks1, pos);
@@ -446,7 +422,7 @@ namespace stream
 
             // fill the rest of the last block with max values (occurs only on the last run)
             for ( ; pos != el_in_run; ++pos)
-                Blocks1[pos / block_type::size][pos % block_type::size] = cmp.max_value();
+                Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
 
 
             for (i = 0; i < cur_run_size; ++i)
@@ -485,11 +461,11 @@ namespace stream
 
       using base::input;
 
-      virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit)
+      virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
       {
         while (!input.empty() && pos != limit)
         {
-            Blocks[pos / block_type::size][pos % block_type::size] = *input;
+            Blocks[pos.get_block()][pos.get_offset()] = *input;
             ++input;
             ++pos;
         }
@@ -530,9 +506,9 @@ namespace stream
       
       using base::input;
       
-      virtual void fetch(block_type * Blocks, unsigned_type& pos, unsigned_type limit)
+      virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
       {
-        unsigned_type length, pos_in_block = pos % block_type::size, block_no = pos / block_type::size;
+        unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
         while(((length = input.size()) > 0) && pos != limit)
         {
           length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
@@ -622,7 +598,7 @@ namespace stream
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
-        unsigned_type cur_el;
+        blocked_index<block_type::size> cur_el;
         block_type * Blocks1;
         block_type * Blocks2;
         request_ptr * write_reqs;
@@ -657,8 +633,7 @@ namespace stream
             if (cur_el == 0)
                 return;
 
-
-            unsigned_type cur_el_reg = cur_el;
+            blocked_index<block_type::size> cur_el_reg = cur_el;
             sort_run(Blocks1, cur_el_reg);
             result_.elements += cur_el_reg;
             if (cur_el_reg < unsigned_type(block_type::size) &&
@@ -684,7 +659,7 @@ namespace stream
 
             // fill the rest of the last block with max values
             for ( ; cur_el_reg != el_in_run; ++cur_el_reg)
-                Blocks1[cur_el_reg / block_type::size][cur_el_reg % block_type::size] = cmp.max_value();
+                Blocks1[cur_el_reg.get_block()][cur_el_reg.get_offset()] = cmp.max_value();
 
 
             unsigned_type i = 0;
@@ -736,11 +711,9 @@ namespace stream
         void push(const value_type & val)
         {
             assert(output_requested == false);
-            unsigned_type cur_el_reg = cur_el;
-            if (cur_el_reg < el_in_run)
+            if (cur_el < el_in_run)
             {
-                //PERFORMANCE: Severe issue, divisions
-                Blocks1[cur_el_reg / block_type::size][cur_el_reg % block_type::size] = val;
+                Blocks1[cur_el.get_block()][cur_el.get_offset()] = val;
                 ++cur_el;
                 return;
             }
@@ -794,7 +767,7 @@ namespace stream
             assert((end - begin) > 0);
 
             --end;	//save last element
-            unsigned_type block_no = cur_el / block_type::size, pos_in_block = cur_el % block_type::size;
+            unsigned_type block_no = cur_el.get_block(), pos_in_block = cur_el.get_offset();
             while(begin < end)
             {
               unsigned_type length = std::min<unsigned_type>(end - begin, block_type::size - pos_in_block);
@@ -1626,14 +1599,14 @@ namespace stream
                             new_runs.runs[cur_out_run].begin(),
                             nwrite_buffers );
 
-                        size_type cnt = 0;
-                        const size_type cnt_max = cur_runs.elements;
+                        blocked_index<block_type::size> cnt = 0;
+                        const unsigned_type cnt_max = cur_runs.elements;
 
                         while (cnt != cnt_max)
                         {
                             *out = *merger;
-                            if ( (cnt % block_type::size) == 0)  // have to write the trigger value
-                                new_runs.runs[cur_out_run][cnt / size_type(block_type::size)].value = *merger;
+                            if ( (cnt.get_offset()) == 0)  // have to write the trigger value
+                                new_runs.runs[cur_out_run][cnt.get_block()].value = *merger;
 
 
                             ++cnt;
@@ -1642,7 +1615,7 @@ namespace stream
                         }
                         assert(merger.empty());
 
-                        while (cnt % block_type::size)
+                        while (cnt.get_offset())
                         {
                             *out = cmp.max_value();
                             ++out;
