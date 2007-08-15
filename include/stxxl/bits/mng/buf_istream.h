@@ -143,7 +143,7 @@ public:
         return *this;
     }
 
-    //! \brief Standard stream method
+    //! \brief Batched stream method
     buf_istream& operator +=(unsigned_type size)
     {
       assert(size <= static_cast<unsigned_type>(block_type::size - current_elem));
@@ -156,21 +156,19 @@ public:
       return *this;
     }
 
-    unsigned_type size()
+    //! \brief Batched stream method
+    unsigned_type batch_length()
     {
       return block_type::size - current_elem;
     }
 
-    value_type* begin()
+    //! \brief Batched stream method
+    value_type* batch_begin()
     {
       return current_blk->elem + current_elem;
     }
 
-    value_type* end()
-    {
-      return current_blk->elem + block_type::size;
-    }
-
+    //! \brief Batched stream method
     value_type& operator[](unsigned_type index)
     {
       assert(current_elem + index < block_type::size);

@@ -194,14 +194,14 @@ namespace stream
           return *this;
         }
 
-        unsigned_type size()
+        unsigned_type batch_length()
         {
-          return in->size();
+          return in->batch_length();
         }
 
-        iterator begin()
+        iterator batch_begin()
         {
-          return in->begin();
+          return in->batch_begin();
         }
 
         value_type& operator[](unsigned_type index)
@@ -417,9 +417,9 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
         unsigned_type length;
-        while (length = in.size() > 0)
+        while (length = in.batch_length() > 0)
         {
-            out = std::copy(in.begin(), in.begin() + length, out);
+            out = std::copy(in.batch_begin(), in.batch_begin() + length, out);
             in += length;
         }
         return out;
@@ -461,10 +461,10 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
         unsigned_type length;
-        while ((length = in.size()) > 0 && outbegin != outend)
+        while ((length = in.batch_length()) > 0 && outbegin != outend)
         {
             length = std::min<unsigned_type>(length, outend - outbegin);
-            outbegin = std::copy(in.begin(), in.begin() + length, outbegin);
+            outbegin = std::copy(in.batch_begin(), in.batch_begin() + length, outbegin);
             in += length;
         }
         return outbegin;
@@ -587,14 +587,14 @@ namespace stream
         assert(outbegin.block_offset() == 0);
 
         unsigned_type length;
-        while ((length = in.size()) > 0 && outend != outbegin)
+        while ((length = in.batch_length()) > 0 && outend != outbegin)
         {
           if (outbegin.block_offset() == 0)
             outbegin.touch();
 
           length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
 
-          for(typename StreamAlgorithm_::iterator i = in.begin(), end = in.begin() + length; i != end; ++i)
+          for(typename StreamAlgorithm_::iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
           {
             *outstream = *i;
             ++outstream;
@@ -736,13 +736,13 @@ namespace stream
         assert( out.block_offset() == 0 );
 
         unsigned_type length;
-        while ((length = in.size()) > 0)
+        while ((length = in.batch_length()) > 0)
         {
           if (out.block_offset() == 0)
             out.touch();
           length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
           ;
-          for(typename StreamAlgorithm_::value_type* i = in.begin(), end = in.begin() + length; i != end; ++i)
+          for(typename StreamAlgorithm_::iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
           {
             *outstream = *i;
             ++outstream;
@@ -774,6 +774,42 @@ namespace stream
 
         return out;
     }
+
+    //! \brief Pulls from a stream, discards output
+    //! \param in stream to be stored used as source
+    //! \param num_elements number of elements to pull
+    template <class StreamAlgorithm_>
+    unsigned_type pull(StreamAlgorithm_ & in, unsigned_type num_elements)
+    {
+        unsigned_type i;
+        for(i = 0; i < num_elements && !in.empty(); i++)
+        {
+            *in;
+            ++in;
+        }
+        return i;
+    }
+
+
+    //! \brief Pulls from a stream, discards output
+    //! \param in stream to be stored used as source
+    //! \param num_elements number of elements to pull
+    template <class StreamAlgorithm_>
+    unsigned_type pull_batch(StreamAlgorithm_ & in, unsigned_type num_elements)
+    {
+        unsigned_type i, length;
+        typename StreamAlgorithm_::value_type dummy;
+        for(i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
+        {
+            length = std::min(length, num_elements - i);
+            for(typename StreamAlgorithm_::iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
+                dummy = *j;
+            in += length;
+            i += length;
+        }
+        return i;
+    }
+
 
 
 
@@ -997,15 +1033,15 @@ namespace stream
         }
 
         //! \brief Batched stream method
-        unsigned_type size()
+        unsigned_type batch_length()
         {
-            return i1.size();
+            return i1.batch_length();
         }
 
         //! \brief Batched stream method
-        iterator begin() const
+        iterator batch_begin() const
         {
-            return iterator(op, i1.begin());
+            return iterator(op, i1.batch_begin());
         }
 
         //! \brief Batched stream method
@@ -1381,14 +1417,14 @@ namespace stream
           return *this;
         }
 
-        unsigned_type size() const
+        unsigned_type batch_length() const
         {
-          return current_input->size();
+          return current_input->batch_length();
         }
 
-        iterator begin() const
+        iterator batch_begin() const
         {
-          return current_input->begin();
+          return current_input->batch_begin();
         }
 
         const value_type& operator[](unsigned_type index) const
@@ -1592,9 +1628,9 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        unsigned_type size()
+        unsigned_type batch_length()
         {
-          return std::min(i1.size(), i2.size());
+          return std::min(i1.batch_length(), i2.batch_length());
         }
 
         //! \brief Batched stream method.
@@ -1607,9 +1643,9 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        iterator begin()
+        iterator batch_begin()
         {
-                return iterator(i1.begin(), i2.begin());
+                return iterator(i1.batch_begin(), i2.batch_begin());
         }
 
         //! \brief Batched stream method.

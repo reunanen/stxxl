@@ -510,11 +510,11 @@ namespace stream
       virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
       {
         unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
-        while(((length = input.size()) > 0) && pos != limit)
+        while(((length = input.batch_length()) > 0) && pos != limit)
         {
           length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
           typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
-          for(typename Input_::iterator i = input.begin(), end = input.begin() + length; i != end; ++i)
+          for(typename Input_::iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
           {
             *bi = *i;
             ++bi;
@@ -762,22 +762,22 @@ namespace stream
 
         //! \brief Adds new element to the sorter
         //! \param val value to be added
-        void push(value_type * begin, value_type * end)
+        template<class Iterator>
+        void push(Iterator batch_begin, Iterator batch_end)
         {
             assert(output_requested == false);
-            assert((end - begin) > 0);
+            assert((batch_end - batch_begin) > 0);
 
-            --end;	//save last element
+            --batch_end;	//save last element
             unsigned_type block_no = cur_el.get_block(), pos_in_block = cur_el.get_offset();
-            while(begin < end)
+            while(batch_begin < batch_end)
             {
-              unsigned_type length = std::min<unsigned_type>(end - begin, block_type::size - pos_in_block);
+              unsigned_type length = std::min<unsigned_type>(batch_end - batch_begin, block_type::size - pos_in_block);
               typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
-              for(unsigned_type i = 0; i < length; i++)
+              for(Iterator end = batch_begin + length; batch_begin != end; ++batch_begin)
               {
-                *bi = *begin;
+                *bi = *batch_begin;
                 ++bi;
-                ++begin;
               }
               cur_el += length;
               pos_in_block += length;
@@ -788,8 +788,8 @@ namespace stream
                 pos_in_block = 0;
               }
             }
-            assert(begin == end);
-            push(*end);
+            assert(batch_begin == batch_end);
+            push(*batch_end);
 
             return;
         }
@@ -1451,7 +1451,7 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        unsigned_type size()
+        unsigned_type batch_length()
         {
           return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
         }
@@ -1470,7 +1470,7 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        iterator begin()
+        iterator batch_begin()
         {
             return current_block->elem + buffer_pos - 1;
         }
@@ -1478,7 +1478,7 @@ namespace stream
         //! \brief Batched stream method.
         const value_type& operator[](unsigned_type index)
         {
-            assert(index < size());
+            assert(index < batch_length());
             return *(current_block->elem + buffer_pos - 1 + index);
         }
 
@@ -1720,9 +1720,9 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        unsigned_type size()
+        unsigned_type batch_length()
         {
-          return merger.size();
+          return merger.batch_length();
         }
 
         //! \brief Batched stream method.
@@ -1734,8 +1734,8 @@ namespace stream
         }
 
         //! \brief Batched stream method.        
-        iterator begin()
-        {       return merger.begin();
+        iterator batch_begin()
+        {       return merger.batch_begin();
         }
 
         //! \brief Batched stream method.

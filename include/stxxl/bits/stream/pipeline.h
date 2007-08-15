@@ -213,7 +213,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	unsigned_type size() const
+	unsigned_type batch_length() const
 	{
 		reload();
 
@@ -229,7 +229,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	iterator begin() const
+	iterator batch_begin() const
 	{
 		return outgoing_buffer->current;
 	}
@@ -351,11 +351,11 @@ protected:
 		unsigned_type length;
 		while(!last_swap_done)
 		{
-			while(incoming_buffer->current < incoming_buffer->end && (length = so.size()) > 0)
+			while(incoming_buffer->current < incoming_buffer->end && (length = so.batch_length()) > 0)
 			{
 				length = std::min<unsigned_type>(length, incoming_buffer->end - incoming_buffer->current);
 				
-				for(typename StreamOperation::iterator i = so.begin(), end = so.begin() + length; i != end; ++i)
+				for(typename StreamOperation::iterator i = so.batch_begin(), end = so.batch_begin() + length; i != end; ++i)
 				{
 					*incoming_buffer->current = *i;
 					++incoming_buffer->current;
@@ -708,7 +708,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	unsigned_type size() const
+	unsigned_type batch_length() const
 	{
 		return 1;
 	}
@@ -721,7 +721,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	iterator begin() const
+	iterator batch_begin() const
 	{
 		return &(operator*());
 	}
@@ -759,10 +759,10 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	void push(value_type* begin, value_type* end)
+	void push(value_type* batch_begin, value_type* batch_end)
 	{
-		assert((end - begin) == 1);
-		push(*begin);
+		assert((batch_end - batch_begin) == 1);
+		push(*batch_begin);
 	}
 	
 	//! \brief Batched stream method.
