@@ -74,6 +74,7 @@ namespace stream
       blocked_index& operator++()
       {
         ++pos;
+        ++offset;
         if(offset == modulo)
         {
           offset = 0;
