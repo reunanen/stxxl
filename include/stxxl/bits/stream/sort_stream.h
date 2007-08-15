@@ -47,30 +47,30 @@ namespace stream
       unsigned_type pos;
       unsigned_type block;
       unsigned_type offset;
-    
+
       void set(unsigned_type pos)
       {
         this->pos = pos;
         block = pos / modulo;
         offset = pos % modulo;
       }
-    
+
     public:
       blocked_index()
       {
         set(0);
       }
-      
+
       blocked_index(unsigned_type pos)
       {
         set(pos);
       }
-      
+
       void operator=(unsigned_type pos)
       {
         set(pos);
       }
-      
+
       blocked_index& operator++()
       {
         ++pos;
@@ -441,7 +441,7 @@ namespace stream
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
     }
-    
+
     //! \brief Forms sorted runs of data from a stream
     //!
     //! Template parameters:
@@ -486,7 +486,7 @@ namespace stream
         }
 
     };
-        
+
     //! \brief Forms sorted runs of data from a stream
     //!
     //! Template parameters:
@@ -504,9 +504,9 @@ namespace stream
     private:
       typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
       typedef typename base::block_type block_type;
-      
+
       using base::input;
-      
+
       virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
       {
         unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
@@ -514,9 +514,9 @@ namespace stream
         {
           length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
           typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
-          for(unsigned_type i = 0; i < length; i++)
+          for(typename Input_::iterator i = input.begin(), end = input.begin() + length; i != end; ++i)
           {
-            *bi = input[i];
+            *bi = *i;
             ++bi;
           }
           input += length;
@@ -1261,6 +1261,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
+	typedef value_type* iterator;
 
         //! \brief Creates a runs merger object
         //! \param r input sorted runs object
@@ -1449,13 +1450,13 @@ namespace stream
             return &current_value;
         }
 
-        //! \brief Advanced stream method.
+        //! \brief Batched stream method.
         unsigned_type size()
         {
           return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
         }
 
-        //! \brief Advanced stream method.
+        //! \brief Batched stream method.
         runs_merger& operator += (unsigned_type length)
         {
           assert(length > 0);
@@ -1467,27 +1468,19 @@ namespace stream
 
           return *this;
         }
-	
-/*	//! \brief Advanced stream method.
-	value_type* begin()
-	{
-		return current_block->elem + buffer_pos - 1;
-	}
-	
-	//! \brief Advanced stream method.
-	value_type* end()
-	{
-		return current_block->elem + buffer_pos - 1 + size();
-	}*/
-	
-	//! \brief Advanced stream method.
-	const value_type& operator[](unsigned_type index)
-	{
-		assert(index < size());
-		return *(current_block->elem + buffer_pos - 1 + index);
-	}
 
+        //! \brief Batched stream method.
+        iterator begin()
+        {
+            return current_block->elem + buffer_pos - 1;
+        }
 
+        //! \brief Batched stream method.
+        const value_type& operator[](unsigned_type index)
+        {
+            assert(index < size());
+            return *(current_block->elem + buffer_pos - 1 + index);
+        }
 
         //! \brief Destructor
         //! \remark Deallocates blocks of the input sorted runs object
@@ -1676,6 +1669,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Input_::value_type value_type;
+        typedef typename runs_merger_type::iterator iterator;
 
         typedef sorted_runs_type result_type;
 
@@ -1724,38 +1718,31 @@ namespace stream
         {
             return merger.empty();
         }
-        
-	//! \brief Advanced stream method.
-	unsigned_type size()
-	{
+
+        //! \brief Batched stream method.
+        unsigned_type size()
+        {
           return merger.size();
-	}
-	
-	//! \brief Advanced stream method.
-	sort& operator += (unsigned_type size)
-	{
-		merger += size;
-		
-		return *this;
-	}
-	
-	//! \brief Advanced stream method.
-/*	value_type* begin()
-	{
-		return merger.begin();
-	}*/
-	
-	//! \brief Advanced stream method.
-/*	value_type* end()
-	{
-		return merger.end();
-	}*/
-	
-	//! \brief Advanced stream method.
-	const value_type& operator[](unsigned_type index)
-	{
-		return merger[index];
-	}
+        }
+
+        //! \brief Batched stream method.
+        sort& operator += (unsigned_type size)
+        {
+                merger += size;
+
+                return *this;
+        }
+
+        //! \brief Batched stream method.        
+        iterator begin()
+        {       return merger.begin();
+        }
+
+        //! \brief Batched stream method.
+        const value_type& operator[](unsigned_type index)
+        {
+                return merger[index];
+        }
 
     };
 

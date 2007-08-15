@@ -74,6 +74,7 @@ class basic_pull_stage
 public:
 	typedef typename StreamOperation::value_type value_type;
 	typedef buffer<value_type> typed_buffer;
+	typedef value_type* iterator;
 	
 	StreamOperation& so;
 	
@@ -211,7 +212,7 @@ public:
 		return last_swap_done && output_buffer_consumed;
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	unsigned_type size() const
 	{
 		reload();
@@ -219,7 +220,7 @@ public:
 		return outgoing_buffer->stop - outgoing_buffer->current;
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	basic_pull_stage<StreamOperation>& operator += (unsigned_type length)
 	{
 		outgoing_buffer->current += length;
@@ -227,19 +228,13 @@ public:
 		return *this;
 	}
 	
-/*	//! \brief Advanced stream method.
-	value_type* begin() const
+	//! \brief Batched stream method.
+	iterator begin() const
 	{
 		return outgoing_buffer->current;
 	}
 	
-	//! \brief Advanced stream method.
-	value_type* end() const
-	{
-		return outgoing_buffer->stop;
-	}*/
-	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	const value_type& operator[](unsigned_type index) const
 	{
 		assert(outgoing_buffer->current + index < outgoing_buffer->stop);
@@ -360,12 +355,10 @@ protected:
 			{
 				length = std::min<unsigned_type>(length, incoming_buffer->end - incoming_buffer->current);
 				
-				//value_type* p = so.begin();
-				for(unsigned_type i = 0; i < length; i++)
+				for(typename StreamOperation::iterator i = so.begin(), end = so.begin() + length; i != end; ++i)
 				{
-					*incoming_buffer->current = so[i];
+					*incoming_buffer->current = *i;
 					++incoming_buffer->current;
-					//++p;
 				}
 				so += length;
 			}
@@ -677,7 +670,8 @@ class dummy_pull_stage
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
-	
+	typedef value_type* iterator;
+		
 	StreamOperation& so;
 	
 public:
@@ -713,20 +707,26 @@ public:
 		return so.empty();
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	unsigned_type size() const
 	{
 		return 1;
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	dummy_pull_stage<StreamOperation>& operator += (unsigned_type length)
 	{
 		assert(length == 1);
 		return operator++();
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
+	iterator begin() const
+	{
+		return &(operator*());
+	}
+	
+	//! \brief Batched stream method.
 	const value_type& operator[](unsigned_type index) const
 	{
 		assert(index == 0);
@@ -758,14 +758,14 @@ public:
 		so.push(val);
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	void push(value_type* begin, value_type* end)
 	{
 		assert((end - begin) == 1);
 		push(*begin);
 	}
 	
-	//! \brief Advanced stream method.
+	//! \brief Batched stream method.
 	unsigned_type push_size() const
 	{
 		return 1;

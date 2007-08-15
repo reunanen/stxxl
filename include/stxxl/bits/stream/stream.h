@@ -128,13 +128,14 @@ namespace stream
 
         void delete_stream()
         {
-            in.reset();
+            in.reset();	//delete object
         }
     public:
         typedef vector_iterator2stream<InputIterator_> Self_;
 
         //! \brief Standard stream typedef
         typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
+        typedef value_type* iterator;
 
         vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0) :
             current_(begin), end_(end), in(NULL)
@@ -174,8 +175,8 @@ namespace stream
             assert(end_ != current_);
             ++current_;
             ++ (*in);
-            if (empty())	//PERFORMANCE issue: better in deconstructor
-                delete_stream();
+//             if (empty())	//PERFORMANCE issue: better in deconstructor
+//                 delete_stream();
 
             return *this;
         }
@@ -198,14 +199,9 @@ namespace stream
           return in->size();
         }
 
-        value_type* begin()
+        iterator begin()
         {
           return in->begin();
-        }
-
-        value_type* end()
-        {
-          return in->end();
         }
 
         value_type& operator[](unsigned_type index)
@@ -420,11 +416,11 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
-        unsigned_type block;
-        while (block = in.size() > 0)
+        unsigned_type length;
+        while (length = in.size() > 0)
         {
-            out = std::copy(in.begin(), in.end(), out);
-            in += block;
+            out = std::copy(in.begin(), in.begin() + length, out);
+            in += length;
         }
         return out;
     }
@@ -464,12 +460,12 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
-        unsigned_type block;
-        while ((block = in.size()) > 0 && outbegin != outend)
+        unsigned_type length;
+        while ((length = in.size()) > 0 && outbegin != outend)
         {
-            unsigned_type length = std::min<unsigned_type>(block, outend - outbegin);
+            length = std::min<unsigned_type>(length, outend - outbegin);
             outbegin = std::copy(in.begin(), in.begin() + length, outbegin);
-            in += block;
+            in += length;
         }
         return outbegin;
      }
@@ -595,15 +591,13 @@ namespace stream
         {
           if (outbegin.block_offset() == 0)
             outbegin.touch();
-          
+
           length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
-          
-          //typename StreamAlgorithm_::value_type* p = in.begin();
-          for(unsigned_type i = 0; i < length; i++)
+
+          for(typename StreamAlgorithm_::iterator i = in.begin(), end = in.begin() + length; i != end; ++i)
           {
-            *outstream = in[i];
+            *outstream = *i;
             ++outstream;
-            //++p;
           }
           outbegin += length;
           in += length;
@@ -741,18 +735,17 @@ namespace stream
 
         assert( out.block_offset() == 0 );
 
-        unsigned_type block;
-        while ((block = in.size()) > 0)
+        unsigned_type length;
+        while ((length = in.size()) > 0)
         {
           if (out.block_offset() == 0)
             out.touch();
-          unsigned_type length = std::min<unsigned_type>(block, ExtIterator::block_type::size - out.block_offset());
-          typename StreamAlgorithm_::value_type* p = in.begin();
-          for(unsigned_type i = 0; i < length; i++)
+          length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
+          ;
+          for(typename StreamAlgorithm_::value_type* i = in.begin(), end = in.begin() + length; i != end; ++i)
           {
-            *outstream = *p;
+            *outstream = *i;
             ++outstream;
-            ++p;
           }
           in += length;
           out += length;
@@ -919,6 +912,41 @@ namespace stream
         }
     };
 
+    template <class Operation_, class Input1_Iterator_>
+    class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation_::value_type>
+    {
+        Input1_Iterator_ i1;
+        Operation_& op;
+
+    public:
+        typedef typename Operation_::value_type value_type;
+        
+	transforming_iterator(Operation_& op, const Input1_Iterator_& i1) : i1(i1), op(op) { }
+	
+	const value_type operator*() const
+	{
+	    return op(*i1);
+	}
+	
+	transforming_iterator& operator++()
+	{
+	    ++i1;
+	
+	    return *this;
+	}
+	
+	transforming_iterator operator+(unsigned_type addend) const
+	{
+	    return transforming_iterator(op, i1 + addend);
+	}
+
+	bool operator!=(const transforming_iterator& ti) const
+	{
+	    return ti.i1 != i1;
+	}
+    };
+    
+
     // Specializations
 
     //! \brief Processes an input stream using given operation functor
@@ -936,6 +964,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
+        typedef transforming_iterator<Operation_, typename Input1_::iterator> iterator;
 
     public:
 
@@ -974,11 +1003,17 @@ namespace stream
         }
 
         //! \brief Batched stream method
+        iterator begin() const
+        {
+            return iterator(op, i1.begin());
+        }
+
+        //! \brief Batched stream method
         const value_type& operator[](unsigned_type index)
         {
             return op(i1[index]);
         }
-        
+
         //! \brief Batched stream method
         transform &  operator +=(unsigned_type length)
         {
@@ -1263,6 +1298,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Input_::value_type value_type;
+        typedef typename Input_::iterator iterator;
 
     private:
         Input_** inputs;
@@ -1350,16 +1386,11 @@ namespace stream
           return current_input->size();
         }
 
-        value_type* begin() const
+        iterator begin() const
         {
           return current_input->begin();
         }
 
-/*        value_type* end() const
-        {
-          return current_input->end();
-        }
-*/
         const value_type& operator[](unsigned_type index) const
         {
           return (*current_input)[index];
@@ -1462,6 +1493,44 @@ namespace stream
         }
     };
 
+    template <class Input1_Iterator_, class Input2_Iterator_>
+    class make_tuple_iterator : std::iterator<
+    		std::random_access_iterator_tag, 
+    		tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> 
+    	>
+    {
+        Input1_Iterator_ i1;
+        Input2_Iterator_ i2;
+        
+    public:
+        typedef tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> value_type;
+
+	make_tuple_iterator(const Input1_Iterator_& i1, const Input2_Iterator_& i2) : i1(i1), i2(i2) { }
+	
+	const value_type operator*() const
+	{
+	    return value_type(*i1, *i2);
+	}
+	
+	make_tuple_iterator& operator++()
+	{
+	    ++i1;
+	    ++i2;
+	
+	    return *this;
+	}
+	
+	make_tuple_iterator operator+(unsigned_type addend) const
+	{
+	    return make_tuple_iterator(i1 + addend, i2 + addend);
+	}
+
+	bool operator!=(const make_tuple_iterator& mti) const
+	{
+	    return mti.i1 != i1 || mti.i2 != i2;
+	}
+};
+
 
     //! \brief Creates stream of 2-tuples (pairs) from 2 input streams
     //!
@@ -1483,6 +1552,7 @@ namespace stream
         typename Input1_::value_type,
         typename Input2_::value_type
         > value_type;
+        typedef make_tuple_iterator<typename Input1_::iterator, typename Input2_::iterator> iterator;
 
     public:
 
@@ -1521,38 +1591,32 @@ namespace stream
             return i1.empty() || i2.empty();
         }
 
-	//! \brief Batched stream method.
-	unsigned_type size()
-	{
-	  return std::min(i1.size(), i2.size());
-	}
-	
-	//! \brief Batched stream method.
-	make_tuple& operator += (unsigned_type size)
-	{
-		i1 += size;
-		i2 += size;
-		
-		return *this;
-	}
-	
-/*	//! \brief Batched stream method.
-	value_type* begin()
-	{
-		return current_batch->elem + buffer_pos - 1;
-	}
-	
-	//! \brief Batched stream method.
-	value_type* end()
-	{
-		return current_batch->elem + buffer_pos - 1 + size();
-	}*/
-	
-	//! \brief Batched stream method.
-	value_type operator[](unsigned_type index) const
-	{
-		return value_type(i1[index], i2[index]);
-	}
+        //! \brief Batched stream method.
+        unsigned_type size()
+        {
+          return std::min(i1.size(), i2.size());
+        }
+
+        //! \brief Batched stream method.
+        make_tuple& operator += (unsigned_type size)
+        {
+                i1 += size;
+                i2 += size;
+
+                return *this;
+        }
+
+        //! \brief Batched stream method.
+        iterator begin()
+        {
+                return iterator(i1.begin(), i2.begin());
+        }
+
+        //! \brief Batched stream method.
+        value_type operator[](unsigned_type index) const
+        {
+                return value_type(i1[index], i2[index]);
+        }
 
 
 
