@@ -755,7 +755,7 @@ namespace stream
             push(val);	//recursive call
         }
 
-        unsigned_type push_size()
+        unsigned_type push_batch_length()
         {
           return el_in_run - cur_el + 1;
         }
@@ -763,7 +763,7 @@ namespace stream
         //! \brief Adds new element to the sorter
         //! \param val value to be added
         template<class Iterator>
-        void push(Iterator batch_begin, Iterator batch_end)
+        void push_batch(Iterator batch_begin, Iterator batch_end)
         {
             assert(output_requested == false);
             assert((batch_end - batch_begin) > 0);

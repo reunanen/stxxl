@@ -1008,12 +1008,12 @@ namespace stream
         transform(Operation_& o, Input1_ & i1_) : op(o), i1(i1_) { }
 
         //! \brief Standard stream method
-        const value_type & operator * ()
+        const value_type & operator * () const
         {
             return op(*i1);
         }
 
-        const value_type * operator -> ()
+        const value_type * operator -> () const
         {
             return &(operator*());
         }
@@ -1033,7 +1033,7 @@ namespace stream
         }
 
         //! \brief Batched stream method
-        unsigned_type batch_length()
+        unsigned_type batch_length() const
         {
             return i1.batch_length();
         }
@@ -1045,7 +1045,7 @@ namespace stream
         }
 
         //! \brief Batched stream method
-        const value_type& operator[](unsigned_type index)
+        const value_type& operator[](unsigned_type index) const
         {
             return op(i1[index]);
         }

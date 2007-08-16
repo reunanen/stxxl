@@ -632,9 +632,9 @@ protected:
 		{
 			while(outgoing_buffer->current < outgoing_buffer->stop)
 			{
-				unsigned_type length = std::min<unsigned_type>(so.push_size(), outgoing_buffer->stop - outgoing_buffer->current);
+				unsigned_type length = std::min<unsigned_type>(so.push_batch_length(), outgoing_buffer->stop - outgoing_buffer->current);
 				assert(length > 0);
-				so.push(outgoing_buffer->current, outgoing_buffer->current + length);
+				so.push_batch(outgoing_buffer->current, outgoing_buffer->current + length);
 				outgoing_buffer->current += length;
 			}
 			
@@ -759,14 +759,14 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	void push(value_type* batch_begin, value_type* batch_end)
+	void push_batch(value_type* batch_begin, value_type* batch_end)
 	{
 		assert((batch_end - batch_begin) == 1);
 		push(*batch_begin);
 	}
 	
 	//! \brief Batched stream method.
-	unsigned_type push_size() const
+	unsigned_type push_batch_length() const
 	{
 		return 1;
 	}
