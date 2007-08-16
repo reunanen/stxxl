@@ -288,7 +288,7 @@ namespace stream
         }
 
 
-        block_type * Blocks2 = Blocks1 + m2;
+        block_type * Blocks2 = Blocks1 + m2;	//second half
         block_manager * bm = block_manager::get_instance();
         request_ptr * write_reqs = new request_ptr[m2];
         run_type run;
@@ -514,7 +514,7 @@ namespace stream
         {
           length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
           typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
-          for(typename Input_::iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
+          for(typename Input_::const_iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
           {
             *bi = *i;
             ++bi;
@@ -1261,7 +1261,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
-	typedef value_type* iterator;
+	typedef const value_type* const_iterator;
 
         //! \brief Creates a runs merger object
         //! \param r input sorted runs object
@@ -1470,7 +1470,7 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        iterator batch_begin()
+        const_iterator batch_begin()
         {
             return current_block->elem + buffer_pos - 1;
         }
@@ -1669,7 +1669,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Input_::value_type value_type;
-        typedef typename runs_merger_type::iterator iterator;
+        typedef typename runs_merger_type::const_iterator const_iterator;
 
         typedef sorted_runs_type result_type;
 
@@ -1733,8 +1733,8 @@ namespace stream
                 return *this;
         }
 
-        //! \brief Batched stream method.        
-        iterator batch_begin()
+        //! \brief Batched stream method.
+        const_iterator batch_begin()
         {       return merger.batch_begin();
         }
 

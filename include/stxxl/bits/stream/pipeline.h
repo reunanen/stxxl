@@ -74,7 +74,7 @@ class basic_pull_stage
 public:
 	typedef typename StreamOperation::value_type value_type;
 	typedef buffer<value_type> typed_buffer;
-	typedef value_type* iterator;
+	typedef const value_type* const_iterator;
 	
 	StreamOperation& so;
 	
@@ -229,7 +229,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	iterator batch_begin() const
+	const_iterator batch_begin() const
 	{
 		return outgoing_buffer->current;
 	}
@@ -355,7 +355,7 @@ protected:
 			{
 				length = std::min<unsigned_type>(length, incoming_buffer->end - incoming_buffer->current);
 				
-				for(typename StreamOperation::iterator i = so.batch_begin(), end = so.batch_begin() + length; i != end; ++i)
+				for(typename StreamOperation::const_iterator i = so.batch_begin(), end = so.batch_begin() + length; i != end; ++i)
 				{
 					*incoming_buffer->current = *i;
 					++incoming_buffer->current;
@@ -670,7 +670,7 @@ class dummy_pull_stage
 {
 public:
 	typedef typename StreamOperation::value_type value_type;
-	typedef value_type* iterator;
+	typedef const value_type* const_iterator;
 		
 	StreamOperation& so;
 	
@@ -721,7 +721,7 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	iterator batch_begin() const
+	const_iterator batch_begin() const
 	{
 		return &(operator*());
 	}

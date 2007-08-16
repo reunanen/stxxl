@@ -135,7 +135,7 @@ namespace stream
 
         //! \brief Standard stream typedef
         typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
-        typedef value_type* iterator;
+        typedef const value_type* const_iterator;
 
         vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0) :
             current_(begin), end_(end), in(NULL)
@@ -199,7 +199,7 @@ namespace stream
           return in->batch_length();
         }
 
-        iterator batch_begin()
+        const_iterator batch_begin()
         {
           return in->batch_begin();
         }
@@ -594,7 +594,7 @@ namespace stream
 
           length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
 
-          for(typename StreamAlgorithm_::iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+          for(typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
           {
             *outstream = *i;
             ++outstream;
@@ -742,7 +742,7 @@ namespace stream
             out.touch();
           length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
           ;
-          for(typename StreamAlgorithm_::iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+          for(typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
           {
             *outstream = *i;
             ++outstream;
@@ -802,7 +802,7 @@ namespace stream
         for(i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
         {
             length = std::min(length, num_elements - i);
-            for(typename StreamAlgorithm_::iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
+            for(typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
                 dummy = *j;
             in += length;
             i += length;
@@ -951,37 +951,46 @@ namespace stream
     template <class Operation_, class Input1_Iterator_>
     class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation_::value_type>
     {
-        Input1_Iterator_ i1;
-        Operation_& op;
-
     public:
         typedef typename Operation_::value_type value_type;
-        
-	transforming_iterator(Operation_& op, const Input1_Iterator_& i1) : i1(i1), op(op) { }
-	
-	const value_type operator*() const
-	{
-	    return op(*i1);
-	}
-	
-	transforming_iterator& operator++()
-	{
-	    ++i1;
-	
-	    return *this;
-	}
-	
-	transforming_iterator operator+(unsigned_type addend) const
-	{
-	    return transforming_iterator(op, i1 + addend);
-	}
 
-	bool operator!=(const transforming_iterator& ti) const
-	{
-	    return ti.i1 != i1;
-	}
+    private:
+        Input1_Iterator_ i1;
+        Operation_& op;
+        mutable value_type current;
+
+    public:
+        transforming_iterator(Operation_& op, const Input1_Iterator_& i1) : i1(i1), op(op) { }
+
+        const value_type& operator*() const	//RETURN BY VALUE
+        {
+            current = op(*i1);
+            return current;
+        }
+
+        const value_type* operator->() const
+        {
+            return &(operator*());
+        }
+
+        transforming_iterator& operator++()
+        {
+            ++i1;
+
+            return *this;
+        }
+
+        transforming_iterator operator+(unsigned_type addend) const
+        {
+            return transforming_iterator(op, i1 + addend);
+        }
+
+        bool operator!=(const transforming_iterator& ti) const
+        {
+            return ti.i1 != i1;
+        }
     };
-    
+
 
     // Specializations
 
@@ -1000,7 +1009,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
-        typedef transforming_iterator<Operation_, typename Input1_::iterator> iterator;
+        typedef transforming_iterator<Operation_, typename Input1_::const_iterator> const_iterator;
 
     public:
 
@@ -1039,9 +1048,9 @@ namespace stream
         }
 
         //! \brief Batched stream method
-        iterator batch_begin() const
+        const_iterator batch_begin() const
         {
-            return iterator(op, i1.batch_begin());
+            return const_iterator(op, i1.batch_begin());
         }
 
         //! \brief Batched stream method
@@ -1334,7 +1343,7 @@ namespace stream
     public:
         //! \brief Standard stream typedef
         typedef typename Input_::value_type value_type;
-        typedef typename Input_::iterator iterator;
+        typedef typename Input_::const_iterator const_iterator;
 
     private:
         Input_** inputs;
@@ -1422,7 +1431,7 @@ namespace stream
           return current_input->batch_length();
         }
 
-        iterator batch_begin() const
+        const_iterator batch_begin() const
         {
           return current_input->batch_begin();
         }
@@ -1535,19 +1544,28 @@ namespace stream
     		tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> 
     	>
     {
-        Input1_Iterator_ i1;
-        Input2_Iterator_ i2;
-        
     public:
         typedef tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> value_type;
+        
+    private:
+        Input1_Iterator_ i1;
+        Input2_Iterator_ i2;
+        mutable value_type current;
 
+    public:
 	make_tuple_iterator(const Input1_Iterator_& i1, const Input2_Iterator_& i2) : i1(i1), i2(i2) { }
 	
-	const value_type operator*() const
+	const value_type& operator*() const	//RETURN BY VALUE
 	{
-	    return value_type(*i1, *i2);
+	    current = value_type(*i1, *i2);
+	    return current;
 	}
 	
+        const value_type* operator->() const
+        {
+            return &(operator*());
+        }
+
 	make_tuple_iterator& operator++()
 	{
 	    ++i1;
@@ -1579,19 +1597,20 @@ namespace stream
     >
     class make_tuple<Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
     {
-        Input1_ &i1;
-        Input2_ &i2;
-
     public:
         //! \brief Standard stream typedef
         typedef typename stxxl::tuple <
         typename Input1_::value_type,
         typename Input2_::value_type
         > value_type;
-        typedef make_tuple_iterator<typename Input1_::iterator, typename Input2_::iterator> iterator;
+        typedef make_tuple_iterator<typename Input1_::const_iterator, typename Input2_::const_iterator> const_iterator;
+
+    private:
+        Input1_ &i1;
+        Input2_ &i2;
+        mutable value_type current;
 
     public:
-
         //! \brief Construction
         make_tuple(
             Input1_ & i1_,
@@ -1602,9 +1621,10 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        const value_type operator * () const
+        const value_type& operator * () const	//RETURN BY VALUE
         {
-            return value_type(*i1, *i2);
+            current = value_type(*i1, *i2);
+            return current;
         }
 
         const value_type * operator -> () const
@@ -1643,9 +1663,9 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        iterator batch_begin()
+        const_iterator batch_begin()
         {
-                return iterator(i1.batch_begin(), i2.batch_begin());
+                return const_iterator(i1.batch_begin(), i2.batch_begin());
         }
 
         //! \brief Batched stream method.
@@ -2258,7 +2278,11 @@ namespace stream
                 ++input;
         }
         //! \brief Standard stream method
-        const value_type operator * () const { return current; }
+        const value_type& operator * () const
+        {
+            return current;
+        }
+
         //! \brief Standard stream method
         const value_type * operator -> () const
         {
@@ -2294,7 +2318,10 @@ namespace stream
                 ++input;
         }
         //! \brief Standard stream method
-        value_type operator * () const { return current; }
+        value_type& operator * () const
+        {
+            return current;
+        }
 
         //! \brief Standard stream method
         const value_type * operator -> () const

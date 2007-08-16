@@ -109,14 +109,14 @@ public:
 
     //! \brief Returns reference to the current record in the stream
     //! \return reference to the current record in the stream
-    reference current()     /* const */
+    reference current() const
     {
         return current_blk->elem[current_elem];
     }
 
     //! \brief Returns reference to the current record in the stream
     //! \return reference to the current record in the stream
-    reference operator *()     /* const */
+    reference operator *() const
     {
         return current_blk->elem[current_elem];
     }
@@ -157,19 +157,19 @@ public:
     }
 
     //! \brief Batched stream method
-    unsigned_type batch_length()
+    unsigned_type batch_length() const
     {
       return block_type::size - current_elem;
     }
 
     //! \brief Batched stream method
-    value_type* batch_begin()
+    value_type* batch_begin() const
     {
       return current_blk->elem + current_elem;
     }
 
     //! \brief Batched stream method
-    value_type& operator[](unsigned_type index)
+    value_type& operator[](unsigned_type index) const
     {
       assert(current_elem + index < block_type::size);
       return current_blk->elem[current_elem + index];
