@@ -186,17 +186,19 @@ namespace stream
         {
             return (current_ == end_);
         }
-        
+
         //! \brief Standard stream method
-        vector_iterator2stream& operator +=(unsigned_type size)
+        vector_iterator2stream& operator +=(unsigned_type length)
         {
-          (*in) += size;
+          assert(length <= batch_length());
+          current_ += length;
+          (*in) += length;
           return *this;
         }
 
         unsigned_type batch_length()
         {
-          return in->batch_length();
+          return std::min<unsigned_type>(in->batch_length(), end_ - current_);
         }
 
         const_iterator batch_begin()
@@ -206,6 +208,7 @@ namespace stream
 
         value_type& operator[](unsigned_type index)
         {
+          assert(current_ + index < end_);
           return (*in)[index];
         }
 

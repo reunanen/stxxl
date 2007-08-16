@@ -144,12 +144,12 @@ public:
     }
 
     //! \brief Batched stream method
-    buf_istream& operator +=(unsigned_type size)
+    buf_istream& operator +=(unsigned_type length)
     {
-      assert(size <= static_cast<unsigned_type>(block_type::size - current_elem));
-      if(size > 0)
+      assert(length <= static_cast<unsigned_type>(block_type::size - current_elem));
+      if(length > 0)
       {
-        current_elem += size - 1;
+        current_elem += length - 1;
         operator++();
       }
 
