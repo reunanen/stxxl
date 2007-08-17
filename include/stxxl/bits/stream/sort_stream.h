@@ -202,7 +202,7 @@ namespace stream
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
         }
     protected:
-        virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit) = 0;
+        virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> begin, unsigned_type limit) = 0;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         void start_waiting_and_fetchting();
@@ -213,27 +213,56 @@ namespace stream
             pthread_join(waiter_and_fetcher, &res);
         }
 
-        block_type* current_Blocks;
-        request_ptr* current_write_reqs;
-        volatile unsigned_type current_run_size;
+        struct WaitFetchJob
+        {
+            request_ptr* write_reqs;
+            block_type* Blocks;
+            blocked_index<block_type::size> begin;
+            unsigned_type wait_run_size;
+            unsigned_type read_run_size;
+            blocked_index<block_type::size> end;	//return value
+        };
+        
+        WaitFetchJob wait_fetch_job;
 #endif
 
-        blocked_index<block_type::size> pos;
-
-        const unsigned_type el_in_run; // # el in a run
-        value_type dummy_element;
+        const unsigned_type el_in_run; // number of elements in a run
 
     public:
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         void async_wait_and_fetch()
         {
-            for (unsigned_type i = 0; i < current_run_size; ++i)
-            {
-                //wait for next block only
-                wait_all(current_write_reqs + i, current_write_reqs + i + 1);
+            wait_fetch_job.end = wait_fetch_job.begin;
+            unsigned_type i;
+            for (i = 0; i < wait_fetch_job.wait_run_size; ++i)
+            {   //for each block to wait for
+                //wait for only next block
+                wait_all(wait_fetch_job.write_reqs + i, wait_fetch_job.write_reqs + i + 1);
                 //in the mean time, next write request will advance
-                fetch(current_Blocks, pos, std::min(el_in_run, pos + block_type::size));
+                wait_fetch_job.end =
+                    fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
             }
+            for (; i < wait_fetch_job.read_run_size; ++i)
+            {
+                wait_fetch_job.end =
+                    fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
+            }
+        }
+
+        //the following two functions form a asynchronous fetch()
+        void start_write_read(request_ptr* write_reqs, block_type* Blocks, unsigned_type wait_run_size, unsigned_type read_run_size)
+        {
+            wait_fetch_job.write_reqs = write_reqs;
+            wait_fetch_job.Blocks = Blocks;
+            wait_fetch_job.wait_run_size = wait_run_size;
+            wait_fetch_job.read_run_size = read_run_size;
+            start_waiting_and_fetchting();
+        }
+
+        blocked_index<block_type::size> wait_write_read()
+        {
+            join_waiting_and_fetchting();
+            return wait_fetch_job.end;
         }
 #endif
 
@@ -269,65 +298,71 @@ namespace stream
     void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::
     compute_result()
     {
-        pos = 0;
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
         STXXL_VERBOSE1("runs_creator::compute_result m2=" << m2);
+        blocked_index<block_type::size> blocks1_length = 0, blocks2_length = 0;
 
 #ifndef STXXL_SMALL_INPUT_PSORT_OPT
         block_type * Blocks1 = new block_type[m2 * 2];
 #else
 
-        //prologue unbatched
-        while (!input.empty() && pos != block_type::size)
+        //read first block
+        while (!input.empty() && blocks1_length != block_type::size)
         {
              result_.small_.push_back(*input);
              ++input;
-             ++pos;
+             ++blocks1_length;
         }
 
 
         block_type * Blocks1;
 
-        if ( pos == block_type::size )
-        {      // ennlarge/reallocate Blocks1 array
-            block_type * NewBlocks = new block_type[m2 * 2];
-            std::copy(result_.small_.begin(), result_.small_.end(), NewBlocks[0].begin());
+        if ( blocks1_length == block_type::size && !input.empty() )
+        {      // enlarge/reallocate Blocks1 array
+            Blocks1 = new block_type[m2 * 2];
+            std::copy(result_.small_.begin(), result_.small_.end(), Blocks1[0].begin());
             result_.small_.clear();
-            //delete [] Blocks1;
-            Blocks1 = NewBlocks;
         }
         else
         {
-            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << pos);
-            result_.elements = pos;
+            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
+            result_.elements = blocks1_length;
             std::sort(result_.small_.begin(), result_.small_.end(), cmp);
             return;
         }
 #endif
 
-        fetch(Blocks1, pos, el_in_run);
+        blocks1_length = fetch(Blocks1, blocks1_length, el_in_run);	//fetch rest, first block already in place
+        bool already_empty_after_1_block = input.empty();
+
+        block_type * Blocks2 = Blocks1 + m2;	//second half
+
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        start_write_read(NULL, Blocks2, 0, m2);	//no write, just read
+#endif
 
         // sort first run
-        sort_run(Blocks1, pos);
-        result_.elements = pos;
-        if (pos < block_type::size && input.empty() ) // small input, do not flush it on the disk(s)
+        sort_run(Blocks1, blocks1_length);
+        result_.elements = blocks1_length;
+
+        if (blocks1_length < block_type::size && already_empty_after_1_block) // small input, do not flush it on the disk(s)
         {
-            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << pos);
-            result_.small_.resize(pos);
-            std::copy(Blocks1[0].begin(), Blocks1[0].begin() + pos, result_.small_.begin());
+            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
+            result_.small_.resize(blocks1_length);
+            std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
             delete [] Blocks1;
             return;
         }
 
 
-        block_type * Blocks2 = Blocks1 + m2;	//second half
         block_manager * bm = block_manager::get_instance();
         request_ptr * write_reqs = new request_ptr[m2];
         run_type run;
 
 
-        unsigned_type cur_run_size = div_and_round_up(pos, block_type::size); // in blocks
+        unsigned_type cur_run_size = div_and_round_up(blocks1_length, block_type::size); // in blocks
+
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
@@ -336,11 +371,10 @@ namespace stream
 
         disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
 
-        result_.runs_sizes.push_back(pos);
 
         // fill the rest of the last block with max values
-        for ( ; pos != el_in_run; ++pos)
-            Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
+        for (blocked_index<block_type::size> rest = blocks1_length; rest != el_in_run; ++rest)
+            Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
         //write first run
         for (i = 0; i < cur_run_size; ++i)
@@ -349,19 +383,23 @@ namespace stream
             write_reqs[i] = Blocks1[i].write(run[i].bid);
             //STXXL_MSG("BID: "<<run[i].bid<<" val: "<<run[i].value);
         }
+
+        result_.runs_sizes.push_back(blocks1_length);
         result_.runs.push_back(run); // #
 
+        bool already_empty_after_2_blocks;
+
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        current_Blocks = Blocks1;
-        current_write_reqs = write_reqs;
-        current_run_size = cur_run_size;
-        start_waiting_and_fetchting();
+        blocks2_length = wait_write_read();
+        already_empty_after_2_blocks = input.empty();
+
+        start_write_read(write_reqs, Blocks1, cur_run_size, m2);
 #endif
 
-        if (input.empty())
+        if (already_empty_after_1_block)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            join_waiting_and_fetchting();
+            wait_write_read();	//for Blocks1
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
@@ -371,38 +409,36 @@ namespace stream
         }
 
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
-        pos = 0;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        join_waiting_and_fetchting();
-#else
-        fetch(Blocks2, pos, el_in_run);
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        blocks2_length = fetch(Blocks2, 0, el_in_run);
+        already_empty_after_2_blocks = input.empty();
 #endif
 
-        result_.elements += pos;
+        result_.elements += blocks2_length;
 
-        if (input.empty())
-        {
+        if (already_empty_after_2_blocks)
+        {   //optimization if whole set fits into both halves
             // (re)sort internally and return
-            pos += el_in_run;
-            sort_run(Blocks1, pos); // sort first an second run together
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            sort_run(Blocks1, result_.elements); // sort first an second run together
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            wait_write_read();	//for Blocks1
+#else
             wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
             bm->delete_blocks(trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
                               trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end()) );
 
-            cur_run_size = div_and_round_up(pos, block_type::size);
+            cur_run_size = div_and_round_up(result_.elements, block_type::size);
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
                            trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
             );
 
-            result_.runs_sizes[0] = pos;
             // fill the rest of the last block with max values
-            for ( ; pos != 2 * el_in_run; ++pos)
-                Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
+            for (blocked_index<block_type::size> rest = result_.elements; rest != 2 * el_in_run; ++rest)
+                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
             assert(cur_run_size > m2);
 
@@ -415,13 +451,6 @@ namespace stream
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            current_Blocks = Blocks1;
-            current_write_reqs = write_reqs;
-            current_run_size = m2;
-            start_waiting_and_fetchting();
-#endif
-
             request_ptr * write_reqs1 = new request_ptr[cur_run_size - m2];
 
             for ( ; i < cur_run_size; ++i)
@@ -430,21 +459,11 @@ namespace stream
                 write_reqs1[i - m2] = Blocks1[i].write(run[i].bid);
             }
 
+            result_.runs_sizes[0] = result_.elements;
             result_.runs[0] = run;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            join_waiting_and_fetchting();
-
-            current_Blocks = Blocks1;
-            current_write_reqs = write_reqs1;
-            current_run_size = cur_run_size;
-
-            start_waiting_and_fetchting();
-            join_waiting_and_fetchting();
-#else
             wait_all(write_reqs, write_reqs + m2);
             wait_all(write_reqs1, write_reqs1 + cur_run_size - m2);
-#endif
 
             delete [] write_reqs;
             delete [] write_reqs1;
@@ -454,83 +473,84 @@ namespace stream
             return;
         }
 
-        sort_run(Blocks2, pos);
+        sort_run(Blocks2, blocks2_length);
 
-        cur_run_size = div_and_round_up(pos, block_type::size); // in blocks
+        cur_run_size = div_and_round_up(blocks2_length, block_type::size); // in blocks
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
                        trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
         );
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        blocks1_length = wait_write_read();
+#endif
+
         for (i = 0; i < cur_run_size; ++i)
         {
             run[i].value = Blocks2[i][0];
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             write_reqs[i]->wait();
+#endif
             write_reqs[i] = Blocks2[i].write(run[i].bid);
         }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        current_Blocks = Blocks2;
-        current_write_reqs = write_reqs;
-        current_run_size = cur_run_size;
-        start_waiting_and_fetchting();
+        start_write_read(write_reqs, Blocks2, cur_run_size, m2);
 #endif
 
-        assert((pos % el_in_run) == 0);
-
+        result_.runs_sizes.push_back(blocks2_length);
         result_.runs.push_back(run);
-        result_.runs_sizes.push_back(pos);
-
-        while (!input.empty())
-        {
-            pos = 0;
-
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            join_waiting_and_fetchting();
+        while (blocks1_length > 0)
+        {
 #else
-            fetch(Blocks1, pos, el_in_run);
+        while (!input.empty())
+        {
+            blocks1_length = fetch(Blocks1, 0, el_in_run);
 #endif
-            result_.elements += pos;
-            sort_run(Blocks1, pos);
-            cur_run_size = div_and_round_up(pos, block_type::size); // in blocks
+            sort_run(Blocks1, blocks1_length);
+            cur_run_size = div_and_round_up(blocks1_length, block_type::size); // in blocks
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
                            trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
             );
 
-            result_.runs_sizes.push_back(pos);
-
             // fill the rest of the last block with max values (occurs only on the last run)
-            for ( ; pos != el_in_run; ++pos)
-                Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
+            for (blocked_index<block_type::size> rest = blocks1_length ; rest != el_in_run; ++rest)
+                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            blocks2_length = wait_write_read();
+#endif
 
             for (i = 0; i < cur_run_size; ++i)
             {
                 run[i].value = Blocks1[i][0];
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
                 write_reqs[i]->wait();
+#endif
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            current_Blocks = Blocks1;
-            current_write_reqs = write_reqs;
-            current_run_size = cur_run_size;
-            start_waiting_and_fetchting();
+            start_write_read(write_reqs, Blocks1, cur_run_size, m2);
 #endif
 
+            result_.runs_sizes.push_back(blocks1_length);
+            result_.elements += blocks1_length;
             result_.runs.push_back(run); // #
 
             std::swap(Blocks1, Blocks2);
+            std::swap(blocks1_length, blocks2_length);
         }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        join_waiting_and_fetchting();
+        wait_write_read();
 #else
-        wait_all(write_reqs, write_reqs + m2);
+        wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
@@ -581,7 +601,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
       using base::input;
 
-      virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
+      virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
       {
         while (!input.empty() && pos != limit)
         {
@@ -589,6 +609,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             ++input;
             ++pos;
         }
+        return pos;
       }
 
       runs_creator(); // default construction is forbidden
@@ -626,7 +647,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
       using base::input;
 
-      virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit)
+      virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
       {
         unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
         while(((length = input.batch_length()) > 0) && pos != limit)
@@ -647,6 +668,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             pos_in_block = 0;
           }
         }
+        return pos;
       }
 
       runs_creator_batch(); // default construction is forbidden
@@ -778,8 +800,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             result_.runs_sizes.push_back(cur_el_reg);
 
             // fill the rest of the last block with max values
-            for ( ; cur_el_reg != el_in_run; ++cur_el_reg)
-                Blocks1[cur_el_reg.get_block()][cur_el_reg.get_offset()] = cmp.max_value();
+            for (blocked_index<block_type::size> rest = cur_el_reg; rest != el_in_run; ++rest)
+                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
 
             unsigned_type i = 0;
