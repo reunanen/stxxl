@@ -438,7 +438,7 @@ namespace sort_local
             n_opt_prefetch_buffers,
             disks_number );
 #else
-        for (i = 0; i < out_run->size(); i++)
+        for (unsigned_type i = 0; i < out_run->size(); i++)
             prefetch_seq[i] = i;
 
 #endif

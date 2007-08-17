@@ -178,6 +178,9 @@ namespace stream
         basic_runs_creator(const basic_runs_creator & ); // copy construction is forbidden
         basic_runs_creator & operator = (const basic_runs_creator &); // copying is forbidden
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        pthread_t waiter_and_fetcher;
+#endif
 
         void compute_result();
         void sort_run(block_type * run, unsigned_type elements)
@@ -201,14 +204,45 @@ namespace stream
     protected:
         virtual void fetch(block_type * Blocks, blocked_index<block_type::size>& pos, unsigned_type limit) = 0;
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        void start_waiting_and_fetchting();
+
+        void join_waiting_and_fetchting()
+        {
+            void* res;
+            pthread_join(waiter_and_fetcher, &res);
+        }
+
+        block_type* current_Blocks;
+        request_ptr* current_write_reqs;
+        volatile unsigned_type current_run_size;
+#endif
+
+        blocked_index<block_type::size> pos;
+
+        const unsigned_type el_in_run; // # el in a run
         value_type dummy_element;
+
     public:
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        void async_wait_and_fetch()
+        {
+            for (unsigned_type i = 0; i < current_run_size; ++i)
+            {
+                //wait for next block only
+                wait_all(current_write_reqs + i, current_write_reqs + i + 1);
+                //in the mean time, next write request will advance
+                fetch(current_Blocks, pos, std::min(el_in_run, pos + block_type::size));
+            }
+        }
+#endif
+
         //! \brief Creates the object
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
-            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
+            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
         {
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
@@ -231,15 +265,14 @@ namespace stream
 
     };
 
-
     template <class Input_, class Cmp_, unsigned BlockSize_, class AllocStr_>
-    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::compute_result()
+    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::
+    compute_result()
     {
+        pos = 0;
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
-        const unsigned_type el_in_run = m2 * block_type::size; // # el in a run
         STXXL_VERBOSE1("runs_creator::compute_result m2=" << m2);
-        blocked_index<block_type::size> pos = 0;
 
 #ifndef STXXL_SMALL_INPUT_PSORT_OPT
         block_type * Blocks1 = new block_type[m2 * 2];
@@ -309,7 +342,7 @@ namespace stream
         for ( ; pos != el_in_run; ++pos)
             Blocks1[pos.get_block()][pos.get_offset()] = cmp.max_value();
 
-
+        //write first run
         for (i = 0; i < cur_run_size; ++i)
         {
             run[i].value = Blocks1[i][0];
@@ -318,10 +351,20 @@ namespace stream
         }
         result_.runs.push_back(run); // #
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        current_Blocks = Blocks1;
+        current_write_reqs = write_reqs;
+        current_run_size = cur_run_size;
+        start_waiting_and_fetchting();
+#endif
+
         if (input.empty())
         {
-            // return
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            join_waiting_and_fetchting();
+#else
             wait_all(write_reqs, write_reqs + cur_run_size);
+#endif
             delete [] write_reqs;
             delete [] Blocks1;
             return;
@@ -330,7 +373,11 @@ namespace stream
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
         pos = 0;
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        join_waiting_and_fetchting();
+#else
         fetch(Blocks2, pos, el_in_run);
+#endif
 
         result_.elements += pos;
 
@@ -339,7 +386,9 @@ namespace stream
             // (re)sort internally and return
             pos += el_in_run;
             sort_run(Blocks1, pos); // sort first an second run together
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             wait_all(write_reqs, write_reqs + cur_run_size);
+#endif
             bm->delete_blocks(trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
                               trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end()) );
 
@@ -360,9 +409,18 @@ namespace stream
             for (i = 0; i < m2; ++i)
             {
                 run[i].value = Blocks1[i][0];
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
                 write_reqs[i]->wait();
+#endif
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
+
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            current_Blocks = Blocks1;
+            current_write_reqs = write_reqs;
+            current_run_size = m2;
+            start_waiting_and_fetchting();
+#endif
 
             request_ptr * write_reqs1 = new request_ptr[cur_run_size - m2];
 
@@ -374,9 +432,21 @@ namespace stream
 
             result_.runs[0] = run;
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            join_waiting_and_fetchting();
+
+            current_Blocks = Blocks1;
+            current_write_reqs = write_reqs1;
+            current_run_size = cur_run_size;
+
+            start_waiting_and_fetchting();
+            join_waiting_and_fetchting();
+#else
             wait_all(write_reqs, write_reqs + m2);
-            delete [] write_reqs;
             wait_all(write_reqs1, write_reqs1 + cur_run_size - m2);
+#endif
+
+            delete [] write_reqs;
             delete [] write_reqs1;
 
             delete [] Blocks1;
@@ -399,6 +469,14 @@ namespace stream
             write_reqs[i]->wait();
             write_reqs[i] = Blocks2[i].write(run[i].bid);
         }
+
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        current_Blocks = Blocks2;
+        current_write_reqs = write_reqs;
+        current_run_size = cur_run_size;
+        start_waiting_and_fetchting();
+#endif
+
         assert((pos % el_in_run) == 0);
 
         result_.runs.push_back(run);
@@ -408,8 +486,12 @@ namespace stream
         {
             pos = 0;
 
-            fetch(Blocks1, pos, el_in_run);
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            join_waiting_and_fetchting();
+#else
+            fetch(Blocks1, pos, el_in_run);
+#endif
             result_.elements += pos;
             sort_run(Blocks1, pos);
             cur_run_size = div_and_round_up(pos, block_type::size); // in blocks
@@ -432,15 +514,52 @@ namespace stream
                 write_reqs[i]->wait();
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
+
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+            current_Blocks = Blocks1;
+            current_write_reqs = write_reqs;
+            current_run_size = cur_run_size;
+            start_waiting_and_fetchting();
+#endif
+
             result_.runs.push_back(run); // #
 
             std::swap(Blocks1, Blocks2);
         }
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+        join_waiting_and_fetchting();
+#else
         wait_all(write_reqs, write_reqs + m2);
+#endif
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
     }
+
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+//! \brief Helper function to call basic_pull_stage::async_pull() in a thread.
+template <
+              class Input_,
+              class Cmp_,
+              unsigned BlockSize_,
+              class AllocStr_>
+void* call_async_wait_and_fetch(void* param)
+{
+	static_cast<basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>*>(param)->async_wait_and_fetch();
+	return NULL;
+}
+
+//! \brief Start pulling data asynchronously.
+template <
+              class Input_,
+              class Cmp_,
+              unsigned BlockSize_,
+              class AllocStr_>
+void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetchting()
+{
+	pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
+}
+#endif
 
     //! \brief Forms sorted runs of data from a stream
     //!
