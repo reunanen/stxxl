@@ -180,6 +180,9 @@ namespace stream
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         pthread_t waiter_and_fetcher;
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+        volatile bool work_done, terminate_requested;
 #endif
 
         void compute_result();
@@ -207,9 +210,11 @@ namespace stream
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         void start_waiting_and_fetchting();
 
-        void join_waiting_and_fetchting()
+        void join_waiting_and_fetching()
         {
             void* res;
+            terminate_requested = true;
+            pthread_cond_signal(&cond);
             pthread_join(waiter_and_fetcher, &res);
         }
 
@@ -222,7 +227,7 @@ namespace stream
             unsigned_type read_run_size;
             blocked_index<block_type::size> end;	//return value
         };
-        
+
         WaitFetchJob wait_fetch_job;
 #endif
 
@@ -232,20 +237,38 @@ namespace stream
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         void async_wait_and_fetch()
         {
-            wait_fetch_job.end = wait_fetch_job.begin;
-            unsigned_type i;
-            for (i = 0; i < wait_fetch_job.wait_run_size; ++i)
-            {   //for each block to wait for
-                //wait for only next block
-                wait_all(wait_fetch_job.write_reqs + i, wait_fetch_job.write_reqs + i + 1);
-                //in the mean time, next write request will advance
-                wait_fetch_job.end =
-                    fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
-            }
-            for (; i < wait_fetch_job.read_run_size; ++i)
+            while(true)
             {
-                wait_fetch_job.end =
-                    fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
+                pthread_mutex_lock(&mutex);
+                while(work_done && !terminate_requested)
+                    pthread_cond_wait(&cond, &mutex);
+                if(terminate_requested)
+                {
+                    pthread_mutex_unlock(&mutex);
+                    return;
+                }
+                pthread_mutex_unlock(&mutex);
+
+                wait_fetch_job.end = wait_fetch_job.begin;
+                unsigned_type i;
+                for (i = 0; i < wait_fetch_job.wait_run_size; ++i)
+                {   //for each block to wait for
+                    //wait for only next block
+                    wait_all(wait_fetch_job.write_reqs + i, wait_fetch_job.write_reqs + i + 1);
+                    //in the mean time, next write request will advance
+                    wait_fetch_job.end =
+                        fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
+                }
+                for (; i < wait_fetch_job.read_run_size; ++i)
+                {
+                    wait_fetch_job.end =
+                        fetch(wait_fetch_job.Blocks, wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
+                }
+
+                pthread_mutex_lock(&mutex);
+                work_done = true;
+                pthread_cond_signal(&cond);	//wake up other thread
+                pthread_mutex_unlock(&mutex);
             }
         }
 
@@ -256,12 +279,20 @@ namespace stream
             wait_fetch_job.Blocks = Blocks;
             wait_fetch_job.wait_run_size = wait_run_size;
             wait_fetch_job.read_run_size = read_run_size;
-            start_waiting_and_fetchting();
+
+            pthread_mutex_lock(&mutex);
+            work_done = false;
+            pthread_mutex_unlock(&mutex);
+            pthread_cond_signal(&cond);	//wake up other thread
         }
 
         blocked_index<block_type::size> wait_write_read()
         {
-            join_waiting_and_fetchting();
+            pthread_mutex_lock(&mutex);
+            while(!work_done)
+                pthread_cond_wait(&cond, &mutex);	//wait for other thread
+            pthread_mutex_unlock(&mutex);
+
             return wait_fetch_job.end;
         }
 #endif
@@ -273,7 +304,15 @@ namespace stream
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
         {
+            pthread_mutex_init(&mutex, 0);
+            pthread_cond_init(&cond, 0);
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+        }
+
+        virtual ~basic_runs_creator()
+        {
+            pthread_mutex_destroy(&mutex);
+            pthread_cond_destroy(&cond);
         }
 
         //! \brief Returns the sorted runs object
@@ -329,6 +368,7 @@ namespace stream
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
             std::sort(result_.small_.begin(), result_.small_.end(), cmp);
+            join_waiting_and_fetching();
             return;
         }
 #endif
@@ -352,6 +392,7 @@ namespace stream
             result_.small_.resize(blocks1_length);
             std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
             delete [] Blocks1;
+            join_waiting_and_fetching();
             return;
         }
 
@@ -405,6 +446,7 @@ namespace stream
 #endif
             delete [] write_reqs;
             delete [] Blocks1;
+            join_waiting_and_fetching();
             return;
         }
 
@@ -470,6 +512,7 @@ namespace stream
 
             delete [] Blocks1;
 
+            join_waiting_and_fetching();
             return;
         }
 
@@ -554,6 +597,8 @@ namespace stream
 #endif
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
+        
+        join_waiting_and_fetching();
     }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
@@ -577,7 +622,9 @@ template <
               class AllocStr_>
 void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetchting()
 {
-	pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
+       work_done = true; //so far, nothing to do
+       terminate_requested = false;
+       pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
 }
 #endif
 
@@ -623,6 +670,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
+            base::start_waiting_and_fetchting();
         }
 
     };
@@ -682,6 +730,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
+            base::start_waiting_and_fetchting();
         }
 
     };
