@@ -1015,7 +1015,7 @@ struct RC : public striping
             perm[i] = i;
 
         stxxl::random_number<random_uniform_fast> rnd;
-        std::random_shuffle (perm.begin (), perm.end (), rnd);
+        std::random_shuffle (perm.begin (), perm.end (), rnd, mcstl::sequential_tag());
     }
     RC () : striping (), perm (diff)
     {
@@ -1023,7 +1023,7 @@ struct RC : public striping
             perm[i] = i;
 
         random_number<random_uniform_fast> rnd;
-        std::random_shuffle (perm.begin (), perm.end (), rnd);
+        std::random_shuffle (perm.begin (), perm.end (), rnd, mcstl::sequential_tag());
     }
     int operator     () (int i) const
     {

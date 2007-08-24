@@ -65,9 +65,9 @@ public:
 	}
 };
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for regular pipeline stages, for which the stream operations are called.
+//! This wrapper pulls asynchronously, and writes the data to a buffer.
 template<class StreamOperation>
 class basic_pull_stage
 {
@@ -262,9 +262,9 @@ void basic_pull_stage<StreamOperation>::start_pulling()
 	pthread_create(&puller, NULL, call_async_pull<StreamOperation>, this);
 }
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for regular pipeline stages, for which the stream operations are called.
+//! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
 template<class StreamOperation>
 class pull_stage : public basic_pull_stage<StreamOperation>
 {
@@ -320,9 +320,9 @@ protected:
 
 
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for regular pipeline stages, for which the stream operations are called.
+//! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
 template<class StreamOperation>
 class pull_stage_batch : public basic_pull_stage<StreamOperation>
 {
@@ -386,9 +386,9 @@ protected:
 
 
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for stages which are pushed into, i. e. push() and result() are called.
+//! This wrapper reads the data from a buffer asynchronously and pushes.
 template<class StreamOperation>
 class basic_push_stage
 {
@@ -542,9 +542,9 @@ void basic_push_stage<StreamOperation>::start_pushing()
 	pthread_create(&pusher, NULL, call_async_push<StreamOperation>, this);
 }
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for regular pipeline stages, for which the stream operations are called.
+//! This wrapper reads the data from a buffer asynchronously, one element at a time, and pushes.
 template<class StreamOperation>
 class push_stage : public basic_push_stage<StreamOperation>
 {
@@ -602,9 +602,9 @@ protected:
 
 
 
-//! \brief Asynchronous stage wrapper to allow concurrent pipelining.
+//! \brief Asynchronous stage to allow concurrent pipelining.
 //!
-//! This wrapper is for regular pipeline stages, for which the stream operations are called.
+//! This wrapper reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
 template<class StreamOperation>
 class push_stage_batch : public basic_push_stage<StreamOperation>
 {

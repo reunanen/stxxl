@@ -1,7 +1,6 @@
 #ifndef SORT_STREAM_HEADER
 #define SORT_STREAM_HEADER
 
-
 /***************************************************************************
  *            sort_stream.h
  *
