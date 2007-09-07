@@ -92,7 +92,7 @@ namespace stream
     };
 
 
-    //! \brief Input iterator range to stream convertor
+    //! \brief Input iterator range to stream converter
     //! \param begin iterator, pointing to the first value
     //! \param end iterator, pointing to the last + 1 position, i.e. beyond the range
     //! \return an instance of a stream object
@@ -218,7 +218,7 @@ namespace stream
         }
     };
 
-    //! \brief Input external \c stxxl::vector iterator range to stream convertor
+    //! \brief Input external \c stxxl::vector iterator range to stream converter
     //! It is more efficient than generic input iterator \c streamify thanks to use of overlapping
     //! \param begin iterator, pointing to the first value
     //! \param end iterator, pointing to the last + 1 position, i.e. beyond the range
@@ -246,7 +246,7 @@ namespace stream
         typedef vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >  stream_type;
     };
 
-    //! \brief Input external \c stxxl::vector const iterator range to stream convertor
+    //! \brief Input external \c stxxl::vector const iterator range to stream converter
     //! It is more efficient than generic input iterator \c streamify thanks to use of overlapping
     //! \param begin const iterator, pointing to the first value
     //! \param end const iterator, pointing to the last + 1 position, i.e. beyond the range
@@ -753,7 +753,7 @@ namespace stream
           in += length;
           out += length;
         }
-        
+
         while (!in.empty())
         {
             if (out.block_offset() == 0 )
@@ -863,7 +863,7 @@ namespace stream
         }
     };
 
-    //! \brief Adaptable generator to stream convertor
+    //! \brief Adaptable generator to stream converter
     //! \param gen_ generator object
     //! \return an instance of a stream object
     template <class Generator_>

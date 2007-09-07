@@ -148,7 +148,7 @@ namespace priority_queue_local
         goto s ## b ## a ## c;\
     goto s ## b ## c ## a;
 
-        // the order is choosen in such a way that
+        // the order is chosen in such a way that
         // four of the trailing gotos can be eliminated by the optimizer
         Merge3Case(0, 1, 2);
         Merge3Case(1, 2, 0);
@@ -399,7 +399,7 @@ finish:
     class ext_merger
     {
     public:
-        typedef stxxl::int64 size_type;
+        typedef stxxl::uint64 size_type;
         typedef BlockType_ block_type;
         typedef typename block_type::bid_type bid_type;
         typedef typename block_type::value_type value_type;
@@ -571,8 +571,8 @@ finish:
          */
 
     private:
-        ext_merger(const ext_merger &);   // forbiden
-        ext_merger & operator = (const ext_merger &);  // forbiden
+        ext_merger(const ext_merger &);   // forbidden
+        ext_merger & operator = (const ext_merger &);  // forbidden
     public:
 
 
@@ -832,7 +832,7 @@ finish:
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
             size_type l = end - begin;
-            STXXL_VERBOSE2("ext_meerger::multi_merge l = " << l);
+            STXXL_VERBOSE2("ext_merger::multi_merge l = " << l);
 
 
             switch (logK) {
@@ -1814,7 +1814,7 @@ public:
     typedef typename Config::comparator_type comparator_type;
     typedef typename Config::alloc_strategy_type alloc_strategy_type;
     //! \brief An unsigned integral type (64 bit)
-    typedef stxxl::int64 size_type;
+    typedef stxxl::uint64 size_type;
     typedef typed_block<BlockSize, value_type> block_type;
 
 
@@ -1881,22 +1881,22 @@ public:
     //! \brief Constructs external priority queue object
     //! \param p_pool_ pool of blocks that will be used
     //! for data prefetching for the disk<->memory transfers
-    //! happenning in the priority queue. Larger pool size
+    //! happening in the priority queue. Larger pool size
     //! helps to speed up operations.
     //! \param w_pool_ pool of blocks that will be used
     //! for writing data for the memory<->disk transfers
-    //! happenning in the priority queue. Larger pool size
+    //! happening in the priority queue. Larger pool size
     //! helps to speed up operations.
     priority_queue(prefetch_pool < block_type > & p_pool_, write_pool<block_type> & w_pool_);
 
     //! \brief Constructs external priority queue object
     //! \param p_pool_mem memory (in bytes) for prefetch pool that will be used
     //! for data prefetching for the disk<->memory transfers
-    //! happenning in the priority queue. Larger pool size
+    //! happening in the priority queue. Larger pool size
     //! helps to speed up operations.
     //! \param w_pool_mem memory (in bytes) for buffered write pool that will be used
     //! for writing data for the memory<->disk transfers
-    //! happenning in the priority queue. Larger pool size
+    //! happening in the priority queue. Larger pool size
     //! helps to speed up operations.
     priority_queue(unsigned_type p_pool_mem, unsigned_type w_pool_mem);
 
@@ -2183,7 +2183,7 @@ void priority_queue<Config_>::refillBuffer1()
     {
         minBuffer1 = buffer1 + BufferSize1 - totalSize;
         sz = totalSize;
-        assert(size_ == sz); // trees and buffer2 get empty
+        assert(size_ == size_type(sz)); // trees and buffer2 get empty
         size_ = 0;
     }
 
@@ -2326,7 +2326,7 @@ void priority_queue<Config_>::emptyInsertHeap()
 
     // refill buffer1
     // (using more complicated code it could be made somewhat fuller
-    // in certein circumstances)
+    // in certain circumstances)
     priority_queue_local::merge(&pos, &newPos, minBuffer1, sz1, cmp);
 
     // refill buffer2[0]
