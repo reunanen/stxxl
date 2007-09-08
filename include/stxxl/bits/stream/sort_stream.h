@@ -308,6 +308,11 @@ namespace stream
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
+        void start()
+        {
+            input.start();
+        }
+
         virtual ~basic_runs_creator()
         {
             pthread_mutex_destroy(&mutex);
@@ -890,6 +895,16 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
+        void start()
+        {
+        	//TODO!!
+        }
+
+        void start_push()
+        {
+        	//TODO??
+        }
+
         ~runs_creator()
         {
             if (!output_requested)
@@ -1448,6 +1463,11 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
     public:
+        void start()
+        {
+        	//TODO??
+        }
+    
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
 	typedef const value_type* const_iterator;
@@ -1851,7 +1871,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef runs_merger<sorted_runs_type, Cmp_, AllocStr_> runs_merger_type;
 
         runs_creator_type creator;
-        runs_merger_type merger;
+        runs_merger_type* merger;
+        Cmp_& c;
+        unsigned_type memory_to_use_m;
 
         sort(); // forbidden
         sort(const sort &); // forbidden
@@ -1868,8 +1890,15 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
             creator(in, c, memory_to_use),
-            merger(creator.result(), c, memory_to_use)	//creator.result() implies complete run formation
-        { }
+            c(c),
+            memory_to_use_m(memory_to_use)
+        {
+#if STXXL_START_PIPELINE
+            memory_to_use_m = memory_to_use;
+#else
+            merger = new runs_merger_type(creator.result(), c, memory_to_use);	//creator.result() implies complete run formation
+#endif
+        }
 
         //! \brief Creates the object
         //! \param in input stream
@@ -1878,59 +1907,71 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
             creator(in, c, memory_to_use_rc),
-            merger(creator.result(), c, memory_to_use_m)	//creator.result() implies complete run formation
-        { }
+            c(c),
+            memory_to_use_m(memory_to_use_m)
+        {
+#if STXXL_START_PIPELINE
+            this->memory_to_use_m = memory_to_use_m;
+#else
+            merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
+#endif
+        }
 
+        //! \brief Standard stream method
+        void start()
+        {
+            merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
         {
             assert(!empty());
-            return *merger;
+            return **merger;
         }
 
         const value_type * operator -> () const
         {
             assert(!empty());
-            return merger.operator->();
+            return merger->operator->();
         }
 
         //! \brief Standard stream method
         sort & operator ++()
         {
-            ++merger;
+            ++(*merger);
             return *this;
         }
 
         //! \brief Standard stream method
         bool empty() const
         {
-            return merger.empty();
+            return merger->empty();
         }
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-          return merger.batch_length();
+          return merger->batch_length();
         }
 
         //! \brief Batched stream method.
         sort& operator += (unsigned_type size)
         {
-                merger += size;
+                (*merger) += size;
 
                 return *this;
         }
 
         //! \brief Batched stream method.
         const_iterator batch_begin()
-        {       return merger.batch_begin();
+        {       return merger->batch_begin();
         }
 
         //! \brief Batched stream method.
         const value_type& operator[](unsigned_type index)
         {
-                return merger[index];
+                return (*merger)[index];
         }
 
     };

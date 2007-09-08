@@ -66,6 +66,12 @@ namespace stream
         iterator2stream(const iterator2stream & a) : current_(a.current_), end_(a.end_) { }
 
         //! \brief Standard stream method
+        void start()
+        {
+            //do nothing
+        }
+
+        //! \brief Standard stream method
         const value_type & operator * () const
         {
             return *current_;
@@ -157,6 +163,12 @@ namespace stream
         }
 
         vector_iterator2stream(const Self_ & a) : current_(a.current_), end_(a.end_), in(a.in) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            //do nothing
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -316,6 +328,12 @@ namespace stream
         vector_iterator2stream_sr(const Self_ & a) : vec_it_stream(a.vec_it_stream), it_stream(a.it_stream) { }
 
         //! \brief Standard stream method
+        void start()
+        {
+            //do nothing
+        }
+
+        //! \brief Standard stream method
         const value_type & operator * () const
         {
             if (it_stream)	//PERFORMANCE: Frequent run-time decision
@@ -400,6 +418,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (!in.empty())
         {
             *out = *in;
@@ -419,6 +440,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         unsigned_type length;
         while (length = in.batch_length() > 0)
         {
@@ -441,6 +465,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while ((!in.empty()) && outend != outbegin)
         {
             *outbegin = *in;
@@ -463,6 +490,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
         {
@@ -497,6 +527,9 @@ namespace stream
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
 
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -567,6 +600,9 @@ namespace stream
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
 
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -644,6 +680,9 @@ namespace stream
         // if you stay in a block, then materialize function accesses only the cache of the
         // vector (only one block indeed), amortized complexity should apply here
 
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -716,6 +755,9 @@ namespace stream
         // if you stay in a block, then materialize function accesses only the cache of the
         // vector (only one block indeed), amortized complexity should apply here
 
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -837,6 +879,12 @@ namespace stream
             gen_(g), current_(gen_()) { }
 
         generator2stream(const generator2stream & a) : gen_(a.gen_), current_(a.current_) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            //do nothing
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -1009,6 +1057,7 @@ namespace stream
     {
         Operation_& op;
         Input1_ &i1;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
@@ -1018,6 +1067,13 @@ namespace stream
 
         //! \brief Construction
         transform(Operation_& o, Input1_ & i1_) : op(o), i1(i1_) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            i1.start();
+            op.start_push();
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -1041,7 +1097,10 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-            return i1.empty();
+            bool is_empty = i1.empty();
+            if(is_empty)
+                op.push_end();
+            return is_empty;
         }
 
         //! \brief Batched stream method
@@ -1391,13 +1450,26 @@ namespace stream
           for(int i = 0; i < num_inputs; i++)
             already_empty[i] = false;
 
+#if !STXXL_START_PIPELINE
           pos = -1;
           next();
+#endif
         }
 
         ~round_robin()
         {
           delete[] already_empty;
+        }
+
+        //! \brief Standard stream method
+        void start()
+        {
+          for(int i = 0; i < num_inputs; i++)
+            inputs[i]->start();
+#if STXXL_START_PIPELINE
+          pos = -1;
+          next();
+#endif
         }
 
         //! \brief Standard stream method
@@ -1623,6 +1695,18 @@ namespace stream
         {
         }
 
+        //! \brief Standard stream method
+	void start()
+	{
+	    i1.start();
+	    i2.start();
+	}
+	
+        //! \brief Standard stream method
+	void start_push()
+	{
+	}
+	
         //! \brief Standard stream method
         const value_type& operator * () const	//RETURN BY VALUE
         {
