@@ -88,7 +88,7 @@ namespace stream
         return *this;
       }
 
-      operator const unsigned_type() const
+      operator unsigned_type() const
       {
         return pos;
       }
@@ -207,7 +207,7 @@ namespace stream
         virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> begin, unsigned_type limit) = 0;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        void start_waiting_and_fetchting();
+        void start_waiting_and_fetching();
 
         void join_waiting_and_fetching()
         {
@@ -624,7 +624,7 @@ template <
               class Cmp_,
               unsigned BlockSize_,
               class AllocStr_>
-void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetchting()
+void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetching()
 {
        work_done = true; //so far, nothing to do
        terminate_requested = false;
@@ -648,7 +648,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     {
     private:
       typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+    public:
       typedef typename base::block_type block_type;
+    private:
 
       using base::input;
 
@@ -674,7 +676,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
-            base::start_waiting_and_fetchting();
+            base::start_waiting_and_fetching();
         }
 
     };
@@ -734,7 +736,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
-            base::start_waiting_and_fetchting();
+            base::start_waiting_and_fetching();
         }
 
     };
