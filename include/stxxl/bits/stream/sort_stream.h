@@ -308,11 +308,12 @@ namespace stream
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
-        void start()
+/*        void start()
         {
+            STXXL_VERBOSE0("basic_runs_creator " << this << " starts.");
             input.start();
         }
-
+*/
         virtual ~basic_runs_creator()
         {
             pthread_mutex_destroy(&mutex);
@@ -326,6 +327,7 @@ namespace stream
         {
             if (!result_computed)
             {
+                input.start();
                 compute_result();
                 result_computed = true;
 #ifdef STXXL_PRINT_STAT_AFTER_RF
@@ -899,12 +901,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         void start()
         {
-        	//TODO!!
+		STXXL_VERBOSE0("runs_creator " << this << " starts.");
+        	//do nothing
         }
 
         void start_push()
         {
-        	//TODO??
+		STXXL_VERBOSE0("runs_creator " << this << " starts push.");
+        	//do nothing
         }
 
         ~runs_creator()
@@ -1194,9 +1198,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     {
         typedef typename RunsType_::block_type block_type;
         typedef typename block_type::value_type value_type;
-        STXXL_VERBOSE2("Elements: " << sruns.elements);
+        STXXL_VERBOSE1("Elements: " << sruns.elements);
         unsigned_type nruns = sruns.runs.size();
-        STXXL_VERBOSE2("Runs: " << nruns);
+        STXXL_VERBOSE1("Runs: " << nruns);
         unsigned_type irun = 0;
         for (irun = 0; irun < nruns; ++irun)
         {
@@ -1467,9 +1471,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     public:
         void start()
         {
+		STXXL_VERBOSE0("runs_merger " << this << " starts.");
         	//TODO??
         }
-    
+
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
 	typedef const value_type* const_iterator;
@@ -1876,6 +1881,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         runs_merger_type* merger;
         Cmp_& c;
         unsigned_type memory_to_use_m;
+        Input_& input;
 
         sort(); // forbidden
         sort(const sort &); // forbidden
@@ -1893,10 +1899,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
             creator(in, c, memory_to_use),
             c(c),
-            memory_to_use_m(memory_to_use)
+            memory_to_use_m(memory_to_use),
+            input(in)
         {
 #if STXXL_START_PIPELINE
             memory_to_use_m = memory_to_use;
+            merger = NULL;
 #else
             merger = new runs_merger_type(creator.result(), c, memory_to_use);	//creator.result() implies complete run formation
 #endif
@@ -1914,14 +1922,21 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
 #if STXXL_START_PIPELINE
             this->memory_to_use_m = memory_to_use_m;
+            merger = NULL;
 #else
             merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
 #endif
         }
 
+        virtual ~sort()
+        {
+            delete merger;
+        }
+
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("sort " << this << " starts.");
             merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
         }
 

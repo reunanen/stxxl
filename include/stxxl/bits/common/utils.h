@@ -70,7 +70,18 @@ inline void UNUSED(const U &)
 
 
 #ifndef STXXL_VERBOSE_LEVEL
-#define STXXL_VERBOSE_LEVEL 0
+#define STXXL_VERBOSE_LEVEL -1
+#endif
+
+//STXXL_VERBOSE0 should be used for debugging the initial code, and never get into a release.
+
+#if STXXL_VERBOSE_LEVEL > -1
+ #define STXXL_VERBOSE0(x) \
+    { std::cout << "[STXXL-VERBOSE0] " << x << std::endl << std::flush; \
+      stxxl::logger::get_instance()->log_stream() << "[STXXL-VERBOSE0] " << x << std::endl << std::flush; \
+    }
+#else
+ #define STXXL_VERBOSE0(x)
 #endif
 
 #if STXXL_VERBOSE_LEVEL > 0

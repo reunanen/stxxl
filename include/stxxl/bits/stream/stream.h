@@ -68,6 +68,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("iterator2stream " << this << " starts.");
             //do nothing
         }
 
@@ -167,6 +168,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.");
             //do nothing
         }
 
@@ -330,6 +332,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.");
             //do nothing
         }
 
@@ -441,6 +444,7 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
 #if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
         in.start();
 #endif
         unsigned_type length;
@@ -491,6 +495,7 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
 #if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
         in.start();
 #endif
         unsigned_type length;
@@ -601,6 +606,7 @@ namespace stream
         typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
 
 #if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
         in.start();
 #endif
         while (outbegin.block_offset()) //  go to the beginning of the block
@@ -756,6 +762,7 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
         in.start();
 #endif
         while (out.block_offset()) //  go to the beginning of the block
@@ -885,6 +892,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("generator2stream " << this << " starts.");
             //do nothing
         }
 
@@ -1073,6 +1081,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
+            STXXL_VERBOSE0("transform " << this << " starts.");
             i1.start();
             op.start_push();
         }
@@ -1466,11 +1475,12 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-          for(int i = 0; i < num_inputs; i++)
-            inputs[i]->start();
+            STXXL_VERBOSE0("round_robin " << this << " starts.");
+            for(int i = 0; i < num_inputs; i++)
+                inputs[i]->start();
 #if STXXL_START_PIPELINE
-          pos = -1;
-          next();
+            pos = -1;
+            next();
 #endif
         }
 
@@ -1700,6 +1710,7 @@ namespace stream
         //! \brief Standard stream method
 	void start()
 	{
+            STXXL_VERBOSE0("make_tuple " << this << " starts.");
 	    i1.start();
 	    i2.start();
 	}
@@ -1707,6 +1718,7 @@ namespace stream
         //! \brief Standard stream method
 	void start_push()
 	{
+            //do nothing
 	}
 	
         //! \brief Standard stream method

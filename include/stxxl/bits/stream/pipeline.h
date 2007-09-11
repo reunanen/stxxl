@@ -116,7 +116,9 @@ public:
 		output_buffer_consumed = true;
 		
 		output_finished = false;
+#if !STXXL_START_PIPELINE
 		last_swap_done = output_finished || so.empty();
+#endif
 		
 		pthread_mutex_init(&mutex, 0);
 		pthread_cond_init(&cond, 0);
@@ -150,8 +152,10 @@ protected:
 		
 		input_buffer_filled = false;
 		output_buffer_consumed = false;
-		
+	
+//#if !STXXL_START_PIPELINE
 		last_swap_done = output_finished || so.empty();
+//#endif
 	}
 	
 	//! \brief Check whether outgoing buffer has run empty and possibly wait for new data to come in.
@@ -188,6 +192,7 @@ public:
 	void start()
 	{
 #if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("basic_pull_stage " << this << " starts.");
 		start_pulling();
 #endif
 	}
@@ -294,12 +299,14 @@ protected:
 	using basic_pull_stage<StreamOperation>::output_buffer_consumed;
 	using basic_pull_stage<StreamOperation>::swap_buffers;
 	using basic_pull_stage<StreamOperation>::last_swap_done;
-	
+	using basic_pull_stage<StreamOperation>::output_finished;
+
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
 	{
 #if STXXL_START_PIPELINE
 		so.start();
+		last_swap_done = output_finished || so.empty();
 #endif
 		while(!last_swap_done)
 		{
@@ -312,7 +319,7 @@ protected:
 			incoming_buffer->stop = incoming_buffer->current;
 			
 			pthread_mutex_lock(&mutex);
-			input_buffer_filled = true;
+			input_buffer_filled = (incoming_buffer->stop != incoming_buffer->begin);
 			
 			if(output_buffer_consumed)
 			{
@@ -359,12 +366,14 @@ protected:
 	using basic_pull_stage<StreamOperation>::output_buffer_consumed;
 	using basic_pull_stage<StreamOperation>::swap_buffers;
 	using basic_pull_stage<StreamOperation>::last_swap_done;
+	using basic_pull_stage<StreamOperation>::output_finished;
 	
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
 	{
 #if STXXL_START_PIPELINE
 		so.start();
+		last_swap_done = output_finished || so.empty();
 #endif
 		unsigned_type length;
 		while(!last_swap_done)
@@ -517,6 +526,7 @@ public:
 	void start()
 	{
 #if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("basic_push_stage " << this << " starts.");
 		start_pushing();
 #endif
 	}
@@ -563,6 +573,9 @@ public:
 	
 	void start_push() const
 	{
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_stage " << this << " starts push.");
+#endif
 		so.start_push();
 	}
 	
@@ -896,9 +909,19 @@ public:
 		pthread_cond_init(&cond, 0);
 	}
 	
+	//! \brief Standard stream method.
+	void start()
+	{
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_pull_stage " << this << " starts.");
+#endif
+	}
+
 	void start_push()
 	{
-		//TODO??
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_pull_stage " << this << " starts push.");
+#endif
 	}
 	
 	//! \brief Destructor.
