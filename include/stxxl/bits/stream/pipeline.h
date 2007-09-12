@@ -151,7 +151,7 @@ protected:
 		outgoing_buffer->current = outgoing_buffer->begin;
 		
 		input_buffer_filled = false;
-		output_buffer_consumed = false;
+		output_buffer_consumed = /*(outgoing_buffer->stop == outgoing_buffer->begin)*/false;
 	
 		last_swap_done = output_finished || so.empty();
 	}
@@ -492,7 +492,7 @@ protected:
 		outgoing_buffer->current = outgoing_buffer->begin;
 		
 		input_buffer_filled = false;
-		output_buffer_consumed = false;
+		output_buffer_consumed = /*(outgoing_buffer->stop == outgoing_buffer->begin)*/false;
 		
 		last_swap_done = input_finished;
 	}
@@ -514,12 +514,14 @@ protected:
 				pthread_mutex_unlock(&mutex);
 				pthread_cond_signal(&cond);	//wake up other thread
 			}
-			else
+			else if(!last_swap_done)
 			{
 				while(input_buffer_filled)	//to be swapped by other thread
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
+			else	//no further input, empty will return true
+				pthread_mutex_unlock(&mutex);
 		}
 	}	
 
@@ -876,7 +878,7 @@ public:
 	typedef buffer<value_type> typed_buffer;
 	typedef const value_type* const_iterator;
 	
-protected:
+private:
 	//! \brief First double buffering buffer.
 	typed_buffer block1;
 	//! \brief Second double buffering buffer.
@@ -926,6 +928,7 @@ public:
 #if STXXL_START_PIPELINE
 		STXXL_VERBOSE0("push_pull_stage " << this << " starts.");
 #endif
+		//do nothing
 	}
 
 	void start_push()
@@ -933,11 +936,16 @@ public:
 #if STXXL_START_PIPELINE
 		STXXL_VERBOSE0("push_pull_stage " << this << " starts push.");
 #endif
+		//do nothing
 	}
 	
 	//! \brief Destructor.
 	~push_pull_stage()
 	{
+		output_finished = true;
+		
+		reload();
+		
 		assert(input_finished);
 		assert(output_finished);
 
@@ -945,7 +953,7 @@ public:
 		pthread_cond_destroy(&cond);
 	}
 
-protected:
+private:
 	//! \brief Swap input and output buffers.
 	void swap_buffers() const
 	{
@@ -958,7 +966,7 @@ protected:
 		outgoing_buffer->current = outgoing_buffer->begin;
 		
 		input_buffer_filled = false;
-		output_buffer_consumed = false;
+		output_buffer_consumed = /*false*/(outgoing_buffer->stop == outgoing_buffer->current);
 		
 		last_swap_done = output_finished || input_finished;
 	}
@@ -1050,7 +1058,7 @@ public:
 		return *(outgoing_buffer->current + index);
 	}
 	
-	
+private:
 	//! \brief Check whether incoming buffer has run full and possibly wait for data being pushed forward.
 	void unload() const
 	{
@@ -1068,15 +1076,18 @@ public:
 				pthread_mutex_unlock(&mutex);
 				pthread_cond_signal(&cond);	//wake up other thread
 			}
-			else
+			else if(!last_swap_done)
 			{
 				while(input_buffer_filled)	//to be swapped by other thread
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
+			else	//no further output, empty will return true
+				pthread_mutex_unlock(&mutex);
 		}
 	}	
 
+public:
 	//! \brief Standard push stream method.
 	//! \param val value to be pushed
 	void push(const value_type & val)
@@ -1090,7 +1101,26 @@ public:
 	//! \brief Standard push stream method.
 	void stop_push()
 	{
-		input_finished = true;
+		if(!input_finished)
+		{
+			input_finished = true;
+		
+			unload();
+		}
+	}
+	
+	//! \brief Batched stream method.
+	unsigned_type push_batch_length() const
+	{
+		return incoming_buffer->end - incoming_buffer->current;
+	}
+	
+	//! \brief Batched stream method.
+	void push_batch(value_type* batch_begin, value_type* batch_end)
+	{
+		assert((batch_end - batch_begin) <= push_batch_length());
+		
+		incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
 		
 		unload();
 	}

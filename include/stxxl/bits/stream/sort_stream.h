@@ -1048,7 +1048,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 #endif
                 pthread_mutex_lock(&mutex);
                 result_ready = true;
-                STXXL_VERBOSE0("Signaling");
                 pthread_cond_signal(&cond);
                 pthread_mutex_unlock(&mutex);
             }
@@ -1061,12 +1060,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             pthread_mutex_lock(&mutex);
             while(!result_ready)
-            {
-                STXXL_VERBOSE0("Waiting");
                 pthread_cond_wait(&cond, &mutex);
-            }
             pthread_mutex_unlock(&mutex);
-            STXXL_VERBOSE0("Waited");
             return result_;
         }
     };
@@ -2069,7 +2064,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         sort& operator += (unsigned_type size)
         {
                 merger += size;
-
                 return *this;
         }
 
