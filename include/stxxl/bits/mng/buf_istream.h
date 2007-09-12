@@ -129,16 +129,15 @@ public:
         assert(not_finished);
 #endif
 
-        current_elem++;
+        ++current_elem;
 
         if (current_elem >= block_type::size)
         {
             current_elem = 0;
 #ifdef BUF_ISTREAM_CHECK_END
-            not_finished = prefetcher->block_consumed(current_blk);
-#else
-            prefetcher->block_consumed(current_blk);
+            not_finished =
 #endif
+            prefetcher->block_consumed(current_blk);
         }
         return *this;
     }
@@ -146,20 +145,21 @@ public:
     //! \brief Batched stream method
     buf_istream& operator +=(unsigned_type length)
     {
-      assert(length <= static_cast<unsigned_type>(block_type::size - current_elem));
-      if(length > 0)
-      {
-        current_elem += length - 1;
-        operator++();
-      }
+        assert(0 < length && length <= batch_length());
+        if(length > 0)
+        {
+            current_elem += length - 1;
+            operator++();
+        }
 
-      return *this;
+        return *this;
     }
 
     //! \brief Batched stream method
     unsigned_type batch_length() const
     {
-      return block_type::size - current_elem;
+        //assert(block_type::size - current_elem > 0);
+        return block_type::size - current_elem;
     }
 
     //! \brief Batched stream method

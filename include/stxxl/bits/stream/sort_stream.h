@@ -7,6 +7,8 @@
  *  Thu Oct  2 12:09:50 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
+ *  Copyright  2007  Johannes Singler
+ *  singler@ira.uka.de
  ****************************************************************************/
 
 #ifdef __MCSTL__
@@ -310,12 +312,6 @@ namespace stream
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
-/*        void start()
-        {
-            STXXL_VERBOSE0("basic_runs_creator " << this << " starts.");
-            input.start();
-        }
-*/
         virtual ~basic_runs_creator()
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
@@ -378,7 +374,9 @@ namespace stream
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
             std::sort(result_.small_.begin(), result_.small_.end(), cmp);
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
+#endif
             return;
         }
 #endif
@@ -701,7 +699,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //!
     //! Template parameters:
     //! - \c Input_ type of the input stream
-    //! - \c Cmp_ type of omparison object used for sorting the runs
+    //! - \c Cmp_ type of comparison object used for sorting the runs
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
@@ -819,6 +817,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         request_ptr * write_reqs;
         run_type run;
 
+	//! \brief Mutex variable, to mutual exclude the other thread.
+	pthread_mutex_t mutex;
+	//! \brief Condition variable, to wait for the other thread.
+	pthread_cond_t cond;
+        volatile bool result_ready;
+
 
         runs_creator(); // default construction is forbidden
         runs_creator(const runs_creator & ); // copy construction is forbidden
@@ -843,8 +847,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             else
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
         }
+
         void finish_result()
         {
+            STXXL_VERBOSE0("runs_creator " << this << " finish_result");
             if (cur_el == 0)
                 return;
 
@@ -910,21 +916,30 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             cur_el(0),
             Blocks1(new block_type[m2 * 2]),
             Blocks2(Blocks1 + m2),
-            write_reqs(new request_ptr[m2])
+            write_reqs(new request_ptr[m2]),
+            result_ready(false)
         {
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            pthread_mutex_init(&mutex, 0);
+            pthread_cond_init(&cond, 0);
+        }
+
+        ~runs_creator()
+        {
+            pthread_mutex_destroy(&mutex);
+            pthread_cond_destroy(&cond);
         }
 
         void start()
         {
-		STXXL_VERBOSE0("runs_creator " << this << " starts.");
-        	//do nothing
+            STXXL_VERBOSE0("runs_creator " << this << " starts.");
+            //do nothing
         }
 
         void start_push()
         {
-		STXXL_VERBOSE0("runs_creator " << this << " starts push.");
-        	//do nothing
+            STXXL_VERBOSE0("runs_creator " << this << " starts push.");
+            //do nothing
         }
 
         ~runs_creator()
@@ -1020,11 +1035,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             return;
         }
 
-        //! \brief Returns the sorted runs object
-        //! \return Sorted runs object.
-        //! \remark Returned object is intended to be used by \c runs_merger object as input
-        const sorted_runs_type & result()
+        void stop_push()
         {
+            STXXL_VERBOSE0("runs_creator use_push " << this << " stops pushing.");
             if (!output_requested)
             {
                 finish_result();
@@ -1033,7 +1046,27 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                 STXXL_MSG(*stats::get_instance());
 #endif
+                pthread_mutex_lock(&mutex);
+                result_ready = true;
+                STXXL_VERBOSE0("Signaling");
+                pthread_cond_signal(&cond);
+                pthread_mutex_unlock(&mutex);
             }
+        }
+
+        //! \brief Returns the sorted runs object
+        //! \return Sorted runs object.
+        //! \remark Returned object is intended to be used by \c runs_merger object as input
+        const sorted_runs_type & result()
+        {
+            pthread_mutex_lock(&mutex);
+            while(!result_ready)
+            {
+                STXXL_VERBOSE0("Waiting");
+                pthread_cond_wait(&cond, &mutex);
+            }
+            pthread_mutex_unlock(&mutex);
+            STXXL_VERBOSE0("Waited");
             return result_;
         }
     };
@@ -1275,8 +1308,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     template <  class RunsType_,
               class Cmp_,
               class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
-    class runs_merger
+    class basic_runs_merger
     {
+    protected:
         typedef RunsType_ sorted_runs_type;
         typedef AllocStr_ alloc_strategy;
         typedef typename sorted_runs_type::size_type size_type;
@@ -1314,9 +1348,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         void merge_recursively();
 
-        runs_merger(); // forbidden
-        runs_merger(const runs_merger &); // forbidden
-        runs_merger & operator = (const runs_merger &); // copying is forbidden
+        basic_runs_merger(); // forbidden
+        basic_runs_merger(const basic_runs_merger &); // forbidden
+        basic_runs_merger & operator = (const basic_runs_merger &); // copying is forbidden
         void deallocate_prefetcher()
         {
             if (prefetcher)
@@ -1338,7 +1372,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
 // begin of STL-style merging
 
-            //taks: merge
+            //task: merge
 
             if (!stxxl::SETTINGS::native_merge && mcstl::HEURISTIC::num_threads >= 1)
             {
@@ -1485,29 +1519,46 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
     public:
-        void start()
-        {
-		STXXL_VERBOSE0("runs_merger " << this << " starts.");
-        	//TODO??
-        }
-
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
-	typedef const value_type* const_iterator;
+        typedef const value_type* const_iterator;
 
         //! \brief Creates a runs merger object
         //! \param r input sorted runs object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use) :
-            sruns(r), m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
-            elements_remaining(r.elements),
+        basic_runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use) :
+            sruns(r),
+            m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
             current_block(NULL),
 #ifdef STXXL_CHECK_ORDER_IN_SORTS
             last_element(cmp.min_value()),
 #endif
             prefetcher(NULL)
         {
+            initialize(r);
+        }
+
+    protected:
+        //! \brief Creates a runs merger object
+        //! \param r input sorted runs object
+        //! \param c comparison object
+        //! \param memory_to_use amount of memory available for the merger in bytes
+        basic_runs_merger(value_cmp c, unsigned_type memory_to_use) :
+            m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
+            current_block(NULL),
+#ifdef STXXL_CHECK_ORDER_IN_SORTS
+            last_element(cmp.min_value()),
+#endif
+            prefetcher(NULL)
+        {
+        }
+
+        void initialize(const sorted_runs_type & r)
+        {
+            sruns = r;
+            elements_remaining = r.elements;
+
             if (empty())
                 return;
 
@@ -1516,7 +1567,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             if (!sruns.small_.empty()) // we have a small input < B,
             // that is kept in the main memory
             {
-                STXXL_VERBOSE1("runs_merger: small input optimization, input length: " << elements_remaining);
+                STXXL_VERBOSE1("basic_runs_merger: small input optimization, input length: " << elements_remaining);
                 assert(elements_remaining == size_type(sruns.small_.size()));
                 current_block = new block_type;
                 std::copy(sruns.small_.begin(), sruns.small_.end(), current_block->begin());
@@ -1621,14 +1672,15 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 deallocate_prefetcher();
         }
 
+    public:
         //! \brief Standard stream method
         bool empty() const
         {
             return elements_remaining == 0;
         }
-        
+
         //! \brief Standard stream method
-        runs_merger & operator ++() // preincrement operator
+        basic_runs_merger & operator ++() // preincrement operator
         {
             assert(!empty());
 
@@ -1689,7 +1741,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
         //! \brief Batched stream method.
-        runs_merger& operator += (unsigned_type length)
+        basic_runs_merger& operator += (unsigned_type length)
         {
           assert(length > 0);
 
@@ -1716,7 +1768,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         //! \brief Destructor
         //! \remark Deallocates blocks of the input sorted runs object
-        virtual ~runs_merger()
+        virtual ~basic_runs_merger()
         {
             deallocate_prefetcher();
 
@@ -1733,7 +1785,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
 
     template <class RunsType_, class Cmp_, class AllocStr_>
-    void runs_merger<RunsType_, Cmp_, AllocStr_>::merge_recursively()
+    void basic_runs_merger<RunsType_, Cmp_, AllocStr_>::merge_recursively()
     {
         block_manager * bm = block_manager::get_instance();
         unsigned_type ndisks = config::get_instance ()->disks_number ();
@@ -1818,7 +1870,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                 if (runs2merge > 1)
                 {
-                    runs_merger<RunsType_, Cmp_, AllocStr_> merger(cur_runs, cmp, m_ * block_type::raw_size);
+                    basic_runs_merger<RunsType_, Cmp_, AllocStr_> merger(cur_runs, cmp, m_ * block_type::raw_size);
 
                     { // make sure everything is being destroyed in right time
                         buf_ostream < block_type, typename run_type::iterator > out(
@@ -1875,6 +1927,46 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     }
 
 
+    //! \brief Merges sorted runs
+    //!
+    //! Template parameters:
+    //! - \c RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
+    //! - \c Cmp_ type of comparison object used for merging
+    //! - \c AllocStr_ allocation strategy used to allocate the blocks for
+    //! storing intermediate results if several merge passes are required
+    template <  class RunsCreator_,
+              class Cmp_,
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
+    class runs_merger : public basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_>
+    {
+    private:
+        typedef basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_> base;
+        typedef typename base::value_cmp value_cmp;
+        typedef typename base::block_type block_type;
+
+        RunsCreator_& rc;
+
+    public:
+        //! \brief Creates a runs merger object
+        //! \param r input sorted runs object
+        //! \param c comparison object
+        //! \param memory_to_use amount of memory available for the merger in bytes
+        runs_merger(RunsCreator_& rc, value_cmp c, unsigned_type memory_to_use) :
+            base(c, memory_to_use),
+            rc(rc)
+        {
+#if !STXXL_START_PIPELINE
+            base::initialize(rc.result());
+#endif
+        }
+
+        void start()
+        {
+            STXXL_VERBOSE0("runs_merger " << this << " starts.");
+            base::initialize(rc.result());
+        }
+    };
+
     //! \brief Produces sorted stream from input stream
     //!
     //! Template parameters:
@@ -1891,10 +1983,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     class sort
     {
         typedef typename runs_creator_type::sorted_runs_type sorted_runs_type;
-        typedef runs_merger<sorted_runs_type, Cmp_, AllocStr_> runs_merger_type;
+        typedef runs_merger<runs_creator_type, Cmp_, AllocStr_> runs_merger_type;
 
         runs_creator_type creator;
-        runs_merger_type* merger;
+        runs_merger_type merger;
         Cmp_& c;
         unsigned_type memory_to_use_m;
         Input_& input;
@@ -1914,16 +2006,11 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
             creator(in, c, memory_to_use),
+            merger(creator, c, memory_to_use),
             c(c),
             memory_to_use_m(memory_to_use),
             input(in)
         {
-#if STXXL_START_PIPELINE
-            memory_to_use_m = memory_to_use;
-            merger = NULL;
-#else
-            merger = new runs_merger_type(creator.result(), c, memory_to_use);	//creator.result() implies complete run formation
-#endif
         }
 
         //! \brief Creates the object
@@ -1933,78 +2020,68 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
         sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
             creator(in, c, memory_to_use_rc),
+            merger(creator, c, memory_to_use_m),
             c(c),
             memory_to_use_m(memory_to_use_m)
         {
-#if STXXL_START_PIPELINE
-            this->memory_to_use_m = memory_to_use_m;
-            merger = NULL;
-#else
-            merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
-#endif
-        }
-
-        virtual ~sort()
-        {
-            delete merger;
         }
 
         //! \brief Standard stream method
         void start()
         {
             STXXL_VERBOSE0("sort " << this << " starts.");
-            merger = new runs_merger_type(creator.result(), c, memory_to_use_m);	//creator.result() implies complete run formation
+            merger.start();
         }
 
         //! \brief Standard stream method
         const value_type & operator * () const
         {
             assert(!empty());
-            return **merger;
+            return *merger;
         }
 
         const value_type * operator -> () const
         {
             assert(!empty());
-            return merger->operator->();
+            return merger.operator->();
         }
 
         //! \brief Standard stream method
         sort & operator ++()
         {
-            ++(*merger);
+            ++merger;
             return *this;
         }
 
         //! \brief Standard stream method
         bool empty() const
         {
-            return merger->empty();
+            return merger.empty();
         }
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-          return merger->batch_length();
+          return merger.batch_length();
         }
 
         //! \brief Batched stream method.
         sort& operator += (unsigned_type size)
         {
-                (*merger) += size;
+                merger += size;
 
                 return *this;
         }
 
         //! \brief Batched stream method.
         const_iterator batch_begin()
-        {       return merger->batch_begin();
+        {       return merger.batch_begin();
         }
 
         //! \brief Batched stream method.
         const value_type& operator[](unsigned_type index)
         {
-                return (*merger)[index];
+                return merger[index];
         }
 
     };

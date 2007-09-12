@@ -7,6 +7,8 @@
  *  Tue Jul 29 10:44:56 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
+ *  Copyright  2007  Johannes Singler
+ *  singler@ira.uka.de
  ****************************************************************************/
 
 #include "stxxl/bits/namespace.h"
@@ -189,8 +191,6 @@ namespace stream
             assert(end_ != current_);
             ++current_;
             ++ (*in);
-//             if (empty())	//PERFORMANCE issue: better in deconstructor
-//                 delete_stream();
 
             return *this;
         }
@@ -204,20 +204,22 @@ namespace stream
         //! \brief Standard stream method
         vector_iterator2stream& operator +=(unsigned_type length)
         {
-          assert(length <= batch_length());
-          current_ += length;
-          (*in) += length;
-          return *this;
+            assert(0 < length && length <= batch_length());
+            current_ += length;
+            STXXL_VERBOSE0(end_ - current_);
+            (*in) += length;
+            return *this;
         }
 
         unsigned_type batch_length()
         {
-          return std::min<unsigned_type>(in->batch_length(), end_ - current_);
+            STXXL_VERBOSE(in->batch_length() << " " << end_ - current_);
+            return std::min<unsigned_type>(in->batch_length(), end_ - current_);
         }
 
         const_iterator batch_begin()
         {
-          return in->batch_begin();
+            return in->batch_begin();
         }
 
         value_type& operator[](unsigned_type index)
@@ -1009,6 +1011,9 @@ namespace stream
         }
     };
 
+
+    // Specializations
+
     template <class Operation_, class Input1_Iterator_>
     class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation_::value_type>
     {
@@ -1052,8 +1057,6 @@ namespace stream
         }
     };
 
-
-    // Specializations
 
     //! \brief Processes an input stream using given operation functor
     //!
@@ -1101,6 +1104,7 @@ namespace stream
         transform &  operator ++()
         {
             ++i1;
+            //STXXL_VERBOSE0("transform++");
 
             return *this;
         }
@@ -1110,14 +1114,23 @@ namespace stream
         {
             bool is_empty = i1.empty();
             if(is_empty)
-                op.push_end();
+            {
+                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                op.stop_push();
+            }
             return is_empty;
         }
 
         //! \brief Batched stream method
         unsigned_type batch_length() const
         {
-            return i1.batch_length();
+            unsigned_type batch_length = i1.batch_length();
+            if(batch_length == 0)
+            {
+                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                op.stop_push();
+            }
+            return batch_length;
         }
 
         //! \brief Batched stream method
@@ -1135,6 +1148,8 @@ namespace stream
         //! \brief Batched stream method
         transform &  operator +=(unsigned_type length)
         {
+            assert(length > 0);
+
             i1 += length;
 
             return *this;
@@ -1505,12 +1520,14 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        round_robin& operator +=(unsigned_type size)
+        round_robin& operator +=(unsigned_type length)
         {
-          (*current_input) += size;
-          next();
+            assert(length > 0);
 
-          return *this;
+            (*current_input) += length;
+            next();
+
+            return *this;
         }
 
         unsigned_type batch_length() const
@@ -1751,16 +1768,16 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-          return std::min(i1.batch_length(), i2.batch_length());
+            return std::min(i1.batch_length(), i2.batch_length());
         }
 
         //! \brief Batched stream method.
         make_tuple& operator += (unsigned_type size)
         {
-                i1 += size;
-                i2 += size;
+            i1 += size;
+            i2 += size;
 
-                return *this;
+            return *this;
         }
 
         //! \brief Batched stream method.
@@ -1774,9 +1791,6 @@ namespace stream
         {
                 return value_type(i1[index], i2[index]);
         }
-
-
-
     };
 
     //! \brief Creates stream of 3-tuples from 3 input streams

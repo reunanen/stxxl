@@ -153,9 +153,7 @@ protected:
 		input_buffer_filled = false;
 		output_buffer_consumed = false;
 	
-//#if !STXXL_START_PIPELINE
 		last_swap_done = output_finished || so.empty();
-//#endif
 	}
 	
 	//! \brief Check whether outgoing buffer has run empty and possibly wait for new data to come in.
@@ -304,6 +302,7 @@ protected:
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
 	{
+		STXXL_VERBOSE0("pull_stage " << this << " starts pulling.")
 #if STXXL_START_PIPELINE
 		so.start();
 		last_swap_done = output_finished || so.empty();
@@ -335,6 +334,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 			}
 		}
+		STXXL_VERBOSE0("pull_stage " << this << " stops pulling.")
 	}
 };
 
@@ -371,6 +371,7 @@ protected:
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
 	{
+		STXXL_VERBOSE0("pull_stage_batch " << this << " starts pulling.")
 #if STXXL_START_PIPELINE
 		so.start();
 		last_swap_done = output_finished || so.empty();
@@ -408,6 +409,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 			}
 		}
+		STXXL_VERBOSE0("pull_stage_batch " << this << " stops pulling.")
 	}
 };
 
@@ -523,7 +525,7 @@ protected:
 
 public:
 	//! \brief Standard push stream method.
-	void start()
+	void start_push()
 	{
 #if STXXL_START_PIPELINE
 		STXXL_VERBOSE0("basic_push_stage " << this << " starts.");
@@ -557,7 +559,7 @@ public:
 	}
 	
 	//! \brief Stream method.
-	void push_end() const
+	void stop_push() const
 	{
 		if(!input_finished)
 		{
@@ -568,25 +570,9 @@ public:
 			void* return_code;
 			pthread_join(pusher, &return_code);
 		}
-		
+		so.stop_push();
 	}
 	
-	void start_push() const
-	{
-#if STXXL_START_PIPELINE
-		STXXL_VERBOSE0("push_stage " << this << " starts push.");
-#endif
-		so.start_push();
-	}
-	
-	//! \brief Returns result.
-	const result_type& result() const
-	{
-		push_end();
-
-		return so.result();
-	}
-
 	virtual void async_push() = 0;
 
 protected:
@@ -636,6 +622,10 @@ protected:
 	//! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
 	virtual void async_push()
 	{
+		STXXL_VERBOSE0("push_stage " << this << " starts pushing.")
+#if STXXL_START_PIPELINE
+		so.start_push();
+#endif
 		while(true)
 		{
 			while(outgoing_buffer->current < outgoing_buffer->stop)
@@ -664,6 +654,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 			}
 		}
+		STXXL_VERBOSE0("push_stage " << this << " stops pushing.")
 	}
 
 };
@@ -698,8 +689,9 @@ protected:
 	//! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
 	virtual void async_push()
 	{
+		STXXL_VERBOSE0("push_stage_batch " << this << " starts pushing.")
 #if STXXL_START_PIPELINE
-		so.start();
+		so.start_push();
 #endif
 		while(true)
 		{
@@ -731,6 +723,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 			}
 		}
+		STXXL_VERBOSE0("push_stage_batch " << this << " stops pushing.")
 	}
 
 };
@@ -753,6 +746,12 @@ public:
 	dummy_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
+	}
+	
+	//! \brief Standard stream method.
+	void start()
+	{
+		so.start();
 	}
 	
 	//! \brief Standard stream method.
@@ -823,6 +822,18 @@ public:
 	dummy_push_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
+	}
+	
+	//! \brief Standard stream method.
+	void start_push()
+	{
+		so.start_push();
+	}
+	
+	//! \brief Standard stream method.
+	void stop_push()
+	{
+		so.stop_push();
 	}
 	
 	//! \brief Standard stream method.
@@ -1077,9 +1088,11 @@ public:
 	}
 	
 	//! \brief Standard push stream method.
-	void push_end()
+	void stop_push()
 	{
+		input_finished = true;
 		
+		unload();
 	}
 };
 
