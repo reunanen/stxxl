@@ -303,8 +303,10 @@ namespace stream
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             pthread_mutex_init(&mutex, 0);
             pthread_cond_init(&cond, 0);
+#endif
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
@@ -316,8 +318,10 @@ namespace stream
 */
         virtual ~basic_runs_creator()
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             pthread_mutex_destroy(&mutex);
             pthread_cond_destroy(&cond);
+#endif
         }
 
         //! \brief Returns the sorted runs object
@@ -398,7 +402,9 @@ namespace stream
             result_.small_.resize(blocks1_length);
             std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
             delete [] Blocks1;
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
+#endif
             return;
         }
 
@@ -452,7 +458,9 @@ namespace stream
 #endif
             delete [] write_reqs;
             delete [] Blocks1;
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
+#endif
             return;
         }
 
@@ -518,7 +526,9 @@ namespace stream
 
             delete [] Blocks1;
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
+#endif
             return;
         }
 
@@ -604,7 +614,9 @@ namespace stream
         delete [] write_reqs;
         delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
         
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         join_waiting_and_fetching();
+#endif
     }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
@@ -678,7 +690,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             base::start_waiting_and_fetching();
+#endif
         }
 
     };
@@ -738,7 +752,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             base::start_waiting_and_fetching();
+#endif
         }
 
     };
