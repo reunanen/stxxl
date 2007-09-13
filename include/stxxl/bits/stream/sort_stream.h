@@ -327,7 +327,9 @@ namespace stream
         {
             if (!result_computed)
             {
+#if STXXL_START_PIPELINE
                 input.start();
+#endif
                 compute_result();
                 result_computed = true;
 #ifdef STXXL_PRINT_STAT_AFTER_RF
@@ -1959,6 +1961,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             STXXL_VERBOSE0("runs_merger " << this << " starts.");
             base::initialize(rc.result());
+            STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
         }
     };
 

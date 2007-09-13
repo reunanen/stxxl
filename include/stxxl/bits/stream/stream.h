@@ -611,14 +611,17 @@ namespace stream
         STXXL_VERBOSE0("materialize_batch starts.");
         in.start();
 #endif
-        while (outbegin.block_offset()) //  go to the beginning of the block
+
+	ExtIterator outcurrent = outbegin;
+
+        while (outcurrent.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
-            if (in.empty() || outbegin == outend)
-                return outbegin;
+            if (in.empty() || outcurrent == outend)
+                return outcurrent;
 
-            *outbegin = *in;
-            ++outbegin;
+            *outcurrent = *in;
+            ++outcurrent;
             ++in;
         }
 
@@ -626,31 +629,32 @@ namespace stream
             nbuffers = 2 * config::get_instance()->disks_number();
 
 
-        outbegin.flush(); // flush container
+        outcurrent.flush(); // flush container
 
         // create buffered write stream for blocks
-        buf_ostream_type outstream(outbegin.bid(), nbuffers);
+        buf_ostream_type outstream(outcurrent.bid(), nbuffers);
 
-        assert(outbegin.block_offset() == 0);
+        assert(outcurrent.block_offset() == 0);
 
         unsigned_type length;
-        while ((length = in.batch_length()) > 0 && outend != outbegin)
+        while ((length = in.batch_length()) > 0 && outend != outcurrent)
         {
-          if (outbegin.block_offset() == 0)
-            outbegin.touch();
+          if (outcurrent.block_offset() == 0)
+            outcurrent.touch();
 
-          length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outbegin, ExtIterator::block_type::size - outbegin.block_offset()));
+          length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
           for(typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
           {
             *outstream = *i;
             ++outstream;
           }
-          outbegin += length;
+          outcurrent += length;
           in += length;
+          //STXXL_VERBOSE0("materialized " << (outcurrent - outbegin))
         }
 
-        ConstExtIterator const_out = outbegin;
+        ConstExtIterator const_out = outcurrent;
 
         while (const_out.block_offset()) // filling the rest of the block
         {
@@ -658,9 +662,9 @@ namespace stream
             ++const_out;
             ++outstream;
         }
-        outbegin.flush();
+        outcurrent.flush();
 
-        return outbegin;
+        return outcurrent;
     }
 
 

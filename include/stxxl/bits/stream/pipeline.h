@@ -20,12 +20,12 @@ __STXXL_BEGIN_NAMESPACE
 namespace stream
 {
 
+//! \addtogroup streampack Stream package
+//! \{
+
 //! \brief Sub-namespace for providing parallel pipelined stream processing.
 namespace pipeline
 {
-
-//! \addtogroup streampack Stream package
-//! \{
 
 //! \addtogroup pipelinepack Pipeline package
 //! \{
@@ -65,20 +65,27 @@ public:
 	}
 };
 
+template<class ValueType>
+class push_pull_stage;
+
 //! \brief Asynchronous stage to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
 template<class StreamOperation>
-class basic_pull_stage
+class basic_pull_stage : public push_pull_stage<typename StreamOperation::value_type>
 {
+protected:
+	typedef push_pull_stage<typename StreamOperation::value_type> base;
+
 public:
-	typedef typename StreamOperation::value_type value_type;
+/*	typedef typename StreamOperation::value_type value_type;
 	typedef buffer<value_type> typed_buffer;
-	typedef const value_type* const_iterator;
+	typedef const value_type* const_iterator;*/
 	
 	StreamOperation& so;
 	
 protected:
+/*
 	//! \brief First double buffering buffer.
 	typed_buffer block1;
 	//! \brief Second double buffering buffer.
@@ -98,7 +105,7 @@ protected:
 	//! \brief Mutex variable, to mutual exclude the other thread.
 	mutable pthread_mutex_t mutex;
 	//! \brief Condition variable, to wait for the other thread.
-	mutable pthread_cond_t cond;
+	mutable pthread_cond_t cond;*/
 	//! \brief Asynchronously pulling thread.
 	pthread_t puller;
 
@@ -106,10 +113,11 @@ public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
 	basic_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
-		so(so),
-		block1(buffer_size / 2), block2(buffer_size / 2), incoming_buffer(&block1), outgoing_buffer(&block2)
+		base(buffer_size),
+		so(so)/*,
+		block1(buffer_size / 2), block2(buffer_size / 2), incoming_buffer(&block1), outgoing_buffer(&block2)*/
 	{
-		incoming_buffer->current = incoming_buffer->begin;
+/*		incoming_buffer->current = incoming_buffer->begin;
 		input_buffer_filled = false;
 		
 		outgoing_buffer->current = outgoing_buffer->end;
@@ -121,23 +129,25 @@ public:
 #endif
 		
 		pthread_mutex_init(&mutex, 0);
-		pthread_cond_init(&cond, 0);
+		pthread_cond_init(&cond, 0);*/
 	}
 	
 	//! \brief Destructor.
-	~basic_pull_stage()
+	virtual ~basic_pull_stage()
 	{
-		output_finished = true;
+/*		output_finished = true;
 		
-		reload();
+		reload();*/
+		
+		base::stop_pull();
 		
 		void* return_code;
 		pthread_join(puller, &return_code);
 			
-		pthread_mutex_destroy(&mutex);
-		pthread_cond_destroy(&cond);
+/*		pthread_mutex_destroy(&mutex);
+		pthread_cond_destroy(&cond);*/
 	}
-
+/*
 protected:
 	//! \brief Swap input and output buffers.
 	void swap_buffers() const
@@ -151,7 +161,7 @@ protected:
 		outgoing_buffer->current = outgoing_buffer->begin;
 		
 		input_buffer_filled = false;
-		output_buffer_consumed = /*(outgoing_buffer->stop == outgoing_buffer->begin)*/false;
+		output_buffer_consumed = false;
 	
 		last_swap_done = output_finished || so.empty();
 	}
@@ -184,7 +194,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 		}
 	}	
-
+*/
 public:
 	//! \brief Standard stream method.
 	void start()
@@ -194,7 +204,7 @@ public:
 		start_pulling();
 #endif
 	}
-
+/*
 	//! \brief Standard stream method.
 	bool empty() const
 	{
@@ -252,7 +262,7 @@ public:
 		assert(outgoing_buffer->current <= outgoing_buffer->stop);
 		return *this;
 	}
-	
+*/	
 	virtual void async_pull() = 0;
 
 protected:
@@ -289,17 +299,21 @@ public:
 #endif
 	}
 
+	typedef typename StreamOperation::value_type value_type;
+	
 protected:
+	typedef push_pull_stage<value_type> base;
+
 	using basic_pull_stage<StreamOperation>::so;
-	using basic_pull_stage<StreamOperation>::incoming_buffer;
-	using basic_pull_stage<StreamOperation>::outgoing_buffer;
-	using basic_pull_stage<StreamOperation>::mutex;
-	using basic_pull_stage<StreamOperation>::cond;
-	using basic_pull_stage<StreamOperation>::input_buffer_filled;
-	using basic_pull_stage<StreamOperation>::output_buffer_consumed;
-	using basic_pull_stage<StreamOperation>::swap_buffers;
-	using basic_pull_stage<StreamOperation>::last_swap_done;
-	using basic_pull_stage<StreamOperation>::output_finished;
+/*	using push_pull_stage<value_type>::incoming_buffer;
+	using push_pull_stage<value_type>::outgoing_buffer;
+	using push_pull_stage<value_type>::mutex;
+	using push_pull_stage<value_type>::cond;
+	using push_pull_stage<value_type>::input_buffer_filled;
+	using push_pull_stage<value_type>::output_buffer_consumed;
+	using push_pull_stage<value_type>::swap_buffers;
+	using push_pull_stage<value_type>::last_swap_done;*/
+	//using push_pull_stage<value_type>::output_finished;
 
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
@@ -307,9 +321,14 @@ protected:
 		STXXL_VERBOSE0("pull_stage " << this << " starts pulling.")
 #if STXXL_START_PIPELINE
 		so.start();
-		last_swap_done = output_finished || so.empty();
 #endif
-		while(!last_swap_done)
+		while(!so.empty() && !base::output_finished)
+		{
+			base::push(*so);
+			++so;
+		}
+		base::stop_push();
+/*		while(!last_swap_done)
 		{
 			while(incoming_buffer->current < incoming_buffer->end && !so.empty())
 			{
@@ -335,7 +354,7 @@ protected:
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
-		}
+		}*/
 		STXXL_VERBOSE0("pull_stage " << this << " stops pulling.")
 	}
 };
@@ -358,18 +377,20 @@ public:
 	}
 	
 	typedef typename StreamOperation::value_type value_type;
-
+	
 protected:
+	typedef push_pull_stage<value_type> base;
+
 	using basic_pull_stage<StreamOperation>::so;
-	using basic_pull_stage<StreamOperation>::incoming_buffer;
+/*	using basic_pull_stage<StreamOperation>::incoming_buffer;
 	using basic_pull_stage<StreamOperation>::outgoing_buffer;
 	using basic_pull_stage<StreamOperation>::mutex;
 	using basic_pull_stage<StreamOperation>::cond;
 	using basic_pull_stage<StreamOperation>::input_buffer_filled;
 	using basic_pull_stage<StreamOperation>::output_buffer_consumed;
 	using basic_pull_stage<StreamOperation>::swap_buffers;
-	using basic_pull_stage<StreamOperation>::last_swap_done;
-	using basic_pull_stage<StreamOperation>::output_finished;
+	using basic_pull_stage<StreamOperation>::last_swap_done;*/
+//	using basic_pull_stage<StreamOperation>::output_finished;
 	
 	//! \brief Asynchronous method that keeps trying to fill the incoming buffer.
 	virtual void async_pull()
@@ -377,10 +398,17 @@ protected:
 		STXXL_VERBOSE0("pull_stage_batch " << this << " starts pulling.")
 #if STXXL_START_PIPELINE
 		so.start();
-		last_swap_done = output_finished || so.empty();
+		//last_swap_done = output_finished || so.empty();
 #endif
 		unsigned_type length;
-		while(!last_swap_done)
+		while((length = so.batch_length()) > 0 && !base::output_finished)
+		{
+			length = std::min(length, base::push_batch_length());
+			base::push_batch(so.batch_begin(), so.batch_begin() + length);
+			so.operator+=(length);
+		}
+		base::stop_push();
+/*		while(!last_swap_done)
 		{
 			while(incoming_buffer->current < incoming_buffer->end && (length = so.batch_length()) > 0)
 			{
@@ -411,7 +439,7 @@ protected:
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
-		}
+		}*/
 		STXXL_VERBOSE0("pull_stage_batch " << this << " stops pulling.")
 	}
 };
@@ -422,17 +450,18 @@ protected:
 //!
 //! This wrapper reads the data from a buffer asynchronously and pushes.
 template<class StreamOperation>
-class basic_push_stage
+class basic_push_stage : public push_pull_stage<typename StreamOperation::value_type>
 {
 public:
-	typedef typename StreamOperation::value_type value_type;
+/*	typedef typename StreamOperation::value_type value_type;
 	typedef buffer<value_type> typed_buffer;
-	typedef typename StreamOperation::result_type result_type;
+	typedef typename StreamOperation::result_type result_type;*/
 	
 	StreamOperation& so;
 	
 protected:
-	//! \brief First double buffering buffer.
+	typedef push_pull_stage<typename StreamOperation::value_type> base;
+/*	//! \brief First double buffering buffer.
 	typed_buffer block1;
 	//! \brief Second double buffering buffer.
 	typed_buffer block2;
@@ -451,7 +480,7 @@ protected:
 	//! \brief Mutex variable, to mutual exclude the other thread.
 	mutable pthread_mutex_t mutex;
 	//! \brief Condition variable, to wait for the other thread.
-	mutable pthread_cond_t cond;
+	mutable pthread_cond_t cond;*/
 	//! \brief Asynchronously pushing thread.
 	pthread_t pusher;
 
@@ -459,10 +488,11 @@ public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
 	basic_push_stage(unsigned_type buffer_size, StreamOperation& so) :
-		so(so),
-		block1(buffer_size / 2), block2(buffer_size / 2), incoming_buffer(&block1), outgoing_buffer(&block2)
+		base(buffer_size),
+		so(so)/*,
+		block1(buffer_size / 2), block2(buffer_size / 2), incoming_buffer(&block1), outgoing_buffer(&block2)*/
 	{
-		incoming_buffer->current = incoming_buffer->begin;
+/*		incoming_buffer->current = incoming_buffer->begin;
 		input_buffer_filled = false;
 		
 		outgoing_buffer->current = outgoing_buffer->end;
@@ -472,18 +502,18 @@ public:
 		last_swap_done = input_finished;
 		
 		pthread_mutex_init(&mutex, 0);
-		pthread_cond_init(&cond, 0);
+		pthread_cond_init(&cond, 0);*/
 	}
 	
 	//! \brief Destructor.
-	~basic_push_stage()
+	virtual ~basic_push_stage()
 	{
-		pthread_mutex_destroy(&mutex);
-		pthread_cond_destroy(&cond);
+/*		pthread_mutex_destroy(&mutex);
+		pthread_cond_destroy(&cond);*/
 	}
 
 protected:
-	//! \brief Swap input and output buffers.
+/*	//! \brief Swap input and output buffers.
 	void swap_buffers() const
 	{
 		assert(output_buffer_consumed);
@@ -495,7 +525,7 @@ protected:
 		outgoing_buffer->current = outgoing_buffer->begin;
 		
 		input_buffer_filled = false;
-		output_buffer_consumed = /*(outgoing_buffer->stop == outgoing_buffer->begin)*/false;
+		output_buffer_consumed = false;
 		
 		last_swap_done = input_finished;
 	}
@@ -527,7 +557,7 @@ protected:
 				pthread_mutex_unlock(&mutex);
 		}
 	}	
-
+*/
 public:
 	//! \brief Standard push stream method.
 	void start_push()
@@ -537,7 +567,7 @@ public:
 		start_pushing();
 #endif
 	}
-	
+/*	
 	//! \brief Standard push stream method.
 	//! \param val value to be pushed
 	void push(const value_type & val)
@@ -555,27 +585,24 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	void push_batch(value_type* batch_begin, value_type* batch_end)
+	void push_batch(const value_type* batch_begin, const value_type* batch_end)
 	{
 		assert((batch_end - batch_begin) <= (incoming_buffer->end - incoming_buffer->current));
 		incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
 		
 		offload();
 	}
-	
+*/	
 	//! \brief Stream method.
 	void stop_push() const
 	{
-		if(!input_finished)
+		if(!base::input_finished)
 		{
-			input_finished = true;
-			
-			offload();
+			base::stop_push();
 			
 			void* return_code;
 			pthread_join(pusher, &return_code);
 		}
-		so.stop_push();
 	}
 	
 	virtual void async_push() = 0;
@@ -615,15 +642,16 @@ public:
 	}
 
 protected:
+	typedef basic_push_stage<StreamOperation> base;
 	using basic_push_stage<StreamOperation>::so;
-	using basic_push_stage<StreamOperation>::incoming_buffer;
+/*	using basic_push_stage<StreamOperation>::incoming_buffer;
 	using basic_push_stage<StreamOperation>::outgoing_buffer;
 	using basic_push_stage<StreamOperation>::mutex;
 	using basic_push_stage<StreamOperation>::cond;
 	using basic_push_stage<StreamOperation>::input_buffer_filled;
 	using basic_push_stage<StreamOperation>::output_buffer_consumed;
 	using basic_push_stage<StreamOperation>::swap_buffers;
-	using basic_push_stage<StreamOperation>::last_swap_done;
+	using basic_push_stage<StreamOperation>::last_swap_done;*/
 	
 	//! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
 	virtual void async_push()
@@ -632,7 +660,13 @@ protected:
 		STXXL_VERBOSE0("push_stage " << this << " starts pushing.")
 		so.start_push();
 #endif
-		while(true)
+		while(!base::empty())
+		{
+			so.push(base::operator*());
+			base::operator++();
+		}
+		so.stop_push();
+/*		while(true)
 		{
 			while(outgoing_buffer->current < outgoing_buffer->stop)
 			{
@@ -659,7 +693,7 @@ protected:
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
-		}
+		}*/
 		STXXL_VERBOSE0("push_stage " << this << " stops pushing.")
 	}
 
@@ -683,15 +717,16 @@ public:
 	}
 
 protected:
+	typedef basic_push_stage<StreamOperation> base;
 	using basic_push_stage<StreamOperation>::so;
-	using basic_push_stage<StreamOperation>::incoming_buffer;
+/*	using basic_push_stage<StreamOperation>::incoming_buffer;
 	using basic_push_stage<StreamOperation>::outgoing_buffer;
 	using basic_push_stage<StreamOperation>::mutex;
 	using basic_push_stage<StreamOperation>::cond;
 	using basic_push_stage<StreamOperation>::input_buffer_filled;
 	using basic_push_stage<StreamOperation>::output_buffer_consumed;
 	using basic_push_stage<StreamOperation>::swap_buffers;
-	using basic_push_stage<StreamOperation>::last_swap_done;
+	using basic_push_stage<StreamOperation>::last_swap_done;*/
 	
 	//! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
 	virtual void async_push()
@@ -700,7 +735,15 @@ protected:
 		STXXL_VERBOSE0("push_stage_batch " << this << " starts pushing.")
 		so.start_push();
 #endif
-		while(true)
+		unsigned_type length;
+		while((length = base::batch_length()) > 0)
+		{
+			length = std::min(length, so.push_batch_length());
+			so.push_batch(base::batch_begin(), base::batch_begin() + length);
+			base::operator+=(length);
+		}
+		so.stop_push();
+/*		while(true)
 		{
 			while(outgoing_buffer->current < outgoing_buffer->stop)
 			{
@@ -729,7 +772,7 @@ protected:
 					pthread_cond_wait(&cond, &mutex);
 				pthread_mutex_unlock(&mutex);
 			}
-		}
+		}*/
 		STXXL_VERBOSE0("push_stage_batch " << this << " stops pushing.")
 	}
 
@@ -851,14 +894,14 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	void push_batch(value_type* batch_begin, value_type* batch_end)
+	void push_batch(const value_type* batch_begin, const value_type* batch_end)
 	{
 		assert((batch_end - batch_begin) == 1);
 		push(*batch_begin);
 	}
 	
 	//! \brief Standard stream method.
-	void stop_push()
+	void stop_push() const
 	{
 		so.stop_push();
 	}
@@ -880,7 +923,7 @@ public:
 	typedef buffer<value_type> typed_buffer;
 	typedef const value_type* const_iterator;
 	
-private:
+protected:
 	//! \brief First double buffering buffer.
 	typed_buffer block1;
 	//! \brief Second double buffering buffer.
@@ -896,7 +939,7 @@ private:
 	//! \brief The input is finished.
 	mutable bool input_finished;
 	//! \brief The output is finished.
-//	mutable bool output_finished;
+	mutable bool output_finished;
 	//! \brief The input stream has run empty, the last swap_buffers() has been performed already.
 	mutable volatile bool last_swap_done;
 	//! \brief Mutex variable, to mutual exclude the other thread.
@@ -916,7 +959,7 @@ private:
 	
 	void update_last_swap_done() const
 	{
-		last_swap_done = input_finished/* || output_finished*/;
+		last_swap_done = input_finished || output_finished;
 	}
 
 public:
@@ -933,7 +976,7 @@ public:
 		outgoing_buffer->current = outgoing_buffer->stop;
 		update_output_buffer_consumed();
 		
-		//output_finished = false;
+		output_finished = false;
 		input_finished = false;
 		update_last_swap_done();
 		
@@ -942,7 +985,7 @@ public:
 	}
 	
 	//! \brief Destructor.
-	~push_pull_stage()
+	virtual ~push_pull_stage()
 	{
 /*		output_finished = true;
 		
@@ -955,7 +998,7 @@ public:
 		pthread_cond_destroy(&cond);
 	}
 
-private:
+protected:
 	//! \brief Swap input and output buffers.
 	void swap_buffers() const
 	{
@@ -972,13 +1015,13 @@ private:
 		update_last_swap_done();
 	}
 	
-	//! \brief Check whether outgoing buffer has run empty and possibly wait for new data to come in.
+	//! \brief Check whether outgoing buffer has been consumed and possibly wait for new data to come in.
 	//!
 	//! Should not be called in operator++(), but in empty() (or operator*()),
 	//! because should not block if iterator is only advanced, but not accessed.
 	void reload() const
 	{
-		if(outgoing_buffer->current == outgoing_buffer->stop/* || output_finished*/)
+		if(outgoing_buffer->current == outgoing_buffer->stop)
 		{
 			pthread_mutex_lock(&mutex);
 			
@@ -1013,7 +1056,7 @@ public:
 	{
 		reload();
 
-		return output_buffer_consumed;
+		return batch_length() == 0;//output_buffer_consumed;
 	}
 	
 	//! \brief Standard stream method.
@@ -1061,12 +1104,24 @@ public:
 	//! \brief Batched stream method.
 	push_pull_stage<value_type>& operator += (unsigned_type length)
 	{
+		assert(outgoing_buffer->stop - outgoing_buffer->current);
 		outgoing_buffer->current += length;
-		assert(outgoing_buffer->current <= outgoing_buffer->stop);
 		return *this;
 	}
-	
-private:
+
+	//! \brief Standard stream method.
+	void stop_pull()
+	{
+		if(!output_finished)
+		{
+			output_finished = true;
+			update_last_swap_done();
+		
+			pthread_cond_signal(&cond);	//wake up other thread
+		}
+	}
+
+protected:
 	//! \brief Check whether incoming buffer has run full and possibly wait for data being pushed forward.
 	void offload() const
 	{
@@ -1117,9 +1172,9 @@ public:
 	}
 	
 	//! \brief Batched stream method.
-	void push_batch(value_type* batch_begin, value_type* batch_end)
+	void push_batch(const value_type* batch_begin, const value_type* batch_end)
 	{
-		assert((batch_end - batch_begin) <= push_batch_length());
+		assert(static_cast<unsigned_type>(batch_end - batch_begin) <= push_batch_length());
 		
 		incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
 		
@@ -1127,7 +1182,7 @@ public:
 	}
 	
 	//! \brief Standard stream method.
-	void stop_push()
+	void stop_push() const
 	{
 		if(!input_finished)
 		{
