@@ -930,6 +930,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             pthread_mutex_destroy(&mutex);
             pthread_cond_destroy(&cond);
+            if (!output_requested)
+                cleanup();
         }
 
         void start()
@@ -942,12 +944,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             STXXL_VERBOSE0("runs_creator " << this << " starts push.");
             //do nothing
-        }
-
-        ~runs_creator()
-        {
-            if (!output_requested)
-                cleanup();
         }
 
         //! \brief Adds new element to the sorter
@@ -1677,6 +1673,20 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
         //! \brief Standard stream method
+        const value_type & operator * () const
+        {
+            assert(!empty());
+            return current_value;
+        }
+
+        //! \brief Standard stream method
+        const value_type * operator -> () const
+        {
+            assert(!empty());
+            return &current_value;
+        }
+
+        //! \brief Standard stream method
         basic_runs_merger & operator ++() // preincrement operator
         {
             assert(!empty());
@@ -1717,37 +1727,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             return *this;
         }
-        //! \brief Standard stream method
-        const value_type & operator * () const
-        {
-            assert(!empty());
-            return current_value;
-        }
 
-        //! \brief Standard stream method
-        const value_type * operator -> () const
-        {
-            assert(!empty());
-            return &current_value;
-        }
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
           return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
-        }
-
-        //! \brief Batched stream method.
-        basic_runs_merger& operator += (unsigned_type length)
-        {
-          assert(length > 0);
-
-          elements_remaining -= (length - 1);
-          buffer_pos += (length - 1);
-
-          operator++();
-
-          return *this;
         }
 
         //! \brief Batched stream method.
@@ -1761,6 +1746,19 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             assert(index < batch_length());
             return *(current_block->elem + buffer_pos - 1 + index);
+        }
+
+        //! \brief Batched stream method.
+        basic_runs_merger& operator += (unsigned_type length)
+        {
+          assert(length > 0);
+
+          elements_remaining -= (length - 1);
+          buffer_pos += (length - 1);
+
+          operator++();
+
+          return *this;
         }
 
         //! \brief Destructor
@@ -2032,6 +2030,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
         //! \brief Standard stream method
+        bool empty() const
+        {
+            return merger.empty();
+        }
+
+        //! \brief Standard stream method
         const value_type & operator * () const
         {
             assert(!empty());
@@ -2051,23 +2055,11 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             return *this;
         }
 
-        //! \brief Standard stream method
-        bool empty() const
-        {
-            return merger.empty();
-        }
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
           return merger.batch_length();
-        }
-
-        //! \brief Batched stream method.
-        sort& operator += (unsigned_type size)
-        {
-                merger += size;
-                return *this;
         }
 
         //! \brief Batched stream method.
@@ -2081,6 +2073,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 return merger[index];
         }
 
+        //! \brief Batched stream method.
+        sort& operator += (unsigned_type size)
+        {
+                merger += size;
+                return *this;
+        }
     };
 
     //! \brief Computes sorted runs type from value type and block size
