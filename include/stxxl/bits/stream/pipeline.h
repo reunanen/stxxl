@@ -196,6 +196,14 @@ public:
 	}
 
 	//! \brief Standard stream method.
+	bool empty() const
+	{
+		reload();
+
+		return last_swap_done && output_buffer_consumed;
+	}
+	
+	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
 		assert(!empty());
@@ -215,13 +223,6 @@ public:
 		return *this;
 	}
 	
-	//! \brief Standard stream method.
-	bool empty() const
-	{
-		reload();
-
-		return last_swap_done && output_buffer_consumed;
-	}
 	
 	//! \brief Batched stream method.
 	unsigned_type batch_length() const
@@ -229,14 +230,6 @@ public:
 		reload();
 
 		return outgoing_buffer->stop - outgoing_buffer->current;
-	}
-	
-	//! \brief Batched stream method.
-	basic_pull_stage<StreamOperation>& operator += (unsigned_type length)
-	{
-		outgoing_buffer->current += length;
-		assert(outgoing_buffer->current <= outgoing_buffer->stop);
-		return *this;
 	}
 	
 	//! \brief Batched stream method.
@@ -250,6 +243,14 @@ public:
 	{
 		assert(outgoing_buffer->current + index < outgoing_buffer->stop);
 		return *(outgoing_buffer->current + index);
+	}
+	
+	//! \brief Batched stream method.
+	basic_pull_stage<StreamOperation>& operator += (unsigned_type length)
+	{
+		outgoing_buffer->current += length;
+		assert(outgoing_buffer->current <= outgoing_buffer->stop);
+		return *this;
 	}
 	
 	virtual void async_pull() = 0;
@@ -544,7 +545,7 @@ public:
 		
 		unload();
 	}
-	
+
 	//! \brief Batched stream method.
 	unsigned_type push_batch_length() const
 	{
@@ -757,6 +758,12 @@ public:
 	}
 	
 	//! \brief Standard stream method.
+	bool empty() const
+	{
+		return so.empty();
+	}
+	
+	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
 		return *so;
@@ -774,24 +781,12 @@ public:
 		++so;
 		return *this;
 	}
-	
-	//! \brief Standard stream method.
-	bool empty() const
-	{
-		return so.empty();
-	}
-	
+
+
 	//! \brief Batched stream method.
 	unsigned_type batch_length() const
 	{
 		return 1;
-	}
-	
-	//! \brief Batched stream method.
-	dummy_pull_stage<StreamOperation>& operator += (unsigned_type length)
-	{
-		assert(length == 1);
-		return operator++();
 	}
 	
 	//! \brief Batched stream method.
@@ -805,6 +800,13 @@ public:
 	{
 		assert(index == 0);
 		return operator*();
+	}
+	
+	//! \brief Batched stream method.
+	dummy_pull_stage<StreamOperation>& operator += (unsigned_type length)
+	{
+		assert(length == 1);
+		return operator++();
 	}
 };
 
@@ -833,15 +835,15 @@ public:
 	}
 	
 	//! \brief Standard stream method.
-	void stop_push()
-	{
-		so.stop_push();
-	}
-	
-	//! \brief Standard stream method.
 	void push(const value_type& val)
 	{
 		so.push(val);
+	}
+	
+	//! \brief Batched stream method.
+	unsigned_type push_batch_length() const
+	{
+		return 1;
 	}
 	
 	//! \brief Batched stream method.
@@ -851,10 +853,10 @@ public:
 		push(*batch_begin);
 	}
 	
-	//! \brief Batched stream method.
-	unsigned_type push_batch_length() const
+	//! \brief Standard stream method.
+	void stop_push()
 	{
-		return 1;
+		so.stop_push();
 	}
 	
 	const result_type& result() const
@@ -922,23 +924,6 @@ public:
 		pthread_cond_init(&cond, 0);
 	}
 	
-	//! \brief Standard stream method.
-	void start()
-	{
-#if STXXL_START_PIPELINE
-		STXXL_VERBOSE0("push_pull_stage " << this << " starts.");
-#endif
-		//do nothing
-	}
-
-	void start_push()
-	{
-#if STXXL_START_PIPELINE
-		STXXL_VERBOSE0("push_pull_stage " << this << " starts push.");
-#endif
-		//do nothing
-	}
-	
 	//! \brief Destructor.
 	~push_pull_stage()
 	{
@@ -1002,6 +987,23 @@ private:
 
 public:
 	//! \brief Standard stream method.
+	void start()
+	{
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_pull_stage " << this << " starts.");
+#endif
+		//do nothing
+	}
+
+	//! \brief Standard stream method.
+	bool empty() const
+	{
+		reload();
+
+		return last_swap_done && output_buffer_consumed;
+	}
+	
+	//! \brief Standard stream method.
 	const value_type& operator * () const
 	{
 		assert(!empty());
@@ -1021,13 +1023,6 @@ public:
 		return *this;
 	}
 	
-	//! \brief Standard stream method.
-	bool empty() const
-	{
-		reload();
-
-		return last_swap_done && output_buffer_consumed;
-	}
 	
 	//! \brief Batched stream method.
 	unsigned_type batch_length() const
@@ -1035,14 +1030,6 @@ public:
 		reload();
 
 		return outgoing_buffer->stop - outgoing_buffer->current;
-	}
-	
-	//! \brief Batched stream method.
-	push_pull_stage<value_type>& operator += (unsigned_type length)
-	{
-		outgoing_buffer->current += length;
-		assert(outgoing_buffer->current <= outgoing_buffer->stop);
-		return *this;
 	}
 	
 	//! \brief Batched stream method.
@@ -1056,6 +1043,14 @@ public:
 	{
 		assert(outgoing_buffer->current + index < outgoing_buffer->stop);
 		return *(outgoing_buffer->current + index);
+	}
+	
+	//! \brief Batched stream method.
+	push_pull_stage<value_type>& operator += (unsigned_type length)
+	{
+		outgoing_buffer->current += length;
+		assert(outgoing_buffer->current <= outgoing_buffer->stop);
+		return *this;
 	}
 	
 private:
@@ -1088,6 +1083,14 @@ private:
 	}	
 
 public:
+	void start_push()
+	{
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_pull_stage " << this << " starts push.");
+#endif
+		//do nothing
+	}
+	
 	//! \brief Standard push stream method.
 	//! \param val value to be pushed
 	void push(const value_type & val)
@@ -1099,16 +1102,6 @@ public:
 	}
 	
 	//! \brief Standard push stream method.
-	void stop_push()
-	{
-		if(!input_finished)
-		{
-			input_finished = true;
-		
-			unload();
-		}
-	}
-	
 	//! \brief Batched stream method.
 	unsigned_type push_batch_length() const
 	{
@@ -1123,6 +1116,16 @@ public:
 		incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
 		
 		unload();
+	}
+	
+	void stop_push()
+	{
+		if(!input_finished)
+		{
+			input_finished = true;
+		
+			unload();
+		}
 	}
 };
 
