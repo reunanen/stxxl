@@ -206,7 +206,6 @@ namespace stream
         {
             assert(0 < length && length <= batch_length());
             current_ += length;
-            STXXL_VERBOSE0(end_ - current_);
             (*in) += length;
             return *this;
         }
@@ -1160,6 +1159,47 @@ namespace stream
         }
     };
 
+    template<class Output_>
+    class Pusher
+    {
+        Output_& output;
+    public:
+        typedef typename Output_::value_type value_type;
+
+        void start_push()
+        {
+            output.start_push();
+        }
+
+        Pusher(Output_& output) : output(output)
+        {
+        }
+
+        const value_type& operator()(const value_type& val)
+        {
+            output.push(val);
+            return val;
+        }
+
+        void stop_push()
+        {
+            output.stop_push();
+        }
+    };
+
+    template<class Input_, class Output_>
+    class pusher : public transform<Pusher<Output_>, Input_>
+    {
+        Pusher<Output_> p;
+
+    public:
+        pusher(Input_& input, Output_& output) : 
+        	transform<Pusher<Output_>, Input_>(p, input),
+        	p(output)
+        {
+        }
+    };
+
 
     //! \brief Processes 2 input streams using given operation functor
     //!
@@ -1425,19 +1465,181 @@ namespace stream
     };
 
 
-    //! \brief Processes input streams using given operation functor
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template </*class Input_, */class Output_>
+    class basic_distribute
+    {
+    public:
+        //! \brief Standard stream typedef
+        typedef typename Output_::value_type value_type;
+        //typedef typename Input_::const_iterator const_iterator;
+
+    protected:
+        //Input_& input;
+        Output_** outputs;
+        Output_* current_output;
+        //bool* already_empty;
+        int num_outputs;
+        value_type current;
+        int pos;
+        int empty_count;
+
+        void next()
+        {
+            ++pos;
+            if(pos == num_outputs)
+                pos = 0;
+            current_output = outputs[pos];
+        }
+
+    public:
+        //! \brief Construction
+        basic_distribute(/*Input_ input, */Output_** outputs, int num_outputs) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs)
+        {
+          empty_count = 0;
+          pos = 0;
+//           already_empty = new bool[num_outputs];
+//           for(int i = 0; i < num_outputs; i++)
+//             already_empty[i] = false;
+
+#if !STXXL_START_PIPELINE
+          pos = -1;
+          next();
+#endif
+        }
+
+//         ~basic_distribute()
+//         {
+//           delete[] already_empty;
+//         }
+
+        //! \brief Standard stream method
+        void start_push()
+        {
+            STXXL_VERBOSE0("distribute " << this << " starts push.");
+            for(int i = 0; i < num_outputs; i++)
+                outputs[i]->start_push();
+#if STXXL_START_PIPELINE
+            pos = -1;
+            next();
+#endif
+        }
+
+	//! \brief Standard stream method.
+	void stop_push() const
+	{
+            for(int i = 0; i < num_outputs; i++)
+                outputs[i]->stop_push();
+	}
+    };
+
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template </*class Input_, */class Output_>
+    class distribute : public basic_distribute</*Input_, */Output_>
+    {
+        typedef basic_distribute</*Input_, */Output_> base;
+        typedef typename base::value_type value_type;
+        using base::current_output;
+        using base::next;
+
+    public:
+        distribute(/*Input_ input, */Output_** outputs, int num_outputs) : base(/*input, */outputs, num_outputs)
+        {
+        }
+
+	//! \brief Standard stream method.
+	void push(const value_type& val)
+	{
+		current_output->push(val);
+		next();
+	}
+	
+	//! \brief Batched stream method.
+	unsigned_type push_batch_length() const
+	{
+		return current_output->push_batch_length();
+	}
+	
+	//! \brief Batched stream method.
+	void push_batch(const value_type* batch_begin, const value_type* batch_end)
+	{
+		current_output->push_batch(batch_begin, batch_end);
+		next();
+	}
+    };
+
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template </*class Input_, */class Output_>
+    class deterministic_distribute : public basic_distribute</*Input_, */Output_>
+    {
+        typedef basic_distribute</*Input_, */Output_> base;
+        using base::current_output;
+        using base::next;
+
+        unsigned_type elements_per_chunk, elements_left;
+
+    public:
+        typedef typename base::value_type value_type;
+
+        deterministic_distribute(/*Input_ input, */Output_** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(/*input, */outputs, num_outputs)
+        {
+            this->elements_per_chunk = elements_per_chunk;
+            elements_left = elements_per_chunk;
+        }
+
+ 	//! \brief Standard stream method.
+	void push(const value_type& val)
+	{
+		current_output->push(val);
+		--elements_left;
+		if(elements_left == 0)
+		{
+		    next();
+		    elements_left = elements_per_chunk;
+		}
+	}
+	
+	//! \brief Batched stream method.
+	unsigned_type push_batch_length() const
+	{
+		return std::min(elements_left, current_output->push_batch_length());
+	}
+	
+	//! \brief Batched stream method.
+	void push_batch(const value_type* batch_begin, const value_type* batch_end)
+	{
+		current_output->push_batch(batch_begin, batch_end);
+		elements_left -= (batch_end - batch_begin);
+		if(elements_left == 0)
+		{
+		    next();
+		    elements_left = elements_per_chunk;
+		}
+	}
+   };
+
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
     //!
     //! Template parameters:
     //! - \c Input_ type of the input
     template <class Input_>
-    class round_robin
+    class basic_round_robin
     {
     public:
         //! \brief Standard stream typedef
         typedef typename Input_::value_type value_type;
         typedef typename Input_::const_iterator const_iterator;
 
-    private:
+    protected:
         Input_** inputs;
         Input_* current_input;
         bool* already_empty;
@@ -1450,7 +1652,7 @@ namespace stream
         {
           do
           {
-            pos = (pos + 1);
+            ++pos;
             if(pos == num_inputs)
               pos = 0;
             current_input = inputs[pos];
@@ -1470,9 +1672,8 @@ namespace stream
         }
 
     public:
-
         //! \brief Construction
-        round_robin(Input_** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
+        basic_round_robin(Input_** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
         {
           empty_count = 0;
           pos = 0;
@@ -1486,7 +1687,7 @@ namespace stream
 #endif
         }
 
-        ~round_robin()
+        ~basic_round_robin()
         {
           delete[] already_empty;
         }
@@ -1494,13 +1695,19 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("round_robin " << this << " starts.");
+            STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
             for(int i = 0; i < num_inputs; i++)
                 inputs[i]->start();
 #if STXXL_START_PIPELINE
             pos = -1;
             next();
 #endif
+        }
+
+        //! \brief Standard stream method
+        bool empty() const
+        {
+          return empty_count >= num_inputs;
         }
 
         //! \brief Standard stream method
@@ -1512,6 +1719,39 @@ namespace stream
         const value_type * operator -> () const
         {
             return &(operator*());
+        }
+
+        const_iterator batch_begin() const
+        {
+          return current_input->batch_begin();
+        }
+
+        const value_type& operator[](unsigned_type index) const
+        {
+          return (*current_input)[index];
+        }
+    };
+
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Input_>
+    class round_robin : public basic_round_robin<Input_>
+    {
+        typedef basic_round_robin<Input_> base;
+        using base::current_input;
+        using base::next;
+
+    public:
+        //! \brief Construction
+        round_robin(Input_** inputs, int num_inputs) : base(inputs, num_inputs)
+        {
+        }
+
+        unsigned_type batch_length() const
+        {
+          return current_input->batch_length();
         }
 
         //! \brief Standard stream method
@@ -1533,30 +1773,70 @@ namespace stream
 
             return *this;
         }
+    };
 
-        unsigned_type batch_length() const
-        {
-          return current_input->batch_length();
-        }
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Input_>
+    class deterministic_round_robin : public basic_round_robin<Input_>
+    {
+        typedef basic_round_robin<Input_> base;
+        using base::current_input;
+        using base::next;
 
-        const_iterator batch_begin() const
-        {
-          return current_input->batch_begin();
-        }
+        unsigned_type elements_per_chunk, elements_left;
 
-        const value_type& operator[](unsigned_type index) const
+    public:
+        //! \brief Construction
+        deterministic_round_robin(Input_** inputs, int num_inputs, unsigned_type elements_per_chunk) : base(inputs, num_inputs)
         {
-          return (*current_input)[index];
+            this->elements_per_chunk = elements_per_chunk;
+            elements_left = elements_per_chunk;
         }
 
         //! \brief Standard stream method
         bool empty() const
         {
-          return empty_count >= num_inputs;
+          return elements_left > 0 && current_input->empty();
+        }
+
+        //! \brief Standard stream method
+        deterministic_round_robin& operator ++()
+        {
+          ++(*current_input);
+          --elements_left;
+          if(elements_left == 0)
+          {
+              next();
+              elements_left = elements_per_chunk;
+          }
+
+          return *this;
+        }
+
+        unsigned_type batch_length() const
+        {
+            return std::min(elements_left, current_input->batch_length());
+        }
+
+        //! \brief Standard stream method
+        deterministic_round_robin& operator +=(unsigned_type length)
+        {
+            assert(length > 0);
+
+            (*current_input) += length;
+            elements_left -= length;
+            if(elements_left == 0)
+            {
+              next();
+              elements_left = elements_per_chunk;
+            }
+
+            return *this;
         }
     };
-
-
 
     //! \brief Creates stream of 6-tuples from 6 input streams
     //!
