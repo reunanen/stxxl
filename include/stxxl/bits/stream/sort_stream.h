@@ -79,7 +79,7 @@ namespace stream
         if(offset == modulo)
         {
           offset = 0;
-          block++;
+          ++block;
         }
         return *this;
       }
@@ -734,7 +734,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
           pos_in_block += length;
           if(pos_in_block == block_type::size)
           {
-            block_no++;
+            ++block_no;
             pos_in_block = 0;
           }
         }
@@ -1023,7 +1023,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
               assert(pos_in_block <= block_type::size);
               if(pos_in_block == block_type::size)
               {
-                block_no++;
+                ++block_no;
                 pos_in_block = 0;
               }
             }
@@ -1372,7 +1372,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 seqs = new std::vector<sequence>(nruns);
                 buffers = new std::vector<block_type *> (nruns);
 
-                for (unsigned_type i = 0; i < nruns; i++)            //initialize sequences
+                for (unsigned_type i = 0; i < nruns; ++i)            //initialize sequences
                 {
                     (*buffers)[i] = prefetcher->pull_block();           //get first block of each run
                     (*seqs)[i] = std::make_pair((*buffers)[i]->begin(), (*buffers)[i]->end());          //this memory location stays the same, only the data is exchanged
@@ -1415,7 +1415,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                     value_type * min_last_element = NULL;               //no element found yet
                     diff_type total_size = 0;
 
-                    for (seqs_size_type i = 0; i < (*seqs).size(); i++)
+                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
                         if ((*seqs)[i].first == (*seqs)[i].second)
                             continue; //run empty
@@ -1435,7 +1435,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                     diff_type less_equal_than_min_last = 0;
                     //locate this element in all sequences
-                    for (seqs_size_type i = 0; i < (*seqs).size(); i++)
+                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
                         if ((*seqs)[i].first == (*seqs)[i].second)
                             continue; //empty subsequence
@@ -1459,7 +1459,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                     STXXL_VERBOSE1("so long");
 
-                    for (seqs_size_type i = 0; i < (*seqs).size(); i++)
+                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
                         if ((*seqs)[i].first == (*seqs)[i].second)                            //run empty
                         {
@@ -1482,7 +1482,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
  #ifdef STXXL_CHECK_ORDER_IN_SORTS
                 if (!stxxl::is_sorted(current_block->begin(), current_block->end(), cmp))
                 {
-                    for (value_type * i = current_block->begin() + 1; i != current_block->end(); i++)
+                    for (value_type * i = current_block->begin() + 1; i != current_block->end(); ++i)
                         if (cmp(*i, *(i - 1)))
                         {
                             STXXL_VERBOSE1("Error at position " << (i - current_block->begin()));
@@ -1602,7 +1602,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                   div_and_round_up(elements_remaining,size_type(block_type::size));
              */
             unsigned_type prefetch_seq_size = 0;
-            for (i = 0; i < nruns; i++)
+            for (i = 0; i < nruns; ++i)
             {
                 prefetch_seq_size += sruns.runs[i].size();
             }
@@ -1612,7 +1612,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             prefetch_seq = new int_type[prefetch_seq_size];
 
             typename run_type::iterator copy_start = consume_seq.begin ();
-            for (i = 0; i < nruns; i++)
+            for (i = 0; i < nruns; ++i)
             {
                 copy_start = std::copy(
                     sruns.runs[i].begin (),

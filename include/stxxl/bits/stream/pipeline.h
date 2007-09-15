@@ -875,7 +875,6 @@ public:
 		
 	StreamOperation& so;
 	ConnectedStreamOperation& cso;
-	unsigned_type throughput;
 	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
@@ -886,7 +885,6 @@ public:
 #if !STXXL_START_PIPELINE
 		start();
 #endif
-		throughput = 0;
 	}
 	
 	//! \brief Standard stream method.
@@ -920,8 +918,6 @@ public:
 	connect_pull_stage<StreamOperation, ConnectedStreamOperation>& operator ++ ()
 	{
 		++so;
-		++throughput;
-		//STXXL_VERBOSE0(throughput)
 		return *this;
 	}
 
@@ -948,8 +944,6 @@ public:
 	connect_pull_stage<StreamOperation, ConnectedStreamOperation>& operator += (unsigned_type length)
 	{
 		so += length;
-		throughput += length;
-		//STXXL_VERBOSE0(throughput)
 		return *this;
 	}
 };

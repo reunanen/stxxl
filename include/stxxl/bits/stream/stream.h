@@ -839,7 +839,7 @@ namespace stream
     unsigned_type pull(StreamAlgorithm_ & in, unsigned_type num_elements)
     {
         unsigned_type i;
-        for(i = 0; i < num_elements && !in.empty(); i++)
+        for(i = 0; i < num_elements && !in.empty(); ++i)
         {
             *in;
             ++in;
@@ -1107,7 +1107,6 @@ namespace stream
         transform &  operator ++()
         {
             ++i1;
-            //STXXL_VERBOSE0("transform++")
 
             return *this;
         }
@@ -1467,31 +1466,28 @@ namespace stream
     };
 
 
-//! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
-template<class Output_>
-void* call_stop_push(void* param)
-{
-	static_cast<Output_*>(param)->stop_push();
-	return NULL;
-}
+    //! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
+    template<class Output_>
+    void* call_stop_push(void* param)
+    {
+        static_cast<Output_*>(param)->stop_push();
+        return NULL;
+    }
 
     //! \brief Push data to different outputs, in a round-robin fashion.
     //!
     //! Template parameters:
     //! - \c Input_ type of the input
-    template </*class Input_, */class Output_>
+    template <class Output_>
     class basic_distribute
     {
     public:
         //! \brief Standard stream typedef
         typedef typename Output_::value_type value_type;
-        //typedef typename Input_::const_iterator const_iterator;
 
     protected:
-        //Input_& input;
         Output_** outputs;
         Output_* current_output;
-        //bool* already_empty;
         int num_outputs;
         value_type current;
         int pos;
@@ -1512,20 +1508,12 @@ void* call_stop_push(void* param)
         {
           empty_count = 0;
           pos = 0;
-//           already_empty = new bool[num_outputs];
-//           for(int i = 0; i < num_outputs; i++)
-//             already_empty[i] = false;
 
 #if !STXXL_START_PIPELINE
           pos = -1;
           next();
 #endif
         }
-
-//         ~basic_distribute()
-//         {
-//           delete[] already_empty;
-//         }
 
         //! \brief Standard stream method
         void start_push()
@@ -1546,7 +1534,6 @@ void* call_stop_push(void* param)
             pthread_t* threads = new pthread_t[num_outputs];
             for(int i = 0; i < num_outputs; ++i)
                 pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]);
-                //outputs[i]->stop_push();
 
             void* return_code;
             for(int i = 0; i < num_outputs; ++i)
@@ -1560,16 +1547,16 @@ void* call_stop_push(void* param)
     //!
     //! Template parameters:
     //! - \c Input_ type of the input
-    template </*class Input_, */class Output_>
-    class distribute : public basic_distribute</*Input_, */Output_>
+    template <class Output_>
+    class distribute : public basic_distribute<Output_>
     {
-        typedef basic_distribute</*Input_, */Output_> base;
+        typedef basic_distribute<Output_> base;
         typedef typename base::value_type value_type;
         using base::current_output;
         using base::next;
 
     public:
-        distribute(/*Input_ input, */Output_** outputs, int num_outputs) : base(/*input, */outputs, num_outputs)
+        distribute(Output_** outputs, int num_outputs) : base(outputs, num_outputs)
         {
         }
 
@@ -1598,24 +1585,22 @@ void* call_stop_push(void* param)
     //!
     //! Template parameters:
     //! - \c Input_ type of the input
-    template </*class Input_, */class Output_>
-    class deterministic_distribute : public basic_distribute</*Input_, */Output_>
+    template <class Output_>
+    class deterministic_distribute : public basic_distribute<Output_>
     {
-        typedef basic_distribute</*Input_, */Output_> base;
+        typedef basic_distribute<Output_> base;
         using base::current_output;
         using base::next;
 
-        unsigned_type elements_per_chunk, elements_left, throughput;
+        unsigned_type elements_per_chunk, elements_left;
 
     public:
         typedef typename base::value_type value_type;
 
-        deterministic_distribute(/*Input_ input, */Output_** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(/*input, */outputs, num_outputs)
+        deterministic_distribute(Output_** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(outputs, num_outputs)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
-            throughput = 0;
-            STXXL_VERBOSE0(this->elements_per_chunk)
         }
 
  	//! \brief Standard stream method.
@@ -1623,8 +1608,6 @@ void* call_stop_push(void* param)
 	{
 		current_output->push(val);
 		--elements_left;
-		++throughput;
-		//STXXL_VERBOSE0("pushed elements up to " << throughput << " to " << base::pos)
 		if(elements_left == 0)
 		{
 		    next();
@@ -1643,8 +1626,6 @@ void* call_stop_push(void* param)
 	{
 		current_output->push_batch(batch_begin, batch_end);
 		elements_left -= (batch_end - batch_begin);
-		throughput += (batch_end - batch_begin);
-		STXXL_VERBOSE0("pushed elements up to " << throughput << " to " << base::pos)
 		if(elements_left == 0)
 		{
 		    next();
@@ -1706,7 +1687,7 @@ void* call_stop_push(void* param)
           empty_count = 0;
           pos = 0;
           already_empty = new bool[num_inputs];
-          for(int i = 0; i < num_inputs; i++)
+          for(int i = 0; i < num_inputs; ++i)
             already_empty[i] = false;
 
 #if !STXXL_START_PIPELINE
@@ -1724,7 +1705,7 @@ void* call_stop_push(void* param)
         void start()
         {
             STXXL_VERBOSE0("basic_round_robin " << this << " starts.")
-            for(int i = 0; i < num_inputs; i++)
+            for(int i = 0; i < num_inputs; ++i)
                 inputs[i]->start();
 #if STXXL_START_PIPELINE
             pos = -1;
@@ -1814,7 +1795,7 @@ void* call_stop_push(void* param)
         using base::current_input;
         using base::next;
 
-        unsigned_type elements_per_chunk, elements_left, throughput;
+        unsigned_type elements_per_chunk, elements_left;
 
     public:
         //! \brief Construction
@@ -1822,22 +1803,13 @@ void* call_stop_push(void* param)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
-            throughput = 0;
-            STXXL_VERBOSE0(this->elements_per_chunk)
         }
-
-        //! \brief Standard stream method
-//         bool empty() const
-//         {
-//           return elements_left > 0 && current_input->empty();
-//         }
 
         //! \brief Standard stream method
         deterministic_round_robin& operator ++()
         {
           ++(*current_input);
           --elements_left;
-          ++throughput;
           if(elements_left == 0 || current_input->empty())
           {
               next();
@@ -1859,8 +1831,6 @@ void* call_stop_push(void* param)
 
             (*current_input) += length;
             elements_left -= length;
-            throughput += length;
-            //STXXL_VERBOSE0("pulled elements up to " << throughput << " from " << base::pos)
 
             if(elements_left == 0 || current_input->batch_length() == 0)
             {
