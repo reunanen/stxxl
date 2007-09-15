@@ -70,7 +70,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("iterator2stream " << this << " starts.");
+            STXXL_VERBOSE0("iterator2stream " << this << " starts.")
             //do nothing
         }
 
@@ -170,7 +170,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.");
+            STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.")
             //do nothing
         }
 
@@ -333,7 +333,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.");
+            STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.")
             //do nothing
         }
 
@@ -445,7 +445,7 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
 #if STXXL_START_PIPELINE
-        STXXL_VERBOSE0("materialize_batch starts.");
+        STXXL_VERBOSE0("materialize_batch starts.")
         in.start();
 #endif
         unsigned_type length;
@@ -496,7 +496,7 @@ namespace stream
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
 #if STXXL_START_PIPELINE
-        STXXL_VERBOSE0("materialize_batch starts.");
+        STXXL_VERBOSE0("materialize_batch starts.")
         in.start();
 #endif
         unsigned_type length;
@@ -607,7 +607,7 @@ namespace stream
         typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
 
 #if STXXL_START_PIPELINE
-        STXXL_VERBOSE0("materialize_batch starts.");
+        STXXL_VERBOSE0("materialize_batch starts.")
         in.start();
 #endif
 
@@ -767,7 +767,7 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE
-        STXXL_VERBOSE0("materialize_batch starts.");
+        STXXL_VERBOSE0("materialize_batch starts.")
         in.start();
 #endif
         while (out.block_offset()) //  go to the beginning of the block
@@ -897,7 +897,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("generator2stream " << this << " starts.");
+            STXXL_VERBOSE0("generator2stream " << this << " starts.")
             //do nothing
         }
 
@@ -1087,7 +1087,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("transform " << this << " starts.");
+            STXXL_VERBOSE0("transform " << this << " starts.")
             i1.start();
             op.start_push();
         }
@@ -1107,7 +1107,7 @@ namespace stream
         transform &  operator ++()
         {
             ++i1;
-            //STXXL_VERBOSE0("transform++");
+            //STXXL_VERBOSE0("transform++")
 
             return *this;
         }
@@ -1118,7 +1118,7 @@ namespace stream
             bool is_empty = i1.empty();
             if(is_empty)
             {
-                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                STXXL_VERBOSE0("transform " << this << " stops pushing.")
                 op.stop_push();
             }
             return is_empty;
@@ -1130,7 +1130,7 @@ namespace stream
             unsigned_type batch_length = i1.batch_length();
             if(batch_length == 0)
             {
-                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                STXXL_VERBOSE0("transform " << this << " stops pushing.")
                 op.stop_push();
             }
             return batch_length;
@@ -1168,6 +1168,7 @@ namespace stream
 
         void start_push()
         {
+            STXXL_VERBOSE0("pusher " << this << " starts push.")
             output.start_push();
         }
 
@@ -1183,6 +1184,7 @@ namespace stream
 
         void stop_push()
         {
+            STXXL_VERBOSE0("pusher " << this << " stops push.")
             output.stop_push();
         }
     };
@@ -1465,6 +1467,14 @@ namespace stream
     };
 
 
+//! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
+template<class Output_>
+void* call_stop_push(void* param)
+{
+	static_cast<Output_*>(param)->stop_push();
+	return NULL;
+}
+
     //! \brief Push data to different outputs, in a round-robin fashion.
     //!
     //! Template parameters:
@@ -1493,6 +1503,7 @@ namespace stream
             if(pos == num_outputs)
                 pos = 0;
             current_output = outputs[pos];
+            //STXXL_VERBOSE0("distribute next " << pos)
         }
 
     public:
@@ -1519,8 +1530,8 @@ namespace stream
         //! \brief Standard stream method
         void start_push()
         {
-            STXXL_VERBOSE0("distribute " << this << " starts push.");
-            for(int i = 0; i < num_outputs; i++)
+            STXXL_VERBOSE0("distribute " << this << " starts push.")
+            for(int i = 0; i < num_outputs; ++i)
                 outputs[i]->start_push();
 #if STXXL_START_PIPELINE
             pos = -1;
@@ -1528,12 +1539,21 @@ namespace stream
 #endif
         }
 
-	//! \brief Standard stream method.
-	void stop_push() const
-	{
-            for(int i = 0; i < num_outputs; i++)
-                outputs[i]->stop_push();
-	}
+        //! \brief Standard stream method.
+        void stop_push() const
+        {
+            STXXL_VERBOSE0("distribute " << this << " stops push.")
+            pthread_t* threads = new pthread_t[num_outputs];
+            for(int i = 0; i < num_outputs; ++i)
+                pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]);
+                //outputs[i]->stop_push();
+
+            void* return_code;
+            for(int i = 0; i < num_outputs; ++i)
+                pthread_join(threads[i], &return_code);
+
+            delete[] threads;
+        }
     };
 
     //! \brief Push data to different outputs, in a round-robin fashion.
@@ -1585,7 +1605,7 @@ namespace stream
         using base::current_output;
         using base::next;
 
-        unsigned_type elements_per_chunk, elements_left;
+        unsigned_type elements_per_chunk, elements_left, throughput;
 
     public:
         typedef typename base::value_type value_type;
@@ -1594,6 +1614,8 @@ namespace stream
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
+            throughput = 0;
+            STXXL_VERBOSE0(this->elements_per_chunk)
         }
 
  	//! \brief Standard stream method.
@@ -1601,6 +1623,8 @@ namespace stream
 	{
 		current_output->push(val);
 		--elements_left;
+		++throughput;
+		//STXXL_VERBOSE0("pushed elements up to " << throughput << " to " << base::pos)
 		if(elements_left == 0)
 		{
 		    next();
@@ -1619,6 +1643,8 @@ namespace stream
 	{
 		current_output->push_batch(batch_begin, batch_end);
 		elements_left -= (batch_end - batch_begin);
+		throughput += (batch_end - batch_begin);
+		STXXL_VERBOSE0("pushed elements up to " << throughput << " to " << base::pos)
 		if(elements_left == 0)
 		{
 		    next();
@@ -1656,12 +1682,13 @@ namespace stream
             if(pos == num_inputs)
               pos = 0;
             current_input = inputs[pos];
+
             if(current_input->empty())
             {
               if(!already_empty[pos])
               {
                 already_empty[pos] = true;
-                empty_count++;
+                ++empty_count;
                 if(empty_count >= num_inputs)
                   break;	//empty() == true
               }
@@ -1669,6 +1696,7 @@ namespace stream
             else
               break;
           } while(true);
+          //STXXL_VERBOSE0("next " << pos)
         }
 
     public:
@@ -1695,7 +1723,7 @@ namespace stream
         //! \brief Standard stream method
         void start()
         {
-            STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
+            STXXL_VERBOSE0("basic_round_robin " << this << " starts.")
             for(int i = 0; i < num_inputs; i++)
                 inputs[i]->start();
 #if STXXL_START_PIPELINE
@@ -1707,7 +1735,7 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-          return empty_count >= num_inputs;
+            return empty_count >= num_inputs;
         }
 
         //! \brief Standard stream method
@@ -1786,7 +1814,7 @@ namespace stream
         using base::current_input;
         using base::next;
 
-        unsigned_type elements_per_chunk, elements_left;
+        unsigned_type elements_per_chunk, elements_left, throughput;
 
     public:
         //! \brief Construction
@@ -1794,20 +1822,23 @@ namespace stream
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
+            throughput = 0;
+            STXXL_VERBOSE0(this->elements_per_chunk)
         }
 
         //! \brief Standard stream method
-        bool empty() const
-        {
-          return elements_left > 0 && current_input->empty();
-        }
+//         bool empty() const
+//         {
+//           return elements_left > 0 && current_input->empty();
+//         }
 
         //! \brief Standard stream method
         deterministic_round_robin& operator ++()
         {
           ++(*current_input);
           --elements_left;
-          if(elements_left == 0)
+          ++throughput;
+          if(elements_left == 0 || current_input->empty())
           {
               next();
               elements_left = elements_per_chunk;
@@ -1828,10 +1859,13 @@ namespace stream
 
             (*current_input) += length;
             elements_left -= length;
-            if(elements_left == 0)
+            throughput += length;
+            //STXXL_VERBOSE0("pulled elements up to " << throughput << " from " << base::pos)
+
+            if(elements_left == 0 || current_input->batch_length() == 0)
             {
-              next();
-              elements_left = elements_per_chunk;
+                next();
+                elements_left = elements_per_chunk;
             }
 
             return *this;
@@ -2011,7 +2045,7 @@ namespace stream
         //! \brief Standard stream method
 	void start()
 	{
-            STXXL_VERBOSE0("make_tuple " << this << " starts.");
+            STXXL_VERBOSE0("make_tuple " << this << " starts.")
 	    i1.start();
 	    i2.start();
 	}

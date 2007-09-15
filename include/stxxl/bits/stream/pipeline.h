@@ -178,6 +178,7 @@ public:
 	
 protected:
 	typedef basic_pull_empty_stage<StreamOperation> base;
+	typedef typename StreamOperation::const_iterator const_iterator;
 
 	using base::so;
 	
@@ -189,9 +190,10 @@ protected:
 		so.start();
 #endif
 		unsigned_type length;
-		while((length = so.batch_length()) > 0 && !base::output_finished)
+		while((length = so.batch_length()) > 0)
 		{
-			length = std::min(length, base::push_batch_length());
+			for(const_iterator i = so.batch_begin(); i != so.batch_begin() + length; ++i)
+				*i;
 			so.operator+=(length);
 		}
 		STXXL_VERBOSE0("pull_empty_stage_batch " << this << " stops pulling.")
@@ -474,6 +476,9 @@ public:
 	//! \brief Standard stream method.
 	void stop_push() const
 	{
+#if STXXL_START_PIPELINE
+		STXXL_VERBOSE0("push_pull_stage " << this << " stops push.");
+#endif
 		if(!input_finished)
 		{
 			input_finished = true;
@@ -870,6 +875,7 @@ public:
 		
 	StreamOperation& so;
 	ConnectedStreamOperation& cso;
+	unsigned_type throughput;
 	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
@@ -880,6 +886,7 @@ public:
 #if !STXXL_START_PIPELINE
 		start();
 #endif
+		throughput = 0;
 	}
 	
 	//! \brief Standard stream method.
@@ -913,6 +920,8 @@ public:
 	connect_pull_stage<StreamOperation, ConnectedStreamOperation>& operator ++ ()
 	{
 		++so;
+		++throughput;
+		//STXXL_VERBOSE0(throughput)
 		return *this;
 	}
 
@@ -920,27 +929,28 @@ public:
 	//! \brief Batched stream method.
 	unsigned_type batch_length() const
 	{
-		return 1;
+		return so.batch_length();
 	}
 	
 	//! \brief Batched stream method.
 	const_iterator batch_begin() const
 	{
-		return &(operator*());
+		return so.batch_begin();
 	}
 	
 	//! \brief Batched stream method.
 	const value_type& operator[](unsigned_type index) const
 	{
-		assert(index == 0);
-		return operator*();
+		return so[index];
 	}
 	
 	//! \brief Batched stream method.
 	connect_pull_stage<StreamOperation, ConnectedStreamOperation>& operator += (unsigned_type length)
 	{
-		assert(length == 1);
-		return operator++();
+		so += length;
+		throughput += length;
+		//STXXL_VERBOSE0(throughput)
+		return *this;
 	}
 };
 
