@@ -1929,10 +1929,53 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c Cmp_ type of comparison object used for merging
     //! - \c AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
+    template <  class RunsType_,
+              class Cmp_,
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
+    class runs_merger : public basic_runs_merger<RunsType_, Cmp_, AllocStr_>
+    {
+    private:
+        typedef RunsType_ sorted_runs_type;
+        typedef basic_runs_merger<RunsType_, Cmp_, AllocStr_> base;
+        typedef typename base::value_cmp value_cmp;
+        typedef typename base::block_type block_type;
+
+        const sorted_runs_type& sruns;
+
+    public:
+        //! \brief Creates a runs merger object
+        //! \param r input sorted runs object
+        //! \param c comparison object
+        //! \param memory_to_use amount of memory available for the merger in bytes
+        runs_merger(const sorted_runs_type& r, value_cmp c, unsigned_type memory_to_use) :
+            base(c, memory_to_use),
+            sruns(r)
+        {
+#if !STXXL_START_PIPELINE
+            base::initialize(r);
+#endif
+        }
+
+        void start()
+        {
+            STXXL_VERBOSE0("runs_merger " << this << " starts.");
+            base::initialize(sruns);
+            STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
+        }
+    };
+
+
+    //! \brief Merges sorted runs
+    //!
+    //! Template parameters:
+    //! - \c RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
+    //! - \c Cmp_ type of comparison object used for merging
+    //! - \c AllocStr_ allocation strategy used to allocate the blocks for
+    //! storing intermediate results if several merge passes are required
     template <  class RunsCreator_,
               class Cmp_,
               class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
-    class runs_merger : public basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_>
+    class startable_runs_merger : public basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_>
     {
     private:
         typedef basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_> base;
@@ -1946,7 +1989,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \param r input sorted runs object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        runs_merger(RunsCreator_& rc, value_cmp c, unsigned_type memory_to_use) :
+        startable_runs_merger(RunsCreator_& rc, value_cmp c, unsigned_type memory_to_use) :
             base(c, memory_to_use),
             rc(rc)
         {
@@ -1962,6 +2005,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
         }
     };
+
 
     //! \brief Produces sorted stream from input stream
     //!
@@ -1979,7 +2023,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     class sort
     {
         typedef typename runs_creator_type::sorted_runs_type sorted_runs_type;
-        typedef runs_merger<runs_creator_type, Cmp_, AllocStr_> runs_merger_type;
+        typedef startable_runs_merger<runs_creator_type, Cmp_, AllocStr_> runs_merger_type;
 
         runs_creator_type creator;
         runs_merger_type merger;
