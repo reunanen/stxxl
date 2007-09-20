@@ -29,9 +29,6 @@ MCSTL_BASE	?= $(HOME)/work/mcstl
 # mcstl branch, leave empty for default branch (e.g. if installed from release tarball)
 MCSTL_BRANCH	?= #branches/standalone
 # only set the following variables if autodetection does not work:
-#MCSTL_ROOT		?= $(MCSTL_BASE)/$(MCSTL_BRANCH)
-#MCSTL_ORIGINAL_INC_CXX	?= /path/to/your/$(COMPILER)'s/include/c++
-#MCSTL_ORIGINALS	?= /where/you/put/the/original/symlink
 endif
 
 BOOST_INCLUDE	?= /usr/include/boost-1_33
