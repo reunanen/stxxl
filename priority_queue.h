@@ -1871,6 +1871,46 @@ protected:
     int_type getSize1( ) const { return ( buffer1 + BufferSize1) - minBuffer1; }
     int_type getSize2(int_type i) const { return &(buffer2[i][N]) - minBuffer2[i]; }
 
+#ifndef STXXL_PQ_DUMP
+#define STXXL_PQ_DUMP 0
+#endif
+
+    class pq_dumper {
+        #if STXXL_PQ_DUMP
+        FILE* fp;
+        #endif
+
+    public:
+	pq_dumper()
+	{
+            #if STXXL_PQ_DUMP
+	    fp = fopen("pq_dump.dat", "w");
+	    assert(fp);
+            #endif
+	}
+
+	~pq_dumper()
+	{
+            #if STXXL_PQ_DUMP
+	    fclose(fp);
+            #endif
+	}
+
+	void operator () (bool push, const value_type &val)
+	{
+	    UNUSED(push);
+	    UNUSED(val);
+            #if STXXL_PQ_DUMP
+	    struct entry { int o; value_type v; } e = { push, val };
+	    fwrite(&e, sizeof(entry), 1, fp);
+	    if (push)
+		fflush(fp);
+            #endif
+	}
+
+    };
+
+    pq_dumper dump;
 
     // forbidden constructors
     priority_queue();
@@ -2008,6 +2048,7 @@ inline const typename priority_queue<Config_>::value_type & priority_queue<Confi
 template <class Config_>
 inline void priority_queue<Config_>::pop()
 {
+    dump(false, top());
     //STXXL_VERBOSE1("priority_queue::pop()");
     assert(!insertHeap.empty());
 
@@ -2027,6 +2068,7 @@ inline void priority_queue<Config_>::pop()
 template <class Config_>
 inline void priority_queue<Config_>::push(const value_type & obj)
 {
+    dump(true, obj);
     //STXXL_VERBOSE3("priority_queue::push("<< obj <<")");
     assert(itree->not_sentinel(obj));
     if (insertHeap.size() == N + 1)
