@@ -1,6 +1,8 @@
 #ifndef IOBASE_HEADER
 #define IOBASE_HEADER
 
+#include "stxxl/bits/common/intel_compatibility.h"
+
 /***************************************************************************
  *            iobase.h
  *
