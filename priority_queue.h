@@ -1748,6 +1748,7 @@ template <
           unsigned BlockSize_ = (2 * 1024 * 1024),
           unsigned ExtKMAX_ = 64, // maximal arity for external mergers
           unsigned ExtLevels_ = 2,
+	  bool dumpit_ = false,
           class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY
 >
 struct priority_queue_config
@@ -1763,7 +1764,8 @@ struct priority_queue_config
         IntLevels = IntLevels_,
         ExtLevels = ExtLevels_,
         BlockSize = BlockSize_,
-        ExtKMAX = ExtKMAX_
+        ExtKMAX = ExtKMAX_,
+	dumpit = dumpit_
     };
 };
 
@@ -1806,6 +1808,7 @@ public:
         Levels = Config::IntLevels + Config::ExtLevels,
         BlockSize = Config::BlockSize,
         ExtKMAX = Config::ExtKMAX
+	, dumpit = Config::dumpit
     };
 
     //! \brief The type of object stored in the \b priority_queue
@@ -1884,15 +1887,18 @@ protected:
 	pq_dumper()
 	{
             #if STXXL_PQ_DUMP
-	    fp = fopen("pq_dump.dat", "w");
-	    assert(fp);
+	    if (dumpit) {
+	        fp = fopen("pq_dump.dat", "w");
+	        assert(fp);
+	    }
             #endif
 	}
 
 	~pq_dumper()
 	{
             #if STXXL_PQ_DUMP
-	    fclose(fp);
+	    if (dumpit)
+   	        fclose(fp);
             #endif
 	}
 
@@ -1901,11 +1907,17 @@ protected:
 	    UNUSED(push);
 	    UNUSED(val);
             #if STXXL_PQ_DUMP
-	    struct entry { int o; value_type v; } e = { push, val };
-	    fwrite(&e, sizeof(entry), 1, fp);
-	    if (push)
-		fflush(fp);
+	    if (dumpit) {
+	        struct entry { int o; value_type v; } e = { push, val };
+	        fwrite(&e, sizeof(entry), 1, fp);
+	    }
             #endif
+	}
+
+	void operator () ()
+	{
+	    if (dumpit)
+		fflush(fp);
 	}
 
     };
@@ -2060,8 +2072,10 @@ inline void priority_queue<Config_>::pop()
     {
         assert(minBuffer1 < buffer1 + BufferSize1);
         ++minBuffer1;
-        if (minBuffer1 == buffer1 + BufferSize1)
+        if (minBuffer1 == buffer1 + BufferSize1) {
+	    dump(); // flush
             refillBuffer1();
+	}
     }
 }
 
@@ -2566,7 +2580,7 @@ namespace priority_queue_local
 //! \c PRIORITY_QUEUE_GENERATOR<some_parameters>::result::block_type .
 //! For an example see p_queue.cpp .
 //! Configured priority queue type is available as \c PRIORITY_QUEUE_GENERATOR<>::result. <BR> <BR>
-template <class Tp_, class Cmp_, unsigned_type IntM_, unsigned MaxS_, unsigned Tune_ = 6>
+template <class Tp_, class Cmp_, unsigned_type IntM_, unsigned MaxS_, unsigned Tune_ = 6, bool dumpit = false>
 class PRIORITY_QUEUE_GENERATOR
 {
 public:
@@ -2598,7 +2612,7 @@ public:
         unsigned ExtKMAX_ = 64, // maximal arity for external mergers
         unsigned ExtLevels_ = 2,
      */
-    typedef priority_queue < priority_queue_config < Tp_, Cmp_, Buffer1Size, N, AI, 2, B, AE, 2 > > result;
+    typedef priority_queue < priority_queue_config < Tp_, Cmp_, Buffer1Size, N, AI, 2, B, AE, 2, dumpit > > result;
 };
 
 //! \}
