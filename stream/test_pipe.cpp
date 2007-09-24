@@ -1,18 +1,20 @@
 /***************************************************************************
- *            test_stream.cpp
+ *            test_pipe.cpp
  *
  *  Fri Oct 5  13:40:22 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
+ *  Copyright (C) 2007  Andreas Beckmann <beckmann@mpi-inf.mpg.de>
  ****************************************************************************/
 
 #include "stxxl/stream"
+#include "stxxl/pipeline"
 #include "stxxl/vector"
 #include <vector>
 
-//! \example stream/test_stream.cpp
-//! This is an example of how to use some basic algorithms from the
-//! stream package. The example sorts characters of a string producing an
+//! \example stream/test_pipe.cpp
+//! This is an example of how to use some basic algorithms from the stream and
+//! pipeline packages. The example sorts characters of a string producing an
 //! array of sorted tuples (character, index position).
 //!
 
@@ -147,16 +149,30 @@ int main()
 #ifdef USE_FORMRUNS_N_MERGE
     // sort tuples by character
     // 1. form runs
-    typedef stream::runs_creator<tuple_stream_type, cmp_type, block_size> runs_creator_stream_type;
-    runs_creator_stream_type runs_creator_stream(tuple_stream, cmp_type(), 128 * 1024);
+    typedef stream::runs_creator<stream::use_push<tuple_stream_type::value_type>, cmp_type, block_size> runs_creator_stream_type;
+    runs_creator_stream_type runs_creator_stream(cmp_type(), 128 * 1024);
+    typedef stream::pipeline::push_stage<runs_creator_stream_type> run_creator_stage_type;
+    run_creator_stage_type run_creator_stage(32 * 1024, runs_creator_stream);
+
+    // FIXME: isn't there a simpler way to do this?
+    while (!tuple_stream.empty()) {
+        runs_creator_stream.push(*tuple_stream);
+        ++tuple_stream;
+    }
+    STXXL_MSG("tuples pushed into runs_creator");
+
     // 2. merge runs
-    typedef stream::runs_merger<runs_creator_stream_type::sorted_runs_type, cmp_type> runs_merger_stream_type;
-    runs_merger_stream_type sorted_stream(runs_creator_stream.result(), cmp_type(), 128 * 1024);
+    typedef stream::startable_runs_merger<runs_creator_stream_type, cmp_type> runs_merger_stream_type;
+    runs_merger_stream_type runs_merger_stream(runs_creator_stream, cmp_type(), 128 * 1024);
+    typedef stream::pipeline::pull_stage<runs_merger_stream_type> runs_merger_stage_type;
+    runs_merger_stage_type sorted_stream(32 * 1024, runs_merger_stream);
 #else
     // sort tuples by character
     // (combination of the previous two steps in one algorithm: form runs and merge)
-    typedef stream::sort<tuple_stream_type, cmp_type, block_size> sorted_stream_type;
-    sorted_stream_type sorted_stream(tuple_stream, cmp_type(), 128 * 1024);
+    typedef stream::sort<tuple_stream_type, cmp_type, block_size> sort_stream_type;
+    sort_stream_type sort_stream(tuple_stream, cmp_type(), 128 * 1024);
+    typedef stream::pipeline::pull_stage<sort_stream_type> sort_stage_type;
+    sort_stage_type sorted_stream(32 * 1024, sort_stream);
 #endif
 
     // HERE streaming part ends (materializing)
