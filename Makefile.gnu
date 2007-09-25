@@ -57,6 +57,8 @@ lib/lib$(LIBNAME).$(LIBEXT): make.settings
 ifneq (,$(wildcard .svn))
 lib-in-common: common/version_svn.defs
 
+STXXL_SVN_BRANCH	:= $(shell LC_ALL=POSIX svn info . | sed -ne '/URL/{s/.*\/svnroot\/stxxl//;/branches/s/\/branches\///p}')
+
 ifeq (,$(strip $(shell svnversion . | tr -d 0-9)))
 # clean checkout - use svn info
 VERSION_DATE	:= $(shell LC_ALL=POSIX svn info . | sed -ne '/Last Changed Date/{s/.*: //;s/ .*//;s/-//gp}')
@@ -71,6 +73,9 @@ endif
 common/version_svn.defs:
 	echo '#define STXXL_VERSION_STRING_DATE "$(VERSION_DATE)"' > $@.tmp
 	echo '#define STXXL_VERSION_STRING_SVN_REVISION "$(VERSION_SVN_REV)"' >> $@.tmp
+ifneq (,$(strip $(STXXL_SVN_BRANCH)))
+	echo '#define STXXL_VERSION_STRING_SVN_BRANCH "$(STXXL_SVN_BRANCH)"' >> $@.tmp
+endif
 	cmp -s $@ $@.tmp || mv $@.tmp $@
 	$(RM) $@.tmp
 endif
