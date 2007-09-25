@@ -107,7 +107,7 @@ config::config (const char * config_path)
                       " MB, I/O implementation: " << (*it).io_impl );
         }
 #else
-        unsigned_type total_size = 0;
+        stxxl::int64 total_size = 0;
         for (std::vector < DiskEntry > ::const_iterator it =
                  disks_props.begin (); it != disks_props.end ();
                  it++)
