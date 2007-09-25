@@ -63,6 +63,7 @@ int main()
         SortedRuns.push(tmp);         // push into the sorter
         --cnt;
     }
+    SortedRuns.stop_push();
 
     SortedRunsType Runs = SortedRuns.result();     // get sorted_runs data structure
     assert(check_sorted_runs(Runs, Cmp()));

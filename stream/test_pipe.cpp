@@ -160,6 +160,7 @@ int main()
         ++tuple_stream;
     }
     STXXL_MSG("tuples pushed into runs_creator");
+    runs_creator_stream.stop_push();
 
     // 2. merge runs
     typedef stream::startable_runs_merger<runs_creator_stream_type, cmp_type> runs_merger_stream_type;
