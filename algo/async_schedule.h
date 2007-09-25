@@ -48,9 +48,9 @@ int_type simulate_async_write(
 	const int_type D,
 	std::pair<int_type,int_type> * o_time);
 
-struct write_time_cmp
+struct write_time_cmp : public std::binary_function<std::pair<int_type,int_type>, std::pair<int_type,int_type>, bool>
 {
-	inline bool operator () (const std::pair<int_type,int_type> & a, const std::pair<int_type,int_type> & b)
+	inline bool operator () (const std::pair<int_type,int_type> & a, const std::pair<int_type,int_type> & b) const
 	{
 		return a.second > b.second;
 	}

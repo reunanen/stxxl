@@ -9,6 +9,8 @@
  *  dementiev@mpi-sb.mpg.de
  ****************************************************************************/
 
+#include "intel_compatibility.h"
+
 #ifdef STXXL_BOOST_CONFIG
 #include <boost/config.hpp>
 #endif

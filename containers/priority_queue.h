@@ -17,12 +17,34 @@
 #include <iterator>
 #include <functional>
 
-#define STXXL_PARALLEL_MULTIWAY_MERGE
 #if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
 #include <bits/mcstl_multiway_merge.h>
 #endif
 
 __STXXL_BEGIN_NAMESPACE
+
+//alternative to std::not2, typedefs first_argument_type and second_argument_type not needed
+
+template<class Predicate, typename first_argument_type, typename second_argument_type>
+class binary_negate /*: public std::binary_function<first_argument_type, second_argument_type, bool>*/
+{
+protected:
+        Predicate pred;
+public:
+        explicit
+        binary_negate(const Predicate& _pred) : pred(_pred) { }
+
+        bool operator()(const first_argument_type& x, const second_argument_type& y) const
+        {
+                return !pred(x, y);
+        }
+};
+
+template <class Predicate, typename first_argument_type, typename second_argument_type>
+inline binary_negate<Predicate, first_argument_type, second_argument_type> not2(const Predicate& pred)
+{
+        return binary_negate<Predicate, first_argument_type, second_argument_type>(pred);
+}
 
 //! \addtogroup stlcontinternals
 //!
@@ -408,7 +430,7 @@ void merge4(
 				continue;	//empty subsequence*/
 			assert(seqs[i].first != seqs[i].second);
 	
-			min_last = mcstl::not2<Cmp_, value_type, value_type>(Cmp_())(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
+			min_last = not2<Cmp_, value_type, value_type>(Cmp_())(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
 			
 			total_size += seqs[i].second - seqs[i].first;
 			STXXL_VERBOSE1("last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
@@ -424,7 +446,7 @@ void merge4(
 				continue;	//empty subsequence*/
 			assert(seqs[i].first != seqs[i].second);
 			
-			typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, mcstl::not2<Cmp_, value_type, value_type>(Cmp_()));
+			typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, not2<Cmp_, value_type, value_type>(Cmp_()));
 			STXXL_VERBOSE1("greater equal than " << position - seqs[i].first);
 			less_equal_than_min_last += position - seqs[i].first;
 		}
@@ -439,7 +461,7 @@ void merge4(
 		
 		STXXL_VERBOSE1("before merge" << output_size);
 		
-		begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, mcstl::not2<Cmp_, value_type, value_type>(Cmp_()), output_size, false);	//sequence iterators are progressed appropriately
+		begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, not2<Cmp_, value_type, value_type>(Cmp_()), output_size, false);	//sequence iterators are progressed appropriately
 				
 		STXXL_VERBOSE1("after merge");
 		
@@ -1120,7 +1142,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     {
     std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]), 
     						std::make_pair(current[1], current_end[1]) };
-    mcstl::multiway_merge(seqs, seqs + 2, to, mcstl::not2<Cmp_, Element, Element>(cmp), l, false);
+    mcstl::multiway_merge(seqs, seqs + 2, to, not2<Cmp_, Element, Element>(cmp), l, false);
     current[0] = seqs[0].first;
     current[1] = seqs[1].first;
     }
@@ -1140,7 +1162,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     						std::make_pair(current[1], current_end[1]),
     						std::make_pair(current[2], current_end[2]), 
     						std::make_pair(current[3], current_end[3]) };
-    mcstl::multiway_merge(seqs, seqs + 4, to, mcstl::not2<Cmp_, Element, Element>(cmp), l, false);
+    mcstl::multiway_merge(seqs, seqs + 4, to, not2<Cmp_, Element, Element>(cmp), l, false);
     current[0] = seqs[0].first;
     current[1] = seqs[1].first;
     current[2] = seqs[2].first;
@@ -1162,7 +1184,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
 	for(int i = 0; i < k; i++)
 		seqs[i] = std::make_pair(current[i], current_end[i]);
 	
-	mcstl::multiway_merge(seqs, seqs + k, to, mcstl::not2<Cmp_, Element, Element>(cmp), l, false);
+	mcstl::multiway_merge(seqs, seqs + k, to, not2<Cmp_, Element, Element>(cmp), l, false);
 
 	for(int i = 0; i < k; i++)
 		current[i] = seqs[i].first;
