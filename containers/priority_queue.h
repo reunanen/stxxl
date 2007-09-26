@@ -36,7 +36,7 @@ public:
 
         bool operator()(const first_argument_type& x, const second_argument_type& y) const
         {
-                return !pred(x, y);
+                return pred(y, x);
         }
 };
 
@@ -66,7 +66,7 @@ namespace priority_queue_local
 // require: to may overwrite one of the sources as long as
 //   *fx + sz is before the end of fx
 template <class Value_,class Cmp_>
-void merge(Value_ **f0,
+void merge(Value_ **f0, 
            Value_ **f1,
            Value_  *to, int_type sz, Cmp_ cmp) 
 {
@@ -381,28 +381,37 @@ void merge4(
           delete i->bids;
         }
       }
+      
+      
+      
+      
+      
       template <class OutputIterator>
       void multi_merge(OutputIterator begin, OutputIterator end)
       {
         STXXL_VERBOSE2("ext_merger::multi_merge(...)")
         
         
-        STXXL_VERBOSE3("ext multi_merge " << num_elements << " from " << nsequences << " sequences." << std::endl)
+        STXXL_VERBOSE1("ext multi_merge from " << nsequences << " sequences." << std::endl)
         
 #if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
-	STXXL_MSG("external parallel merge")
+	STXXL_VERBOSE1("external parallel merge")
 
 	typedef stxxl::int64 diff_type;
-	diff_type num_elements = std::distance(begin, end);
+	diff_type num_elements = end - begin;
 	typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
 	std::vector<sequence> seqs(nsequences);
 	std::vector<block_type*> buffers(nsequences);
 	std::vector<sequence_state*> state(nsequences);
 //	std::vector<typename block_type::iterator> before(nsequences);
+
+	Cmp_ cmp;
+	binary_negate<Cmp_, value_type, value_type> neg_cmp(cmp);
 	
 	sequences_iterator s = sequences.begin();
-	for(int_type i = 0; i < nsequences; i++, s++)	//initialize sequences
+	for(unsigned_type i = 0; i < nsequences; ++i, ++s)	//initialize sequences
 	{
+		assert((*s).block->begin() + (*s).current != (*s).block->end());
 		seqs[i] = std::make_pair((*s).block->begin() + (*s).current, (*s).block->end());
 		//before[i] = (*s).block->begin();
 		state[i] = &(*s);	//sequence state
@@ -417,63 +426,76 @@ void merge4(
 	while(rest > 0 && seqs.size() > 0)
 	{
 		assert(seqs[0].first != seqs[0].second);	//at least first sequence non-empty
+		assert(seqs[0].first < seqs[0].second);	//at least first sequence non-empty
 	
 		value_type min_last = *(seqs[0].second - 1);	//minimum of the sequences' last elements
 		diff_type total_size = 0;
 		
 		total_size += seqs[0].second - seqs[0].first;
-		STXXL_VERBOSE1("last " << *(seqs[0].second - 1) << " block size " << (seqs[0].second - seqs[0].first));
+		STXXL_VERBOSE1("first " << *(seqs[0].first) << " last " << *(seqs[0].second - 1) << " block size " << (seqs[0].second - seqs[0].first));
 		
-		for(int_type i = 1; i < seqs.size(); i++)
+		for(unsigned_type i = 1; i < seqs.size(); ++i)
 		{
 /*			if(seqs[i].first == seqs[i].second) 
 				continue;	//empty subsequence*/
 			assert(seqs[i].first != seqs[i].second);
+			assert(seqs[i].first < seqs[i].second);
 	
-			min_last = not2<Cmp_, value_type, value_type>(Cmp_())(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
+			min_last = neg_cmp(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
 			
 			total_size += seqs[i].second - seqs[i].first;
-			STXXL_VERBOSE1("last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
+			STXXL_VERBOSE1("first " << *(seqs[i].first) << " last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
 		}
 		
 		STXXL_VERBOSE1("min_last " << min_last << " total size " << total_size + (block_type::size - rest));
 		
 		diff_type less_equal_than_min_last = 0;
 		//locate this element in all sequences
-		for(int_type i = 0; i < seqs.size(); i++)
+		for(unsigned_type i = 0; i < seqs.size(); ++i)
 		{
 /*			if(seqs[i].first == seqs[i].second) 
 				continue;	//empty subsequence*/
 			assert(seqs[i].first != seqs[i].second);
 			
-			typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, not2<Cmp_, value_type, value_type>(Cmp_()));
-			STXXL_VERBOSE1("greater equal than " << position - seqs[i].first);
-			less_equal_than_min_last += position - seqs[i].first;
+			typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, neg_cmp);
+/*			if(position != seqs[i].second && !neg_cmp(min_last, *position))
+				++position;*/
+			
+/*			STXXL_VERBOSE1("first " << *(seqs[i].first) << " last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first) << " min_last " << min_last);*/
+			STXXL_VERBOSE1("" << seqs[i].first << " " << seqs[i].second << " " << position << " greater equal than " << (position - seqs[i].first));
+			
+			less_equal_than_min_last += (position - seqs[i].first);
 		}
 		
 		STXXL_VERBOSE1("finished loop");
 		
 		ptrdiff_t output_size = std::min(less_equal_than_min_last, rest);	//at most rest elements
 		
-		STXXL_MSG("output_size " << output_size)
+		STXXL_VERBOSE1("output_size " << output_size << " < " << less_equal_than_min_last << " < " << rest)
 		
 		assert(output_size > 0);
 		
 		STXXL_VERBOSE1("before merge" << output_size);
 		
-		begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, not2<Cmp_, value_type, value_type>(Cmp_()), output_size, false);	//sequence iterators are progressed appropriately
-				
+		
+		//main call
+		
+		begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, neg_cmp, output_size, false);	//sequence iterators are progressed appropriately
+
+
 		STXXL_VERBOSE1("after merge");
 		
 		rest -= output_size;
 		
 		STXXL_VERBOSE1("before checking for emptiness");
 		
-		sequences_iterator s = sequences.begin();
-		for(int_type i = 0; i < seqs.size(); i++)
+		sequences_iterator seq = sequences.begin();
+		for(unsigned_type i = 0; i < seqs.size(); ++i, ++seq)
 		{
-			(*s).current += seqs[i].first - state[i]->block->begin();
-			if(seqs[i].first == seqs[i].second)	//run empty
+			(*seq).current = seqs[i].first - state[i]->block->begin();
+			
+			assert(seqs[i].first <= seqs[i].second);
+			if(seqs[i].first == seqs[i].second)	//has run empty
 			{
 				sequence_state& s = *(state[i]);
 				if(s.bids->empty()) // if there is no next block
@@ -483,6 +505,7 @@ void merge4(
 					delete s.bids;
 					delete s.block;
 					seqs.erase(seqs.begin() + i);
+					assert(seqs.size() == nsequences);
 					state.erase(state.begin() + i);
 					i--;
 				}
@@ -524,7 +547,7 @@ void merge4(
 	
 	last_elem = (*out_buffer)[block_type::size - 1];
 	
-	STXXL_MSG("external parallel merge done")
+	STXXL_VERBOSE1("external parallel merge done")
 	
 	#endif
 
@@ -708,7 +731,7 @@ private:
   // leaf information
   // note that Knuth uses indices k..k-1
   // while we use 0..k-1
-  Element * current[KNKMAX]; // pointer to actual element
+  Element * current[KNKMAX]; // pointer to current element
   Element * current_end[KNKMAX]; // pointer to end of block for actual element
   Element * segment[KNKMAX]; // start of Segments
   unsigned_type segment_size[KNKMAX];
@@ -1181,16 +1204,16 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     default:
     {
 	std::pair<Element*, Element*> seqs[k];
-	for(int i = 0; i < k; i++)
+	for(unsigned int i = 0; i < k; ++i)
 		seqs[i] = std::make_pair(current[i], current_end[i]);
 	
 	mcstl::multiway_merge(seqs, seqs + k, to, not2<Cmp_, Element, Element>(cmp), l, false);
 
-	for(int i = 0; i < k; i++)
+	for(unsigned int i = 0; i < k; ++i)
 		current[i] = seqs[i].first;
 		
 	rebuildLoserTree();
-	for(int i = 0; i < k; i++)
+	for(unsigned int i = 0; i < k; ++i)
 		if(segmentIsEmpty(i))
 			deallocateSegment(i); 
 	break;
@@ -1933,10 +1956,10 @@ namespace priority_queue_local
     typedef Parameters_for_priority_queue_not_found_Increase_IntM result;
   };
   
-  struct shared_sentinel
+  struct dummy
   {
     enum { fits = false };
-    typedef shared_sentinel result;
+    typedef dummy result;
   };
   
   template <int_type E_,int_type IntM_,unsigned_type MaxS_,int_type B_,int_type m_,bool stop = false>
@@ -1975,7 +1998,7 @@ namespace priority_queue_local
   struct find_B_m<E_,IntM_,MaxS_,B_,m_,true>
   {
     enum { fits = false };
-    typedef shared_sentinel result;
+    typedef dummy result;
   };
   
   template <int_type E_,int_type IntM_,unsigned_type MaxS_>
