@@ -17,7 +17,7 @@
 #include <iterator>
 #include <functional>
 
-#if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
 #include <bits/mcstl_multiway_merge.h>
 #endif
 
@@ -358,7 +358,9 @@ void merge4(
 	 }
 	  void swap(ext_merger & obj)
 	  {
+	  	STXXL_MSG("swap called");
 		  std::swap(nsequences,obj.nsequences);
+		  std::swap(sequences,obj.sequences);
           std::swap(nelements,obj.nelements);
           std::swap(sequences,obj.sequences);
       	  std::swap(min_elements,obj.min_elements);
@@ -394,7 +396,7 @@ void merge4(
         
         STXXL_VERBOSE1("ext multi_merge from " << nsequences << " sequences." << std::endl)
         
-#if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
 	STXXL_VERBOSE1("external parallel merge")
 
 	typedef stxxl::int64 diff_type;
@@ -552,7 +554,7 @@ void merge4(
 	
 	#endif
 
-#else	//defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#else	//defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
 
 
         while(begin != end)
@@ -614,7 +616,7 @@ void merge4(
           m.value = *s;
           min_elements.push(m);
         }
-#endif	//defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#endif	//defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
       }
       
       bool spaceIsAvailable() const { return nsequences < arity; }
@@ -1162,7 +1164,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
   case 1:
   {
     assert(k == 2);
-#if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
     {
     std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]), 
     						std::make_pair(current[1], current_end[1]) };
@@ -1180,7 +1182,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
   }
   case 2:
     assert(k == 4);
-#if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
     {
     std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]), 
     						std::make_pair(current[1], current_end[1]),
@@ -1201,7 +1203,7 @@ void loser_tree<ValTp_,Cmp_,KNKMAX>::multi_merge(Element *to, unsigned_type l)
     if (segmentIsEmpty(2)) deallocateSegment(2); 
     if (segmentIsEmpty(3)) deallocateSegment(3);
     break;
-#if defined(__MCSTL__) && defined(STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
     default:
     {
 	std::pair<Element*, Element*> seqs[k];
