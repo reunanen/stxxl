@@ -480,6 +480,7 @@ void merge4(
 		
 		//main call
 		
+		//STXXL_MSG("pmwm x " << (seqs.size()) << " " << output_size);
 		begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, neg_cmp, output_size, false);	//sequence iterators are progressed appropriately
 
 
