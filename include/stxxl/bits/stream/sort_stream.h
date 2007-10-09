@@ -310,6 +310,7 @@ namespace stream
             pthread_cond_init(&cond, 0);
 #endif
             assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            check_block_size<block_type>();
         }
 
         virtual ~basic_runs_creator()

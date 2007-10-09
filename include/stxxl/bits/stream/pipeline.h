@@ -804,6 +804,7 @@ public:
 	dummy_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
+		UNUSED(buffer_size);
 	}
 	
 	//! \brief Standard stream method.

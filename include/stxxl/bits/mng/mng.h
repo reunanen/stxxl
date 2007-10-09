@@ -374,6 +374,61 @@ public:
     // ~typed_block() { }
 };
 
+inline bool is_power_of_2(unsigned u)
+{
+    switch (u) {
+    case 1U<<0:
+    case 1U<<1:
+    case 1U<<2:
+    case 1U<<3:
+    case 1U<<4:
+    case 1U<<5:
+    case 1U<<6:
+    case 1U<<7:
+    case 1U<<8:
+    case 1U<<9:
+    case 1U<<10:
+    case 1U<<11:
+    case 1U<<12:
+    case 1U<<13:
+    case 1U<<14:
+    case 1U<<15:
+    case 1U<<16:
+    case 1U<<17:
+    case 1U<<18:
+    case 1U<<19:
+    case 1U<<20:
+    case 1U<<21:
+    case 1U<<22:
+    case 1U<<23:
+    case 1U<<24:
+    case 1U<<25:
+    case 1U<<26:
+    case 1U<<27:
+    case 1U<<28:
+    case 1U<<29:
+    case 1U<<30:
+    case 1U<<31:
+        return true;
+        break;
+    }
+    return false;
+}
+
+// For some algorithms using anything beside a block that contains a
+// power of two of elements get's very inefficient. This affects e.g.
+// sorting (sort(), stream::sort())
+// and is expected to affect ksort(), stable_ksort() (unverified)
+template <typename block_type>
+inline void check_block_size()
+{
+    if (!is_power_of_2(block_type::size)) {
+        STXXL_ERRMSG("Sorting with the chosen block size (" << block_type::raw_size << ") will be inefficient.");
+        STXXL_ERRMSG("For efficiency, the number of elements fitting into a block should be a power of two.");
+        STXXL_ERRMSG("Element size: " << sizeof(typename block_type::value_type) << " bytes, " << block_type::size << " elements per block.");
+    }
+}
+
 
 /*
    template <unsigned BLK_SIZE>

@@ -215,6 +215,9 @@ void stable_ksort(ExtIterator_ first, ExtIterator_ last, unsigned_type M)
     typedef stable_ksort_local::bid_sequence<bid_type, alloc_strategy> bucket_bids_type;
     typedef stable_ksort_local::type_key<value_type> type_key_;
 
+
+    check_block_size<block_type>();
+
     first.flush();     // flush container
 
 #ifdef STXXL_IO_STATS
