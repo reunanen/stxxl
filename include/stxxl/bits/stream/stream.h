@@ -1054,6 +1054,11 @@ namespace stream
             return transforming_iterator(op, i1 + addend);
         }
 
+        unsigned_type operator-(const transforming_iterator& subtrahend) const
+        {
+            return i1 - subtrahend.i1;
+        }
+
         bool operator!=(const transforming_iterator& ti) const
         {
             return ti.i1 != i1;

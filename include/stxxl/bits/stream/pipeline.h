@@ -463,16 +463,25 @@ public:
 		return incoming_buffer->end - incoming_buffer->current;
 	}
 	
-	//! \brief Batched stream method.
-	void push_batch(const value_type* batch_begin, const value_type* batch_end)
-	{
-		assert(static_cast<unsigned_type>(batch_end - batch_begin) <= push_batch_length());
-		
-		incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
-		
-		offload();
-	}
-	
+    //! \brief Batched stream method.
+    void push_batch(const value_type* batch_begin, const value_type* batch_end)
+    {
+        assert(static_cast<unsigned_type>(batch_end - batch_begin) <= push_batch_length());
+        
+        incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
+        
+        offload();
+    }
+    
+    //! \brief Batched stream method.
+    template<typename InputIterator>
+    void push_batch(const InputIterator& batch_begin, const InputIterator& batch_end)
+    {
+        incoming_buffer->current = std::copy(batch_begin, batch_end, incoming_buffer->current);
+        
+        offload();
+    }
+    
 	//! \brief Standard stream method.
 	void stop_push() const
 	{

@@ -25,86 +25,10 @@
 
 __STXXL_BEGIN_NAMESPACE
 
-/* deprecated
-   template < unsigned blk_sz,class Y,class X >
-   struct bid_iterator_traits<
-    __gnu_cxx::__normal_iterator<  sort_local::trigger_entry<BID<blk_sz>,Y> * ,  X> >
-        {
-                enum
-                {
-                        block_size = blk_sz
-                };
-        };
- */
-
 namespace stream
 {
     //! \addtogroup streampack Stream package
     //! \{
-    
-    template <unsigned_type modulo>
-    class blocked_index
-    {
-      unsigned_type pos;
-      unsigned_type block;
-      unsigned_type offset;
-
-      void set(unsigned_type pos)
-      {
-        this->pos = pos;
-        block = pos / modulo;
-        offset = pos % modulo;
-      }
-
-    public:
-      blocked_index()
-      {
-        set(0);
-      }
-
-      blocked_index(unsigned_type pos)
-      {
-        set(pos);
-      }
-
-      void operator=(unsigned_type pos)
-      {
-        set(pos);
-      }
-
-      blocked_index& operator++()
-      {
-        ++pos;
-        ++offset;
-        if(offset == modulo)
-        {
-          offset = 0;
-          ++block;
-        }
-        return *this;
-      }
-
-      blocked_index& operator+=(unsigned_type addend)
-      {
-        set(pos + addend);
-        return *this;
-      }
-
-      operator unsigned_type() const
-      {
-        return pos;
-      }
-
-      const unsigned_type& get_block() const
-      {
-        return block;
-      }
-
-      const unsigned_type& get_offset() const
-      {
-        return offset;
-      }
-    };
 
     template <class ValueType, class TriggerEntryType>
     struct sorted_runs
