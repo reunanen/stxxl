@@ -405,6 +405,174 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
     STXXL_ADAPTOR_ARITHMETICS(pos)
 };
 
+
+    template <typename array_type, typename value_type, unsigned_type modulo>
+    class array_of_arrays_iterator : public std::iterator<std::random_access_iterator_tag, value_type, unsigned_type>
+    {
+      unsigned_type pos;
+      //unsigned_type block;
+      unsigned_type offset;
+      array_type* arrays;
+      array_type* base;
+      value_type* basee;
+
+      //! \invariant block * modulo + offset = pos
+
+      void set(unsigned_type pos)
+      {
+        this->pos = pos;
+        offset = pos % modulo;
+        base = arrays + pos / modulo;
+        basee = base->elem;
+      }
+
+    public:
+      array_of_arrays_iterator()
+      {
+        this->arrays = NULL;
+        set(0);
+      }
+
+      array_of_arrays_iterator(array_type* arrays)
+      {
+        this->arrays = arrays;
+        set(0);
+      }
+
+      array_of_arrays_iterator(array_type* arrays, unsigned_type pos)
+      {
+        this->arrays = arrays;
+        set(pos);
+      }
+
+      void operator=(unsigned_type pos)
+      {
+        set(pos);
+      }
+
+      //pre-increment operator
+      array_of_arrays_iterator& operator++()
+      {
+        ++pos;
+        ++offset;
+        if(offset == modulo)
+        {
+          offset = 0;
+          ++base;
+          basee = base->elem;
+        }
+        return *this;
+      }
+
+      //post-increment operator
+      array_of_arrays_iterator operator++(int)
+      {
+        array_of_arrays_iterator former(*this);
+        operator++();
+        return former;
+      }
+
+      //pre-increment operator
+      array_of_arrays_iterator& operator--()
+      {
+        --pos;
+        if(offset == 0)
+        {
+          offset = modulo;
+          --base;
+          basee = base->elem;
+        }
+        --offset;
+        return *this;
+      }
+
+      //post-increment operator
+      array_of_arrays_iterator operator--(int)
+      {
+        array_of_arrays_iterator former(*this);
+        operator--();
+        return former;
+      }
+
+      array_of_arrays_iterator& operator+=(unsigned_type addend)
+      {
+        set(pos + addend);
+        return *this;
+      }
+
+      array_of_arrays_iterator& operator>>=(unsigned_type shift)
+      {
+        set(pos >> shift);
+        return *this;
+      }
+
+      array_of_arrays_iterator operator+(unsigned_type addend) const
+      {
+        return array_of_arrays_iterator(arrays, pos + addend);
+      }
+
+      array_of_arrays_iterator operator-(unsigned_type subtrahend) const
+      {
+        return array_of_arrays_iterator(arrays, pos - subtrahend);
+      }
+
+      unsigned_type operator-(const array_of_arrays_iterator& subtrahend) const
+      {
+        return pos - subtrahend.pos;
+      }
+
+      bool operator== (const array_of_arrays_iterator& aoai) const
+      {
+        return pos == aoai.pos;
+      }
+
+      bool operator!= (const array_of_arrays_iterator& aoai) const
+      {
+        return pos != aoai.pos;
+      }
+
+      bool operator< (const array_of_arrays_iterator& aoai) const
+      {
+        return pos < aoai.pos;
+      }
+
+      const value_type& operator* () const
+      {
+        return basee[offset];
+        //return (*base)[offset];
+      }
+
+      value_type& operator* ()
+      {
+        return basee[offset];
+        //return (*base)[offset];
+      }
+
+      const value_type& operator-> () const
+      {
+        return &(basee[offset]);
+        //return &((*base)[offset]);
+      }
+
+      value_type& operator-> ()
+      {
+        return &(basee[offset]);
+        //return &((*base)[offset]);
+      }
+
+      const value_type& operator[] (unsigned_type index) const
+      {
+        return arrays[index / modulo][index % modulo];
+      }
+
+      value_type& operator[] (unsigned_type index)
+      {
+        return arrays[index / modulo][index % modulo];
+      }
+    };
+
+
+
 //! \}
 
 __STXXL_END_NAMESPACE
