@@ -407,14 +407,13 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
 
 
     template <typename array_type, typename value_type, unsigned_type modulo>
-    class array_of_arrays_iterator : public std::iterator<std::random_access_iterator_tag, value_type, unsigned_type>
+    class ArrayOfSequencesIterator : public std::iterator<std::random_access_iterator_tag, value_type, unsigned_type>
     {
       unsigned_type pos;
-      //unsigned_type block;
       unsigned_type offset;
       array_type* arrays;
       array_type* base;
-      value_type* basee;
+      value_type* base_element;
 
       //! \invariant block * modulo + offset = pos
 
@@ -423,23 +422,23 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
         this->pos = pos;
         offset = pos % modulo;
         base = arrays + pos / modulo;
-        basee = base->elem;
+        base_element = base->elem;
       }
 
     public:
-      array_of_arrays_iterator()
+      ArrayOfSequencesIterator()
       {
         this->arrays = NULL;
         set(0);
       }
 
-      array_of_arrays_iterator(array_type* arrays)
+      ArrayOfSequencesIterator(array_type* arrays)
       {
         this->arrays = arrays;
         set(0);
       }
 
-      array_of_arrays_iterator(array_type* arrays, unsigned_type pos)
+      ArrayOfSequencesIterator(array_type* arrays, unsigned_type pos)
       {
         this->arrays = arrays;
         set(pos);
@@ -451,7 +450,7 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
       }
 
       //pre-increment operator
-      array_of_arrays_iterator& operator++()
+      ArrayOfSequencesIterator& operator++()
       {
         ++pos;
         ++offset;
@@ -459,105 +458,116 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
         {
           offset = 0;
           ++base;
-          basee = base->elem;
+          base_element = base->elem;
         }
         return *this;
       }
 
       //post-increment operator
-      array_of_arrays_iterator operator++(int)
+      ArrayOfSequencesIterator operator++(int)
       {
-        array_of_arrays_iterator former(*this);
+        ArrayOfSequencesIterator former(*this);
         operator++();
         return former;
       }
 
       //pre-increment operator
-      array_of_arrays_iterator& operator--()
+      ArrayOfSequencesIterator& operator--()
       {
         --pos;
         if(offset == 0)
         {
           offset = modulo;
           --base;
-          basee = base->elem;
+          base_element = base->elem;
         }
         --offset;
         return *this;
       }
 
       //post-increment operator
-      array_of_arrays_iterator operator--(int)
+      ArrayOfSequencesIterator operator--(int)
       {
-        array_of_arrays_iterator former(*this);
+        ArrayOfSequencesIterator former(*this);
         operator--();
         return former;
       }
 
-      array_of_arrays_iterator& operator+=(unsigned_type addend)
+      ArrayOfSequencesIterator& operator+=(unsigned_type addend)
       {
         set(pos + addend);
         return *this;
       }
 
-      array_of_arrays_iterator& operator>>=(unsigned_type shift)
+      ArrayOfSequencesIterator& operator-=(unsigned_type addend)
       {
-        set(pos >> shift);
+        set(pos - addend);
         return *this;
       }
 
-      array_of_arrays_iterator operator+(unsigned_type addend) const
+      ArrayOfSequencesIterator operator+(unsigned_type addend) const
       {
-        return array_of_arrays_iterator(arrays, pos + addend);
+        return ArrayOfSequencesIterator(arrays, pos + addend);
       }
 
-      array_of_arrays_iterator operator-(unsigned_type subtrahend) const
+      ArrayOfSequencesIterator operator-(unsigned_type subtrahend) const
       {
-        return array_of_arrays_iterator(arrays, pos - subtrahend);
+        return ArrayOfSequencesIterator(arrays, pos - subtrahend);
       }
 
-      unsigned_type operator-(const array_of_arrays_iterator& subtrahend) const
+      unsigned_type operator-(const ArrayOfSequencesIterator& subtrahend) const
       {
         return pos - subtrahend.pos;
       }
 
-      bool operator== (const array_of_arrays_iterator& aoai) const
+      bool operator== (const ArrayOfSequencesIterator& aoai) const
       {
         return pos == aoai.pos;
       }
 
-      bool operator!= (const array_of_arrays_iterator& aoai) const
+      bool operator!= (const ArrayOfSequencesIterator& aoai) const
       {
         return pos != aoai.pos;
       }
 
-      bool operator< (const array_of_arrays_iterator& aoai) const
+      bool operator< (const ArrayOfSequencesIterator& aoai) const
       {
         return pos < aoai.pos;
       }
 
+      bool operator<= (const ArrayOfSequencesIterator& aoai) const
+      {
+        return pos <= aoai.pos;
+      }
+
+      bool operator> (const ArrayOfSequencesIterator& aoai) const
+      {
+        return pos > aoai.pos;
+      }
+
+      bool operator>= (const ArrayOfSequencesIterator& aoai) const
+      {
+        return pos >= aoai.pos;
+      }
+
       const value_type& operator* () const
       {
-        return basee[offset];
-        //return (*base)[offset];
+        return base_element[offset];
       }
 
       value_type& operator* ()
       {
-        return basee[offset];
-        //return (*base)[offset];
+        return base_element[offset];
       }
 
       const value_type& operator-> () const
       {
-        return &(basee[offset]);
-        //return &((*base)[offset]);
+        return &(base_element[offset]);
       }
 
       value_type& operator-> ()
       {
-        return &(basee[offset]);
-        //return &((*base)[offset]);
+        return &(base_element[offset]);
       }
 
       const value_type& operator[] (unsigned_type index) const
@@ -570,7 +580,6 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
         return arrays[index / modulo][index % modulo];
       }
     };
-
 
 
 //! \}

@@ -190,19 +190,17 @@ namespace sort_local
 
             if (block_type::has_filler)
                 std::sort(
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
+                    ArrayOfSequencesIterator<
+                        block_type,
+                        typename block_type::value_type,
+                        block_type::size>
                       (Blocks1, 0),
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
+                    ArrayOfSequencesIterator<
+                        block_type,
+                        typename block_type::value_type,
+                        block_type::size>
                       (Blocks1, run_size * block_type::size),
-                       
-/*                    TwoToOneDimArrayRowAdaptor < block_type,
-                    typename block_type::value_type,
-                    block_type::size > (Blocks1, 0 ),
-                    TwoToOneDimArrayRowAdaptor < block_type,
-                    typename block_type::value_type, block_type::size > (Blocks1,
-                                                                         run_size * block_type::size ),*/
                     cmp);
-
             else
                 std::sort(Blocks1[0].elem, Blocks1[run_size].elem, cmp);
 
@@ -255,18 +253,17 @@ namespace sort_local
 
         if (block_type::has_filler)
             std::sort(
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
-                      (Blocks1, 0),
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
-                      (Blocks1, run_size * block_type::size),
-/*                TwoToOneDimArrayRowAdaptor < block_type,
-                typename block_type::value_type, block_type::size > (Blocks1,
-                                                                     0),
-                TwoToOneDimArrayRowAdaptor < block_type,
-                typename block_type::value_type, block_type::size > (Blocks1,
-                                                                     run_size * block_type::size ),*/
+                ArrayOfSequencesIterator<
+                    block_type,
+                    typename block_type::value_type,
+                    block_type::size>
+                  (Blocks1, 0),
+                ArrayOfSequencesIterator<
+                    block_type,
+                    typename block_type::value_type,
+                    block_type::size>
+                  (Blocks1, run_size * block_type::size),
                 cmp);
-
         else
             std::sort(Blocks1[0].elem, Blocks1[run_size].elem, cmp);
 
@@ -360,20 +357,17 @@ namespace sort_local
                     }
                 }
                 if (!is_sorted(
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
+                    ArrayOfSequencesIterator<
+                        block_type,
+                        typename block_type::value_type,
+                        block_type::size>
                       (blocks, 0),
-                    array_of_arrays_iterator<block_type, typename block_type::value_type, block_type::size>
+                    ArrayOfSequencesIterator<
+                        block_type,
+                        typename block_type::value_type,
+                        block_type::size>
                       (blocks, nelements),
-/*                        TwoToOneDimArrayRowAdaptor <
-                                                    block_type,
-                                                    value_type,
-                                                    block_type::size > (blocks, 0 ),
-                        TwoToOneDimArrayRowAdaptor<
-                                                   block_type,
-                                                   value_type,
-                                                   block_type::size > (blocks,
-                                                                       nelements
-                        ),*/ cmp) )
+                    cmp) )
                 {
                     STXXL_MSG("check_sorted_runs  wrong order in the run " << irun);
                     STXXL_MSG("Data in blocks:");
