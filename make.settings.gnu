@@ -21,9 +21,13 @@ ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
 endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
-COMPILER	?= g++-4.2
+COMPILER	?= g++-4.2.2
 OPENMPFLAG	?= -fopenmp
+ifeq ($(strip $(USE_ICPC)),yes)
+LIBNAME		?= mcstxxl_icpc
+else
 LIBNAME		?= mcstxxl
+endif
 # the base directory of your MCSTL installation
 MCSTL_BASE	?= $(HOME)/work/mcstl
 # mcstl branch, leave empty for default branch (e.g. if installed from release tarball)
