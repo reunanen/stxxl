@@ -98,6 +98,8 @@ CPPFLAGS_i686	?= -march=i686
 
 ifeq ($(strip $(USE_ICPC)),yes)
 
+STXXL_SPECIFIC	+= -include stxxl/bits/common/intel_compatibility.h
+
 endif
 
 ##################################################################
