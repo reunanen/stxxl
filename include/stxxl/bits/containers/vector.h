@@ -47,8 +47,8 @@ __STXXL_BEGIN_NAMESPACE
         offset = (pos - block1 * modulo1);
 
         assert(block2 * modulo12 + block1 * modulo1 + offset == this->pos);
-        assert(0 <= block1 && block1 < modulo2);
-        assert(0 <= offset && offset < modulo1);
+        assert(/* 0 <= block1 && */ block1 < modulo2);
+        assert(/* 0 <= offset && */ offset < modulo1);
       }
 
     public:
@@ -70,8 +70,8 @@ __STXXL_BEGIN_NAMESPACE
         pos = block2 * modulo12 + block1 * modulo1 + offset;
 
         assert(block2 * modulo12 + block1 * modulo1 + offset == this->pos);
-        assert(0 <= block1 && block1 < modulo2);
-        assert(0 <= offset && offset < modulo1);
+        assert(/* 0 <= block1 && */ block1 < modulo2);
+        assert(/* 0 <= offset && */ offset < modulo1);
       }
 
       void operator=(unsigned_type pos)
@@ -96,8 +96,8 @@ __STXXL_BEGIN_NAMESPACE
         }
         
         assert(block2 * modulo12 + block1 * modulo1 + offset == this->pos);
-        assert(0 <= block1 && block1 < modulo2);
-        assert(0 <= offset && offset < modulo1);
+        assert(/* 0 <= block1 && */ block1 < modulo2);
+        assert(/* 0 <= offset && */ offset < modulo1);
         
         return *this;
       }
