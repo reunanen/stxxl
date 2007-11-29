@@ -841,9 +841,6 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
     typedef typename ExtIterator_::vector_type::value_type value_type;
     typedef typename ExtIterator_::block_type block_type;
 
-
-    check_block_size<block_type>();
-
     unsigned_type n = 0;
 
     block_manager * mng = block_manager::get_instance ();

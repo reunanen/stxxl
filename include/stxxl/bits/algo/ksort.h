@@ -788,7 +788,6 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
     typedef typename ExtIterator_::block_type block_type;
 
 
-    check_block_size<block_type>();
 
     unsigned_type n = 0;
     block_manager * mng = block_manager::get_instance ();
