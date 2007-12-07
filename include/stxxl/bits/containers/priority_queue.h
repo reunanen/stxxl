@@ -18,12 +18,33 @@
 #include <list>
 #include <iterator>
 
+#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+#include <bits/mcstl_multiway_merge.h>
+#endif
+
 
 __STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup stlcontinternals
 //!
 //! \{
+
+//alternative to std::not2, typedefs first_argument_type and second_argument_type not needed
+
+template<class Predicate, typename first_argument_type, typename second_argument_type>
+class binary_negate /*: public std::binary_function<first_argument_type, second_argument_type, bool>*/
+{
+protected:
+        Predicate pred;
+public:
+        explicit
+        binary_negate(const Predicate& _pred) : pred(_pred) { }
+
+        bool operator()(const first_argument_type& x, const second_argument_type& y) const
+        {
+                return pred(y, x);
+        }
+};
 
 /*! \internal
  */
@@ -421,21 +442,23 @@ finish:
 
         bool is_sentinel(const Element & a) const
         {
-            return !(cmp(cmp.min_value(), a));
+            return !(cmp(cmp.min_value(), a));	//a <= cmp.min_value(
         }
         bool not_sentinel(const Element & a) const
         {
-            return cmp(cmp.min_value(), a);
+            return cmp(cmp.min_value(), a);	//a > cmp.min_value()
         }
 
         struct sequence_type
         {
-            unsigned_type current;
-            block_type * block;
-            std::list<bid_type> * bids; // TODO: really need a pointer ?
+            unsigned_type current;	//current index
+            block_type * block;		//current block
+            std::list<bid_type> * bids; // TODO: really need a pointer ? list of blocks forming this sequence
+
             comparator_type cmp;
             ext_merger * merger;
-
+	
+			//! \returns current element
             const value_type & operator * () const
             {
                 return (* block)[current];
@@ -523,9 +546,9 @@ finish:
             }
         };
 
-
         // this version of ext_merger is based on the loser tree data structure
 
+        //a pair consisting a value 
         struct Entry
         {
             value_type key; // Key of Looser element (winner for 0)
@@ -537,7 +560,7 @@ finish:
         int_type lastFree; // where in "empty" is the last valid entry?
 
         unsigned_type size_; // total number of elements stored
-        // previously size_type nelements;
+        // previously size_type size_;
         unsigned logK; // log of current tree size
         unsigned_type k; // invariant k = 1 << logK
 
@@ -547,10 +570,14 @@ finish:
         // entry[0] contains the winner info
         Entry entry[KNKMAX];
 
+	    typedef sequence_type* sequences_iterator;
+
+
+		
         // leaf information
         // note that Knuth uses indices k..k-1
         // while we use 0..k-1
-        sequence_type current[KNKMAX]; // pointer to actual element
+        sequence_type current[KNKMAX]; // sequence including current position, dereference gives current element
 
         prefetch_pool<block_type> *p_pool;
         write_pool<block_type> *w_pool;
@@ -831,9 +858,175 @@ finish:
         template <class OutputIterator>
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
-            size_type l = end - begin;
             STXXL_VERBOSE2("ext_merger::multi_merge l = " << l);
 
+
+
+
+
+        STXXL_VERBOSE1("\next multi_merge from " << k << " sequence(s).")
+
+        if(begin == end)
+            return;
+
+        assert(k > 0);
+	
+	#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+		typedef stxxl::int64 diff_type;
+		diff_type num_elements = end - begin;
+		typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
+		std::vector<sequence> seqs(k);
+		std::vector<block_type*> buffers(k);
+		std::vector<sequence_type*> state(k);
+
+		Cmp_ cmp;
+		binary_negate<Cmp_, value_type, value_type> neg_cmp(cmp);
+ 	
+		sequences_iterator s = current;
+		for(unsigned_type i = 0; i < seqs.size(); ++i, ++s)	//initialize sequences
+		{
+			assert((*s).block->begin() + (*s).current < (*s).block->end());
+  	
+			seqs[i] = std::make_pair((*s).block->begin() + (*s).current, (*s).block->end());
+			state[i] = &(*s);	//sequence state
+		}
+ 	
+		#ifdef STXXL_CHECK_ORDER_IN_SORTS
+		value_type last_elem;
+		#endif
+ 	
+		diff_type rest = num_elements;	//elements still to merge for this output block
+
+		while(rest > 0 && seqs.size() > 0)
+		{
+			assert(seqs[0].first < seqs[0].second);	//at least first sequence non-empty
+ 	
+			value_type min_last = *(seqs[0].second - 1);	//minimum of the sequences' last elements
+			diff_type total_size = 0;
+  	
+			total_size += seqs[0].second - seqs[0].first;
+  	
+			STXXL_VERBOSE1("first " << *(seqs[0].first) << " last " << *(seqs[0].second - 1) << " block size " << (seqs[0].second - seqs[0].first));
+  	
+			for(unsigned_type i = 1; i < seqs.size(); ++i)
+			{
+				assert(seqs[i].first < seqs[i].second);
+ 	
+				min_last = neg_cmp(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
+   	
+				total_size += seqs[i].second - seqs[i].first;
+   	
+				STXXL_VERBOSE1("first " << *(seqs[i].first) << " last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
+			}
+  	
+			STXXL_VERBOSE1("min_last " << min_last << " total size " << total_size + (block_type::size - rest));
+  	
+			diff_type less_equal_than_min_last = 0;
+			//locate this element in all sequences
+			for(unsigned_type i = 0; i < seqs.size(); ++i)
+			{
+				assert(seqs[i].first < seqs[i].second);
+   	
+				typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, neg_cmp);
+   	
+				//no element larger than min_last is merged
+   	
+				STXXL_VERBOSE1("" << (position - seqs[i].first) << " greater equal than " << min_last);
+   	
+				less_equal_than_min_last += (position - seqs[i].first);
+			}
+  	
+			ptrdiff_t output_size = std::min(less_equal_than_min_last, rest);	//at most rest elements
+  	
+			STXXL_VERBOSE1("output_size " << output_size << " <= " << less_equal_than_min_last << ", <= " << rest)
+  	
+			assert(output_size > 0);
+  	
+			//main call
+  	
+			//STXXL_MSG("pmwm x " << (seqs.size()) << " " << output_size);
+			begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, neg_cmp, output_size, false);	//sequence iterators are progressed appropriately
+
+			rest -= output_size;
+			size_ -= output_size;
+  	
+			sequences_iterator seq = current;
+			for(unsigned_type i = 0; i < seqs.size(); ++i, ++seq)
+			{
+				(*seq).current = seqs[i].first - state[i]->block->begin();
+   	
+				assert(seqs[i].first <= seqs[i].second);
+   	
+				if(seqs[i].first == seqs[i].second)	//has run empty
+				{
+					sequence_type& s = *(state[i]);
+					if(s.bids->empty()) // if there is no next block
+					{
+						STXXL_VERBOSE2("ext_merger::multi_merge(...) it was the last block in the sequence ")
+/*						--k;
+						delete s.bids;
+						delete s.block;
+						seqs.erase(seqs.begin() + i);
+						sequences.erase(seq);
+						state.erase(state.begin() + i);
+						assert(sequences.size() == seqs.size() == state.size() == k);
+						i--;*/
+						//leave it that way
+					}
+					else
+					{
+						STXXL_VERBOSE2("ext_merger::multi_merge(...) there is another block ")
+						bid_type bid = s.bids->front();
+						s.bids->pop_front();
+						if(!(s.bids->empty()))
+						{
+							STXXL_VERBOSE2("ext_merger::multi_merge(...) one more block exists in a sequence: "<<
+							"flushing this block in write cache (if not written yet) and giving hint to prefetcher")
+							bid_type next_bid = s.bids->front();
+							p_pool->hint(next_bid,*w_pool);
+						}
+						p_pool->read(s.block,bid)->wait();
+						block_manager::get_instance()->delete_block(bid);
+						s.current = 0;
+						seqs[i] = std::make_pair(s.block->begin(), s.block->end());
+					}
+				}
+			}
+		}
+ 	
+		#ifdef STXXL_CHECK_ORDER_IN_SORTS
+ 	
+		if(!stxxl::is_sorted(out_buffer->begin(), out_buffer->end(), cmp))
+		{
+			for(value_type* i = out_buffer->begin() + 1; i != out_buffer->end(); i++)
+				if(cmp(*i, *(i - 1)))
+				{
+					STXXL_VERBOSE1("Error at position " << (i - out_buffer->begin()));
+				}
+			assert(false);
+		}
+ 	
+		if(j > 0)	//do not check in first iteration
+			assert(cmp((*out_buffer)[0], last_elem) == false);
+ 	
+		last_elem = (*out_buffer)[block_type::size - 1];
+ 	
+		STXXL_VERBOSE1("external parallel merge done")
+ 	
+		#endif
+
+	#else	//defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+
+
+
+
+
+
+
+
+
+			
+            size_type l = end - begin;
 
             switch (logK) {
             case 0:
@@ -908,6 +1101,8 @@ finish:
                 // using k/2 would be worst case inefficient
                 compactTree();
             }
+
+		#endif
         }
 
         // multi-merge for arbitrary K
@@ -1066,6 +1261,8 @@ finish:
                 std::list<bid_type> *bids = new std::list<bid_type>(nblocks);
                 bm->new_blocks(alloc_strategy(), bids->begin(), bids->end());
                 block_type * first_block = new block_type;
+				
+		        STXXL_VERBOSE3("another_merger.multi_merge")
                 another_merger.multi_merge(
                     first_block->begin() + (block_type::size - first_size),
                     first_block->end());
@@ -1076,6 +1273,7 @@ finish:
                 for (unsigned_type i = 0; i < nblocks; ++i, ++curbid)
                 {
                     block_type * b = w_pool->steal();
+					STXXL_VERBOSE3("another_merger.multi_merge2")
                     another_merger.multi_merge(b->begin(), b->end());
                     w_pool->write(b, *curbid);
                 }
@@ -1180,6 +1378,7 @@ finish:
         // note that Knuth uses indices k..k-1
         // while we use 0..k-1
         Element * current[KNKMAX]; // pointer to actual element
+		Element * current_end[KNKMAX]; // pointer to end of block for actual element
         Element * segment[KNKMAX]; // start of Segments
         unsigned_type segment_size[KNKMAX]; // just to count the internal memory consumption
 
@@ -1286,6 +1485,7 @@ finish:
             std::swap(dummy, obj.dummy);
             swap_1D_arrays(entry, obj.entry, KNKMAX);
             swap_1D_arrays(current, obj.current, KNKMAX);
+            swap_1D_arrays(current_end, obj.current_end, KNKMAX);
             swap_1D_arrays(segment, obj.segment, KNKMAX);
             swap_1D_arrays(segment_size, obj.segment_size, KNKMAX);
             std::swap(mem_cons_, obj.mem_cons_);
@@ -1312,6 +1512,7 @@ finish:
         empty  [0] = 0;
         segment[0] = 0;
         current[0] = &dummy;
+		current_end[0] = &dummy;
         // entry and dummy are initialized by init
         // since they need the value of supremum
         init();
@@ -1428,6 +1629,7 @@ finish:
         for (int_type i = 2 * k - 1;  i >= int_type(k);  i--)
         {
             current[i] = &dummy;
+			current_end[i] = &dummy;
             segment[i] = NULL;
             lastFree++;
             empty[lastFree] = i;
@@ -1457,6 +1659,7 @@ finish:
             {
                 segment_size[to] = segment_size[from];
                 current[to] = current[from];
+                current_end[to] = current_end[from];
                 segment[to] = segment[from];
                 to++;
             }/*
@@ -1487,6 +1690,7 @@ finish:
             empty[lastFree] = to;
 
             current[to] = &dummy;
+            current_end[to] = &dummy;
         }
 
         // recompute loser tree information
@@ -1506,6 +1710,8 @@ finish:
         {
             assert( not_sentinel(to[0])   );
             assert( not_sentinel(to[sz - 1]));
+			assert( is_sentinel(to[sz]));
+
             // get a free slot
             if (lastFree < 0) { // tree is too small
                 doubleK();
@@ -1516,6 +1722,7 @@ finish:
 
             // link new segment
             current[index] = segment[index] = to;
+            current_end[index] = to + sz;
             segment_size[index] = (sz + 1) * sizeof(value_type);
             mem_cons_ += (sz + 1) * sizeof(value_type);
             size_ += sz;
@@ -1562,6 +1769,7 @@ finish:
         STXXL_VERBOSE2("loser_tree::deallocateSegment() deleting segment " <<
                        index << " address: " << segment[index] << " size: " << segment_size[index]);
         current[index] = &dummy;
+        current_end[index] = &dummy;
 
         // free memory
         delete [] segment[index];
@@ -1587,6 +1795,9 @@ finish:
         /*
            multi_merge_k(to,l);
          */
+
+		binary_negate<Cmp_, value_type, value_type> neg_cmp(cmp);
+
         switch (logK) {
         case 0:
             assert(k == 1);
@@ -1602,19 +1813,42 @@ finish:
             break;
         case 1:
             assert(k == 2);
+		#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+			{
+			std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]),
+									std::make_pair(current[1], current_end[1]) };
+			mcstl::multiway_merge(seqs, seqs + 2, to, neg_cmp, l, false);
+			current[0] = seqs[0].first;
+			current[1] = seqs[1].first;
+			}
+		#else
             merge(current + 0, current + 1, to, l, cmp);
             rebuildLooserTree();
+		#endif
             if (segmentIsEmpty(0))
                 deallocateSegment(0);
 
             if (segmentIsEmpty(1))
                 deallocateSegment(1);
-
             break;
         case 2:
             assert(k == 4);
+		#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+			{
+			std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]),
+									std::make_pair(current[1], current_end[1]),
+									std::make_pair(current[2], current_end[2]),
+									std::make_pair(current[3], current_end[3]) };
+			mcstl::multiway_merge(seqs, seqs + 4, to, neg_cmp, l, false);
+			current[0] = seqs[0].first;
+			current[1] = seqs[1].first;
+			current[2] = seqs[2].first;
+			current[3] = seqs[3].first;
+			}
+		#else
             merge4(current + 0, current + 1, current + 2, current + 3, to, l, cmp);
             rebuildLooserTree();
+		#endif
             if (segmentIsEmpty(0))
                 deallocateSegment(0);
 
@@ -1628,6 +1862,25 @@ finish:
                 deallocateSegment(3);
 
             break;
+	#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+		default:
+		{
+		std::pair<Element*, Element*> seqs[k];
+		for(unsigned int i = 0; i < k; ++i)
+			seqs[i] = std::make_pair(current[i], current_end[i]);
+		
+		mcstl::multiway_merge(seqs, seqs + k, to, neg_cmp, l, false);
+
+		for(unsigned int i = 0; i < k; ++i)
+			current[i] = seqs[i].first;
+			
+		for(unsigned int i = 0; i < k; ++i)
+			if(segmentIsEmpty(i))
+				deallocateSegment(i); 
+		break;
+		}
+		
+	#else
         case  3: multi_merge_f < 3 > (to, l);
             break;
         case  4: multi_merge_f < 4 > (to, l);
@@ -1646,6 +1899,7 @@ finish:
             break;
         default: multi_merge_k(to, l);
             break;
+	#endif
         }
 
 
@@ -2217,7 +2471,7 @@ void priority_queue<Config_>::refillBuffer1()
             &(minBuffer2[0]),
             &(minBuffer2[1]),
             &(minBuffer2[2]),
-            &(minBuffer2[3]), minBuffer1, sz, cmp);
+            &(minBuffer2[3]), minBuffer1, sz, cmp);	//side effect free
         break;
     default:
         STXXL_FORMAT_ERROR_MSG(msg, "priority_queue<...>::refillBuffer1(): Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4")
