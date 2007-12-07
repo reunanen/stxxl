@@ -80,7 +80,7 @@ protected:
 
 public:
 	//! \brief Generic Constructor for zero passed arguments.
-	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
 	basic_pull_empty_stage(StreamOperation& so) :
 		so(so)
 	{
@@ -267,6 +267,8 @@ public:
 		incoming_buffer(&block1),
 		outgoing_buffer(&block2)
 	{
+		assert(buffer_size > 0);
+		
 		incoming_buffer->current = incoming_buffer->begin;
 		incoming_buffer->stop = incoming_buffer->end;
 		update_input_buffer_filled();
@@ -486,7 +488,7 @@ public:
 	void stop_push() const
 	{
 #if STXXL_START_PIPELINE
-		STXXL_VERBOSE0("push_pull_stage " << this << " stops push.");
+		STXXL_VERBOSE0("general push_pull_stage " << this << " stops push.");
 #endif
 		if(!input_finished)
 		{
@@ -516,6 +518,7 @@ protected:
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
 	basic_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
 		base(buffer_size),
 		so(so)
@@ -663,6 +666,7 @@ protected:
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
 	basic_push_stage(unsigned_type buffer_size, StreamOperation& so) :
 		base(buffer_size),
 		so(so)
@@ -810,6 +814,7 @@ public:
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
 	dummy_pull_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
@@ -888,7 +893,8 @@ public:
 	
 public:
 	//! \brief Generic Constructor for zero passed arguments.
-	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
+	//! \param cso Stream operation to connect to.
 	connect_pull_stage(StreamOperation& so, ConnectedStreamOperation& cso) :
 		so(so), cso(cso)
 	{
@@ -971,6 +977,7 @@ public:
 public:
 	//! \brief Generic Constructor for zero passed arguments.
 	//! \param buffer_size Total size of the buffers in bytes.
+	//! \param so Input stream operation.
 	dummy_push_stage(unsigned_type buffer_size, StreamOperation& so) :
 		so(so)
 	{
