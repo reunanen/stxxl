@@ -29,16 +29,14 @@ __STXXL_BEGIN_NAMESPACE
 //!
 //! \{
 
-//alternative to std::not2, typedefs first_argument_type and second_argument_type not needed
-
 template<class Predicate, typename first_argument_type, typename second_argument_type>
-class binary_negate /*: public std::binary_function<first_argument_type, second_argument_type, bool>*/
+class invert_order
 {
 protected:
         Predicate pred;
 public:
         explicit
-        binary_negate(const Predicate& _pred) : pred(_pred) { }
+        invert_order(const Predicate& _pred) : pred(_pred) { }
 
         bool operator()(const first_argument_type& x, const second_argument_type& y) const
         {
@@ -53,13 +51,16 @@ namespace priority_queue_local
 /////////////////////////////////////////////////////////////////////
 // auxiliary functions
 
+// XXX probably unncessary, pointer can be seen as iterator.
+
+#if !STXXL_MERGE_BY_ITERATOR
 // merge sz element from the two sentinel terminated input
 // sequences *f0 and *f1 to "to"
 // advance *fo and *f1 accordingly.
 // require: at least sz nonsentinel elements available in f0, f1
 // require: to may overwrite one of the sources as long as
 //   *fx + sz is before the end of fx
-    template <class Value_, class Cmp_>
+     template <class Value_, class Cmp_>
     void merge(Value_ * * f0,
                Value_ * * f1,
                Value_ * to, int_type sz, Cmp_ cmp)
@@ -85,6 +86,7 @@ namespace priority_queue_local
         *f0   = from0;
         *f1   = from1;
     }
+#endif
 
 // iterator version
     template <class InputIterator, class OutputIterator, class Cmp_>
@@ -112,7 +114,7 @@ namespace priority_queue_local
     }
 
 
-
+#if !STXXL_MERGE_BY_ITERATOR
 // merge sz element from the three sentinel terminated input
 // sequences *f0, *f1 and *f2 to "to"
 // advance *f0, *f1 and *f2 accordingly.
@@ -183,9 +185,83 @@ finish:
         *f1   = from1;
         *f2   = from2;
     }
-
+#endif
 
 // merge sz element from the three sentinel terminated input
+// sequences *f0, *f1 and *f2 to "to"
+// advance *f0, *f1 and *f2 accordingly.
+// require: at least sz nonsentinel elements available in f0, f1 and f2
+// require: to may overwrite one of the sources as long as
+//   *fx + sz is before the end of fx
+    template <class InputIterator, class Cmp_>
+    void merge3_iterator(
+        InputIterator & f0,
+        InputIterator & f1,
+        InputIterator & f2,
+        InputIterator to, int_type sz, Cmp_ cmp)
+    {
+        InputIterator from0   = f0;
+        InputIterator from1   = f1;
+        InputIterator from2   = f2;
+        InputIterator done    = to + sz;
+
+        if (cmp(*from1, *from0)) {
+            if (cmp(*from2, *from1)) {
+                goto s012;
+            }
+            else {
+                if (cmp(*from0, *from2)) {
+                    goto s201;
+                }
+                else {
+                    goto s021;
+                }
+            }
+        } else {
+            if (cmp(*from2, *from1)) {
+                if (cmp(*from2, *from0)) {
+                    goto s102;
+                }
+                else {
+                    goto s120;
+                }
+            } else {
+                goto s210;
+            }
+        }
+
+#define Merge3Case(a, b, c)\
+    s ## a ## b ## c : \
+    if (to == done) \
+        goto finish;\
+    *to = *from ## a; \
+    ++to; \
+    ++from ## a; \
+    if (cmp(*from ## b, *from ## a )) \
+        goto s ## a ## b ## c;\
+    if (cmp(*from ## c, *from ## a )) \
+        goto s ## b ## a ## c;\
+    goto s ## b ## c ## a;
+
+        // the order is chosen in such a way that
+        // four of the trailing gotos can be eliminated by the optimizer
+        Merge3Case(0, 1, 2);
+        Merge3Case(1, 2, 0);
+        Merge3Case(2, 0, 1);
+        Merge3Case(1, 0, 2);
+        Merge3Case(0, 2, 1);
+        Merge3Case(2, 1, 0);
+
+finish:
+        f0   = from0;
+        f1   = from1;
+        f2   = from2;
+    }
+
+	
+#if !STXXL_MERGE_BY_ITERATOR
+
+// merge sz element from the four sentinel terminated input
 // sequences *f0, *f1, *f2 and *f3 to "to"
 // advance *f0, *f1, *f2 and *f3 accordingly.
 // require: at least sz nonsentinel elements available in f0, f1, f2 and f2
@@ -303,6 +379,7 @@ finish:
         *f3   = from3;
     }
 
+#endif
 
 
 // iterator version
@@ -461,7 +538,7 @@ finish:
 			//! \returns current element
             const value_type & operator * () const
             {
-                return (* block)[current];
+                return (*block)[current];
             }
 
             sequence_type() : bids(NULL)
@@ -494,19 +571,18 @@ finish:
                 return cmp(cmp.min_value(), a);
             }
 
-            sequence_type & operator = (sequence_type & obj)
-            {
-                if (&obj != this)
-                {
-                    assert(is_sentinel((*block)[current]));
-                    current = obj.current;
-                    std::swap(block, obj.block);
-                    std::swap(bids, obj.bids);
-                }
-                return *this;
-            }
+			void swap_empty_back(sequence_type& obj)
+			{
+				if(&obj != this)
+				{
+					assert(is_sentinel((*block)[current]));
+					std::swap(current, obj.current);
+					std::swap(block, obj.block);
+					std::swap(bids, obj.bids);
+				}
+			}
 
-            sequence_type & operator ++ ()
+			sequence_type & operator ++ ()
             {
                 assert(not_sentinel((*block)[current]));
                 assert(current < block->size);
@@ -796,16 +872,16 @@ finish:
             assert(logK > 0);
 
             // compact all nonempty segments to the left
-            int_type from = 0;
+            
             int_type to   = 0;
-            for ( ;  from < int_type(k);  from++)
+            for (int_type from = 0;  from < int_type(k);  from++)
             {
                 if (not_sentinel(*(current[from])))
-                {
-                    current[to] = current[from];
-                    to++;
-                }
-            }
+				{
+                    current[to].swap_empty_back(current[from]);
+                    ++to;
+				}
+			}
 
             // half degree as often as possible
             while (to < int_type(k / 2)) {
@@ -880,7 +956,7 @@ finish:
 		std::vector<sequence_type*> state(k);
 
 		Cmp_ cmp;
-		binary_negate<Cmp_, value_type, value_type> neg_cmp(cmp);
+		invert_order<Cmp_, value_type, value_type> neg_cmp(cmp);
  	
 		sequences_iterator s = current;
 		for(unsigned_type i = 0; i < seqs.size(); ++i, ++s)	//initialize sequences
@@ -1796,8 +1872,9 @@ finish:
            multi_merge_k(to,l);
          */
 
-		binary_negate<Cmp_, value_type, value_type> neg_cmp(cmp);
-
+#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
+		invert_order<Cmp_, value_type, value_type> neg_cmp(cmp);
+#endif
         switch (logK) {
         case 0:
             assert(k == 1);
@@ -1822,7 +1899,11 @@ finish:
 			current[1] = seqs[1].first;
 			}
 		#else
+#if STXXL_MERGE_BY_ITERATOR
+            merge_iterator(current[0], current[1], to, l, cmp);
+#else
             merge(current + 0, current + 1, to, l, cmp);
+#endif
             rebuildLooserTree();
 		#endif
             if (segmentIsEmpty(0))
@@ -1846,7 +1927,12 @@ finish:
 			current[3] = seqs[3].first;
 			}
 		#else
+#if STXXL_MERGE_BY_ITERATOR
+            merge4_iterator(current[0], current[1], current[2], current[3], to, l, cmp);
+#else
             merge4(current + 0, current + 1, current + 2, current + 3, to, l, cmp);
+#endif
+			
             rebuildLooserTree();
 		#endif
             if (segmentIsEmpty(0))
@@ -2453,25 +2539,48 @@ void priority_queue<Config_>::refillBuffer1()
         std::copy(minBuffer2[0], minBuffer2[0] + sz, minBuffer1);
         minBuffer2[0] += sz;
         break;
-    case 2: priority_queue_local::merge(
+    case 2:
+#if STXXL_MERGE_BY_ITERATOR
+			priority_queue_local::merge_iterator(
+            minBuffer2[0],
+            minBuffer2[1], minBuffer1, sz, cmp);
+#else
+			priority_queue_local::merge(
             &(minBuffer2[0]),
             &(minBuffer2[1]), minBuffer1, sz, cmp);
+#endif
         break;
-    case 3: priority_queue_local::merge3(
+    case 3:
+#if STXXL_MERGE_BY_ITERATOR
+			priority_queue_local::merge3_iterator(
+            minBuffer2[0],
+            minBuffer2[1],
+            minBuffer2[2], minBuffer1, sz, cmp);
+#else
+			priority_queue_local::merge3(
             &(minBuffer2[0]),
             &(minBuffer2[1]),
             &(minBuffer2[2]), minBuffer1, sz, cmp);
+#endif
         break;
     case 4:
         STXXL_VERBOSE2("=1=" << minBuffer2[0][0]); //std::copy(minBuffer2[0],(&(buffer2[0][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=2=" << minBuffer2[1][0]); //std::copy(minBuffer2[1],(&(buffer2[1][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=3=" << minBuffer2[2][0]); //std::copy(minBuffer2[2],(&(buffer2[2][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=4=" << minBuffer2[3][0]); //std::copy(minBuffer2[3],(&(buffer2[3][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
-        priority_queue_local::merge4(
+#if STXXL_MERGE_BY_ITERATOR
+		priority_queue_local::merge4_iterator(
+            minBuffer2[0],
+            minBuffer2[1],
+            minBuffer2[2],
+            minBuffer2[3], minBuffer1, sz, cmp);	//side effect free
+#else
+		priority_queue_local::merge4(
             &(minBuffer2[0]),
             &(minBuffer2[1]),
             &(minBuffer2[2]),
             &(minBuffer2[3]), minBuffer1, sz, cmp);	//side effect free
+#endif
         break;
     default:
         STXXL_FORMAT_ERROR_MSG(msg, "priority_queue<...>::refillBuffer1(): Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4")
@@ -2581,17 +2690,29 @@ void priority_queue<Config_>::emptyInsertHeap()
     // refill buffer1
     // (using more complicated code it could be made somewhat fuller
     // in certain circumstances)
+#if STXXL_MERGE_BY_ITERATOR
+    priority_queue_local::merge_iterator(pos, newPos, minBuffer1, sz1, cmp);
+#else
     priority_queue_local::merge(&pos, &newPos, minBuffer1, sz1, cmp);
+#endif
 
     // refill buffer2[0]
     // (as above we might want to take the opportunity
     // to make buffer2[0] fuller)
+#if STXXL_MERGE_BY_ITERATOR
+    priority_queue_local::merge_iterator(pos, newPos, minBuffer2[0], sz2, cmp);
+#else
     priority_queue_local::merge(&pos, &newPos, minBuffer2[0], sz2, cmp);
+#endif
 
     // merge the rest to the new segment
     // note that merge exactly trips into the footsteps
     // of itself
+#if STXXL_MERGE_BY_ITERATOR
+    priority_queue_local::merge_iterator(pos, newPos, newSegment, N, cmp);
+#else
     priority_queue_local::merge(&pos, &newPos, newSegment, N, cmp);
+#endif
 
     // and insert it
     int_type freeLevel = makeSpaceAvailable(0);
