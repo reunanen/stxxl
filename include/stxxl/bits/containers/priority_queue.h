@@ -127,7 +127,7 @@ namespace priority_queue_local
 #define Merge3Case(a, b, c)\
     s ## a ## b ## c : \
     if (to == done) \
-        goto finish;\
+        return;\
     *to = *from ## a; \
     ++to; \
     ++from ## a; \
@@ -145,12 +145,7 @@ namespace priority_queue_local
         Merge3Case(1, 0, 2);
         Merge3Case(0, 2, 1);
         Merge3Case(2, 1, 0);
-
-finish:
-
 	}
-
-	
 
 
 // merge sz element from the four sentinel terminated input
@@ -211,7 +206,7 @@ finish:
 #define Merge4Case(a, b, c, d)\
     s ## a ## b ## c ## d : \
     if (to == done) \
-        goto finish;\
+        return;\
     *to = *from ## a; \
     ++to; \
     ++from ## a; \
@@ -259,9 +254,6 @@ finish:
         Merge4Case(0, 3, 2, 1);
         Merge4Case(3, 2, 1, 0);
         Merge4Case(2, 1, 0, 3);
-
-finish:
-        return;
     }
 
 
@@ -302,7 +294,7 @@ finish:
             return cmp(cmp.min_value(), a);	//a > cmp.min_value()
         }
 
-        struct sequence_type
+        struct sequence_state
         {
             unsigned_type current;	//current index
             block_type * block;		//current block
@@ -317,13 +309,13 @@ finish:
                 return (*block)[current];
             }
 
-            sequence_type() : bids(NULL)
+            sequence_state() : bids(NULL)
             { }
 
 
-            ~sequence_type()
+            ~sequence_state()
             {
-                STXXL_VERBOSE1("ext_merger sequence_type::~sequence_type()");
+                STXXL_VERBOSE1("ext_merger sequence_state::~sequence_state()");
                 if (bids)
                 {
                     block_manager * bm = block_manager::get_instance();
@@ -347,7 +339,7 @@ finish:
                 return cmp(cmp.min_value(), a);
             }
 
-			void swap_empty_back(sequence_type& obj)
+			void swap_empty_back(sequence_state& obj)
 			{
 				if(&obj != this)
 				{
@@ -358,7 +350,7 @@ finish:
 				}
 			}
 
-			sequence_type & operator ++ ()
+			sequence_state & operator ++ ()
             {
                 assert(not_sentinel((*block)[current]));
                 assert(current < block->size);
@@ -367,24 +359,24 @@ finish:
 
                 if (current == block->size )
                 {
-                    STXXL_VERBOSE2("ext_merger sequence_type operator++ crossing block border ");
+                    STXXL_VERBOSE2("ext_merger sequence_state operator++ crossing block border ");
                     // go to the next block
                     assert(bids);
                     if (bids->empty()) // if there is no next block
                     {
-                        STXXL_VERBOSE2("ext_merger sequence_type operator++ it was the last block in the sequence ");
+                        STXXL_VERBOSE2("ext_merger sequence_state operator++ it was the last block in the sequence ");
                         delete bids;
                         bids = NULL;
                         make_inf();
                     }
                     else
                     {
-                        STXXL_VERBOSE2("ext_merger sequence_type operator++ there is another block ");
+                        STXXL_VERBOSE2("ext_merger sequence_state operator++ there is another block ");
                         bid_type bid = bids->front();
                         bids->pop_front();
                         if (!(bids->empty()))
                         {
-                            STXXL_VERBOSE2("ext_merger sequence_type operator++ one more block exists in a sequence: " <<
+                            STXXL_VERBOSE2("ext_merger sequence_state operator++ one more block exists in a sequence: " <<
                                            "flushing this block in write cache (if not written yet) and giving hint to prefetcher");
                             bid_type next_bid = bids->front();
                             merger->p_pool->hint(next_bid, *(merger->w_pool));
@@ -422,14 +414,10 @@ finish:
         // entry[0] contains the winner info
         Entry entry[KNKMAX];
 
-	    typedef sequence_type* sequences_iterator;
-
-
-		
         // leaf information
         // note that Knuth uses indices k..k-1
         // while we use 0..k-1
-        sequence_type current[KNKMAX]; // sequence including current position, dereference gives current element
+        sequence_state states[KNKMAX]; // sequence including current position, dereference gives current element
 
         prefetch_pool<block_type> *p_pool;
         write_pool<block_type> *w_pool;
@@ -461,15 +449,15 @@ finish:
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
-                current[i].merger = this;
+                states[i].merger = this;
                 if (i >= arity)
-                    current[i].block = convert_block_pointer(&(sentinel_block));
+                    states[i].block = convert_block_pointer(&(sentinel_block));
 
                 else
-                    current[i].block = new block_type;
+                    states[i].block = new block_type;
 
 
-                current[i].make_inf();
+                states[i].make_inf();
             }
 
             empty  [0] = 0;
@@ -488,15 +476,13 @@ finish:
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
-                current[i].merger = this;
+                states[i].merger = this;
                 if (i >= arity)
-                    current[i].block = convert_block_pointer(&(sentinel_block));
-
+                    states[i].block = convert_block_pointer(&(sentinel_block));
                 else
-                    current[i].block = new block_type;
+                    states[i].block = new block_type;
 
-
-                current[i].make_inf();
+                states[i].make_inf();
             }
 
 
@@ -509,7 +495,7 @@ finish:
             STXXL_VERBOSE1("ext_merger::~ext_merger()");
             for (int_type i = 0; i < arity; ++i)
             {
-                delete current[i].block;
+                delete states[i].block;
             }
         }
 
@@ -523,7 +509,7 @@ finish:
         void init()
         {
             rebuildLooserTree();
-            assert(is_sentinel(*current[entry[0].index]));
+            assert(is_sentinel(*states[entry[0].index]));
         }
 
         // rebuild loser tree information from the values in current
@@ -531,7 +517,7 @@ finish:
         {
             int_type winner = initWinner(1);
             entry[0].index = winner;
-            entry[0].key   = *(current[winner]);
+            entry[0].key   = *(states[winner]);
         }
 
 
@@ -547,8 +533,8 @@ finish:
             } else {
                 int_type left  = initWinner(2 * root    );
                 int_type right = initWinner(2 * root + 1);
-                Element lk    = *(current[left ]);
-                Element rk    = *(current[right]);
+                Element lk    = *(states[left ]);
+                Element rk    = *(states[right]);
                 if (!(cmp(lk, rk))) { // right subtree looses
                     entry[root].index = right;
                     entry[root].key   = rk;
@@ -623,7 +609,7 @@ finish:
 
             for (int_type i = 2 * k - 1;  i >= int_type(k);  i--)
             {
-                current[i].make_inf();
+                states[i].make_inf();
                 if (i < arity)
                 {
                     lastFree++;
@@ -652,9 +638,9 @@ finish:
             int_type to   = 0;
             for (int_type from = 0;  from < int_type(k);  from++)
             {
-                if (not_sentinel(*(current[from])))
+                if (not_sentinel(*(states[from])))
 				{
-                    current[to].swap_empty_back(current[from]);
+                    states[to].swap_empty_back(states[from]);
                     ++to;
 				}
 			}
@@ -674,7 +660,7 @@ finish:
                     lastFree++;
                     empty[lastFree] = to;
                 }
-                current[to].make_inf();
+                states[to].make_inf();
             }
 
             // recompute loser tree information
@@ -691,7 +677,7 @@ finish:
             std::swap(logK, obj.logK);
             std::swap(k, obj.k);
             swap_1D_arrays(entry, obj.entry, KNKMAX);
-            swap_1D_arrays(current, obj.current, KNKMAX);
+            swap_1D_arrays(states, obj.states, KNKMAX);
 
             // std::swap(p_pool,obj.p_pool);
             // std::swap(w_pool,obj.w_pool);
@@ -729,18 +715,24 @@ finish:
 		typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
 		std::vector<sequence> seqs(k);
 		std::vector<block_type*> buffers(k);
-		std::vector<sequence_type*> state(k);
+		std::vector<value_type*> last(k);
 
 		Cmp_ cmp;
-		invert_order<Cmp_, value_type, value_type> neg_cmp(cmp);
+		invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
  	
-		sequences_iterator s = current;
-		for(unsigned_type i = 0; i < seqs.size(); ++i, ++s)	//initialize sequences
+		for(unsigned_type i = 0; i < seqs.size(); ++i)	//initialize sequences
 		{
-			assert((*s).block->begin() + (*s).current < (*s).block->end());
-  	
-			seqs[i] = std::make_pair((*s).block->begin() + (*s).current, (*s).block->end());
-			state[i] = &(*s);	//sequence state
+			seqs[i] = std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end());
+
+			if(seqs[i].first == seqs[i].second)
+			{
+				//empty sequence
+				last[i] = &(*(seqs[i].second));
+				STXXL_VERBOSE0("sequence " << i << " is empty.")
+			}
+			else
+				last[i] = &(*(seqs[i].second - 1));
+			*(seqs[i].second) = cmp.min_value();	//set sentinel
 		}
  	
 		#ifdef STXXL_CHECK_ORDER_IN_SORTS
@@ -751,96 +743,99 @@ finish:
 
 		while(rest > 0 && seqs.size() > 0)
 		{
-			assert(seqs[0].first < seqs[0].second);	//at least first sequence non-empty
- 	
-			value_type min_last = *(seqs[0].second - 1);	//minimum of the sequences' last elements
+			value_type min_last;	//minimum of the sequences' last elements
+
+			min_last = *(last[0]);	// maybe sentinel
 			diff_type total_size = 0;
-  	
-			total_size += seqs[0].second - seqs[0].first;
-  	
-			STXXL_VERBOSE1("first " << *(seqs[0].first) << " last " << *(seqs[0].second - 1) << " block size " << (seqs[0].second - seqs[0].first));
-  	
+
+			total_size += (seqs[0].second - seqs[0].first);
+
+			STXXL_VERBOSE0("first " << *(seqs[0].first) << " last " << *(last[0]) << " block size " << (seqs[0].second - seqs[0].first));
+
 			for(unsigned_type i = 1; i < seqs.size(); ++i)
 			{
-				assert(seqs[i].first < seqs[i].second);
- 	
-				min_last = neg_cmp(min_last, *(seqs[i].second - 1)) ? min_last : *(seqs[i].second - 1);
-   	
+				//assert(seqs[i].first < seqs[i].second);
+
+				min_last = inv_cmp(min_last, *(last[i])) ? min_last : *(last[i]);
+
 				total_size += seqs[i].second - seqs[i].first;
-   	
-				STXXL_VERBOSE1("first " << *(seqs[i].first) << " last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
+
+				STXXL_VERBOSE0("first " << *(seqs[i].first) << " last " << *(last[i]) << " block size " << (seqs[i].second - seqs[i].first));
 			}
-  	
-			STXXL_VERBOSE1("min_last " << min_last << " total size " << total_size + (block_type::size - rest));
-  	
+
+			STXXL_VERBOSE0("min_last " << min_last << " total size " << total_size << " num_seq " << seqs.size());
+
 			diff_type less_equal_than_min_last = 0;
 			//locate this element in all sequences
 			for(unsigned_type i = 0; i < seqs.size(); ++i)
 			{
-				assert(seqs[i].first < seqs[i].second);
-   	
-				typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, min_last, neg_cmp);
-   	
+				//assert(seqs[i].first < seqs[i].second);
+
+				typename block_type::iterator position =
+						std::upper_bound(seqs[i].first, seqs[i].second, min_last, inv_cmp);
+
 				//no element larger than min_last is merged
-   	
-				STXXL_VERBOSE1("" << (position - seqs[i].first) << " greater equal than " << min_last);
-   	
+
+				STXXL_VERBOSE0("" << (position - seqs[i].first) << " greater equal than " << min_last);
+
 				less_equal_than_min_last += (position - seqs[i].first);
 			}
-  	
+
 			ptrdiff_t output_size = std::min(less_equal_than_min_last, rest);	//at most rest elements
   	
-			STXXL_VERBOSE1("output_size " << output_size << " <= " << less_equal_than_min_last << ", <= " << rest)
+			STXXL_VERBOSE0("output_size " << output_size << " <= " << less_equal_than_min_last << ", <= " << rest)
   	
 			assert(output_size > 0);
-  	
+
 			//main call
-  	
-			//STXXL_MSG("pmwm x " << (seqs.size()) << " " << output_size);
-			begin = mcstl::multiway_merge(seqs.begin(), seqs.end(), begin, neg_cmp, output_size, false);	//sequence iterators are progressed appropriately
+
+			begin = mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false);	//sequence iterators are progressed appropriately
 
 			rest -= output_size;
 			size_ -= output_size;
-  	
-			sequences_iterator seq = current;
-			for(unsigned_type i = 0; i < seqs.size(); ++i, ++seq)
+
+			for(unsigned_type i = 0; i < seqs.size(); ++i)
 			{
-				(*seq).current = seqs[i].first - state[i]->block->begin();
-   	
+				states[i].current = seqs[i].first - states[i].block->begin();
+
 				assert(seqs[i].first <= seqs[i].second);
-   	
+
 				if(seqs[i].first == seqs[i].second)	//has run empty
 				{
-					sequence_type& s = *(state[i]);
-					if(s.bids->empty()) // if there is no next block
+					if(states[i].bids->empty()) // if there is no next block
 					{
-						STXXL_VERBOSE2("ext_merger::multi_merge(...) it was the last block in the sequence ")
-/*						--k;
-						delete s.bids;
-						delete s.block;
-						seqs.erase(seqs.begin() + i);
-						sequences.erase(seq);
-						state.erase(state.begin() + i);
-						assert(sequences.size() == seqs.size() == state.size() == k);
-						i--;*/
-						//leave it that way
+						STXXL_VERBOSE0("ext_merger::multi_merge(...) it was the last block in the sequence ")
+
+						//empty sequence
+						states[i].make_inf();
+						last[i] = &(*(seqs[i].first));
+						STXXL_VERBOSE0("sequence " << i << " is empty.")
 					}
 					else
 					{
-						STXXL_VERBOSE2("ext_merger::multi_merge(...) there is another block ")
-						bid_type bid = s.bids->front();
-						s.bids->pop_front();
-						if(!(s.bids->empty()))
+						STXXL_VERBOSE0("ext_merger::multi_merge(...) there is another block ")
+						bid_type bid = states[i].bids->front();
+						states[i].bids->pop_front();
+						if(!(states[i].bids->empty()))
 						{
 							STXXL_VERBOSE2("ext_merger::multi_merge(...) one more block exists in a sequence: "<<
 							"flushing this block in write cache (if not written yet) and giving hint to prefetcher")
-							bid_type next_bid = s.bids->front();
+							bid_type next_bid = states[i].bids->front();
 							p_pool->hint(next_bid,*w_pool);
 						}
-						p_pool->read(s.block,bid)->wait();
+						p_pool->read(states[i].block, bid)->wait();
 						block_manager::get_instance()->delete_block(bid);
-						s.current = 0;
-						seqs[i] = std::make_pair(s.block->begin(), s.block->end());
+						states[i].current = 0;
+						seqs[i] = std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end());
+						if(seqs[i].first == seqs[i].second)
+						{
+							//empty sequence
+							last[i] = &(*(seqs[i].second));
+							STXXL_VERBOSE0("sequence " << i << " is empty.")
+						}
+						else
+							last[i] = &(*(seqs[i].second - 1));
+						*(seqs[i].second) = cmp.min_value();	//set sentinel
 					}
 				}
 			}
@@ -974,12 +969,12 @@ finish:
             while (to != done)
             {
                 // write result
-                *to   = *(current[winnerIndex]);
+                *to   = *(states[winnerIndex]);
 
                 // advance winner segment
-                ++ (current[winnerIndex]);
+                ++ (states[winnerIndex]);
 
-                winnerKey = *(current[winnerIndex]);
+                winnerKey = *(states[winnerIndex]);
 
                 // remove winner segment if empty now
                 if (is_sentinel(winnerKey))  //
@@ -1014,7 +1009,7 @@ finish:
             OutputIterator to = begin;
             int_type winnerIndex = entry[0].index;
             Entry * regEntry   = entry;
-            sequence_type * regCurrent = current;
+            sequence_state * regStates = states;
             Element winnerKey   = entry[0].key;
 
 
@@ -1022,12 +1017,12 @@ finish:
             while (to != done)
             {
                 // write result
-                *to   = *(regCurrent[winnerIndex]);
+                *to   = *(regStates[winnerIndex]);
 
                 // advance winner segment
-                ++ (regCurrent[winnerIndex]);
+                ++ (regStates[winnerIndex]);
 
-                winnerKey = *(regCurrent[winnerIndex]);
+                winnerKey = *(regStates[winnerIndex]);
 
 
                 // remove winner segment if empty now
@@ -1138,7 +1133,7 @@ finish:
                 Element dummyKey;
                 int_type dummyIndex;
                 int_type dummyMask;
-                updateOnInsert((index + k) >> 1, *(current[index]), index,
+                updateOnInsert((index + k) >> 1, *(states[index]), index,
                                &dummyKey, &dummyIndex, &dummyMask);
             } else {
                 // deallocate memory ?
@@ -1157,7 +1152,7 @@ finish:
             STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this);
             assert(first_size);
 
-            sequence_type & new_sequence = current[index];
+            sequence_state & new_sequence = states[index];
             new_sequence.current = block_type::size - first_size;
             std::swap(new_sequence.block, first_block);
             delete first_block;
@@ -1178,7 +1173,7 @@ finish:
             STXXL_VERBOSE2("loser_tree::deallocateSegment() deleting segment " <<
                            index);
 
-            current[index].make_inf();
+            states[index].make_inf();
 
             // push on the stack of free segment indices
             lastFree++;
@@ -1189,7 +1184,7 @@ finish:
         bool segmentIsEmpty(int_type i) const
         {
             //return (is_sentinel(*(current[i])) &&  (current[i] != &dummy));
-            return is_sentinel(*(current[i]));
+            return is_sentinel(*(states[i]));
         }
     };
 
@@ -1254,7 +1249,7 @@ finish:
             //int currentIndex; // leaf pointed to by current entry
             Element * done = to + l;
             Entry * regEntry   = entry;
-            Element * * regCurrent = current;
+            Element * * regStates = current;
             int_type winnerIndex = regEntry[0].index;
             Element winnerKey   = regEntry[0].key;
             Element * winnerPos;
@@ -1263,14 +1258,14 @@ finish:
             assert(logK >= LogK);
             while (to != done)
             {
-                winnerPos = regCurrent[winnerIndex];
+                winnerPos = regStates[winnerIndex];
 
                 // write result
                 *to   = winnerKey;
 
                 // advance winner segment
                 ++winnerPos;
-                regCurrent[winnerIndex] = winnerPos;
+                regStates[winnerIndex] = winnerPos;
                 winnerKey = *winnerPos;
 
                 // remove winner segment if empty now
@@ -1649,7 +1644,7 @@ finish:
          */
 
 #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
-		invert_order<Cmp_, value_type, value_type> neg_cmp(cmp);
+		invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 #endif
         switch (logK) {
         case 0:
@@ -1668,9 +1663,9 @@ finish:
             assert(k == 2);
 		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 			{
-			std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]),
-									std::make_pair(current[1], current_end[1]) };
-			mcstl::multiway_merge(seqs, seqs + 2, to, neg_cmp, l, false);
+			std::pair<Element*, Element*> seqs[2] = {	std::make_pair(current[0], current_end[0]),
+														std::make_pair(current[1], current_end[1]) };
+			mcstl::multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, l, false);
 			current[0] = seqs[0].first;
 			current[1] = seqs[1].first;
 			}
@@ -1689,10 +1684,10 @@ finish:
 		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 			{
 			std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]),
-									std::make_pair(current[1], current_end[1]),
-									std::make_pair(current[2], current_end[2]),
-									std::make_pair(current[3], current_end[3]) };
-			mcstl::multiway_merge(seqs, seqs + 4, to, neg_cmp, l, false);
+														std::make_pair(current[1], current_end[1]),
+														std::make_pair(current[2], current_end[2]),
+														std::make_pair(current[3], current_end[3]) };
+			mcstl::multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, l, false);
 			current[0] = seqs[0].first;
 			current[1] = seqs[1].first;
 			current[2] = seqs[2].first;
@@ -1723,7 +1718,7 @@ finish:
 		for(unsigned int i = 0; i < k; ++i)
 			seqs[i] = std::make_pair(current[i], current_end[i]);
 		
-		mcstl::multiway_merge(seqs, seqs + k, to, neg_cmp, l, false);
+		mcstl::multiway_merge_sentinel(seqs, seqs + k, to, inv_cmp, l, false);
 
 		for(unsigned int i = 0; i < k; ++i)
 			current[i] = seqs[i].first;
