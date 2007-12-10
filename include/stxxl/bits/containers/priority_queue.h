@@ -18,7 +18,7 @@
 #include <list>
 #include <iterator>
 
-#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 #include <bits/mcstl_multiway_merge.h>
 #endif
 
@@ -871,7 +871,7 @@ finish:
 
         assert(k > 0);
 	
-	#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+	#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 		typedef stxxl::int64 diff_type;
 		diff_type num_elements = end - begin;
 		typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
@@ -1015,7 +1015,7 @@ finish:
  	
 		#endif
 
-	#else	//defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+	#else	//defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 
 
 
@@ -1813,7 +1813,7 @@ finish:
             break;
         case 1:
             assert(k == 2);
-		#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 			{
 			std::pair<Element*, Element*> seqs[2] = { 	std::make_pair(current[0], current_end[0]),
 									std::make_pair(current[1], current_end[1]) };
@@ -1833,7 +1833,7 @@ finish:
             break;
         case 2:
             assert(k == 4);
-		#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 			{
 			std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]),
 									std::make_pair(current[1], current_end[1]),
@@ -1862,7 +1862,7 @@ finish:
                 deallocateSegment(3);
 
             break;
-	#if defined(__MCSTL__) && STXXL_PARALLEL_MULTIWAY_MERGE
+	#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 		default:
 		{
 		std::pair<Element*, Element*> seqs[k];
