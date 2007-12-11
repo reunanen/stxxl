@@ -272,7 +272,8 @@ namespace priority_queue_local
         typedef Cmp_ comparator_type;
         typedef AllocStr_ alloc_strategy;
         typedef value_type Element;
-        typedef typed_block < sizeof(value_type), value_type > sentinel_block_type;
+        //typedef typed_block < sizeof(value_type), value_type > sentinel_block_type;
+		typedef block_type sentinel_block_type;
 
         enum { arity = Arity_, KNKMAX = 1UL << (LOG < Arity_ > ::value + 1) };
 
@@ -364,14 +365,14 @@ namespace priority_queue_local
                     assert(bids);
                     if (bids->empty()) // if there is no next block
                     {
-                        STXXL_VERBOSE2("ext_merger sequence_state operator++ it was the last block in the sequence ");
+                        STXXL_VERBOSE0("ext_merger sequence_state operator++ it was the last block in the sequence ");
                         delete bids;
                         bids = NULL;
                         make_inf();
                     }
                     else
                     {
-                        STXXL_VERBOSE2("ext_merger sequence_state operator++ there is another block ");
+                        STXXL_VERBOSE0("ext_merger sequence_state operator++ there is another block ");
                         bid_type bid = bids->front();
                         bids->pop_front();
                         if (!(bids->empty()))
@@ -445,19 +446,24 @@ namespace priority_queue_local
 
         ext_merger() : lastFree(0), size_(0), logK(0), k(1)
         {
-            sentinel_block[0] = cmp.min_value();
+			for(unsigned_type i = 0; i < block_type::size; ++i)
+            	sentinel_block[i] = cmp.min_value();
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
                 states[i].merger = this;
                 if (i >= arity)
+				{
+					STXXL_VERBOSE0("sentinel_block comes into play")
                     states[i].block = convert_block_pointer(&(sentinel_block));
-
+				}
                 else
                     states[i].block = new block_type;
 
+				for(unsigned_type j = 0; j < block_type::size; ++j)
+					(*(states[i].block))[j] = cmp.min_value();
 
-                states[i].make_inf();
+                //states[i].make_inf();
             }
 
             empty  [0] = 0;
@@ -472,7 +478,8 @@ namespace priority_queue_local
         {
             STXXL_VERBOSE2("ext_merger::ext_merger(...)");
 
-            sentinel_block[0] = cmp.min_value();
+			for(unsigned_type i = 0; i < block_type::size; ++i)
+            	sentinel_block[i] = cmp.min_value();
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
@@ -482,7 +489,9 @@ namespace priority_queue_local
                 else
                     states[i].block = new block_type;
 
-                states[i].make_inf();
+				for(unsigned_type j = 0; j < block_type::size; ++j)
+					(*(states[i].block))[j] = cmp.min_value();
+//                states[i].make_inf();
             }
 
 
@@ -724,6 +733,21 @@ namespace priority_queue_local
 		{
 			seqs[i] = std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end());
 
+			#ifdef STXXL_CHECK_ORDER_IN_SORTS
+			if(!stxxl::is_sorted(seqs[i].first, seqs[i].second, inv_cmp))
+			{
+				STXXL_VERBOSE0("length " << i << " " << (seqs[i].second - seqs[i].first))
+				for(value_type* v = seqs[i].first + 1; v <= seqs[i].second; v++)
+				{
+					if(inv_cmp(*v, *(v - 1)))
+						STXXL_VERBOSE0("Error at position " << i << "/" << (v - seqs[i].first - 1) << "/"  << (v - seqs[i].first) << "   " << *(v - 1) << " " << *v)
+					if(is_sentinel(*v))
+						STXXL_VERBOSE0("Wrong sentinel at position " << (v - seqs[i].first))
+				}
+				assert(false);
+			}
+			#endif
+
 			if(seqs[i].first == seqs[i].second)
 			{
 				//empty sequence
@@ -741,7 +765,7 @@ namespace priority_queue_local
  	
 		diff_type rest = num_elements;	//elements still to merge for this output block
 
-		while(rest > 0 && seqs.size() > 0)
+		while(rest > 0)
 		{
 			value_type min_last;	//minimum of the sequences' last elements
 
@@ -750,7 +774,10 @@ namespace priority_queue_local
 
 			total_size += (seqs[0].second - seqs[0].first);
 
-			STXXL_VERBOSE0("first " << *(seqs[0].first) << " last " << *(last[0]) << " block size " << (seqs[0].second - seqs[0].first));
+			
+			STXXL_VERBOSE0("first " << *(seqs[0].first))
+			STXXL_VERBOSE0(" last " << *(last[0]))
+			STXXL_VERBOSE0(" block size " << (seqs[0].second - seqs[0].first))
 
 			for(unsigned_type i = 1; i < seqs.size(); ++i)
 			{
@@ -806,10 +833,9 @@ namespace priority_queue_local
 					{
 						STXXL_VERBOSE0("ext_merger::multi_merge(...) it was the last block in the sequence ")
 
-						//empty sequence
-						states[i].make_inf();
-						last[i] = &(*(seqs[i].first));
-						STXXL_VERBOSE0("sequence " << i << " is empty.")
+						//empty sequence, leave it that way
+						last[i] = &(*(seqs[i].second));
+						STXXL_VERBOSE0("sequence " << i << " is empty, length " << (seqs[i].second - seqs[i].first))
 					}
 					else
 					{
@@ -840,28 +866,8 @@ namespace priority_queue_local
 				}
 			}
 		}
+		STXXL_VERBOSE0("out of loop")
  	
-		#ifdef STXXL_CHECK_ORDER_IN_SORTS
- 	
-		if(!stxxl::is_sorted(out_buffer->begin(), out_buffer->end(), cmp))
-		{
-			for(value_type* i = out_buffer->begin() + 1; i != out_buffer->end(); i++)
-				if(cmp(*i, *(i - 1)))
-				{
-					STXXL_VERBOSE1("Error at position " << (i - out_buffer->begin()));
-				}
-			assert(false);
-		}
- 	
-		if(j > 0)	//do not check in first iteration
-			assert(cmp((*out_buffer)[0], last_elem) == false);
- 	
-		last_elem = (*out_buffer)[block_type::size - 1];
- 	
-		STXXL_VERBOSE1("external parallel merge done")
- 	
-		#endif
-
 	#else	//defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE
 
 
