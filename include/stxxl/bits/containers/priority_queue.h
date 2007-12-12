@@ -279,7 +279,7 @@ namespace priority_queue_local
 
         block_type * convert_block_pointer(sentinel_block_type * arg)
         {
-            return (block_type *)arg;
+            return reinterpret_cast<block_type*>(arg);
         }
 
     protected:
@@ -396,7 +396,7 @@ namespace priority_queue_local
         //a pair consisting a value 
         struct Entry
         {
-            value_type key; // Key of Looser element (winner for 0)
+            value_type key; // Key of Loser element (winner for 0)
             int_type index; // the number of losing segment
         };
 
@@ -409,7 +409,7 @@ namespace priority_queue_local
         unsigned logK; // log of current tree size
         unsigned_type k; // invariant k = 1 << logK
 
-        //Element dummy; // target of empty segment pointers
+        //Element sentinel; // target of empty segment pointers
 
         // upper levels of loser trees
         // entry[0] contains the winner info
@@ -433,7 +433,7 @@ namespace priority_queue_local
            void deallocateSegment(int_type index);
            void doubleK();
            void compactTree();
-           void rebuildLooserTree();
+           void rebuildLoserTree();
            bool segmentIsEmpty(int_type i);
            void multi_merge_k(Element * to, int_type l);
          */
@@ -517,12 +517,12 @@ namespace priority_queue_local
 
         void init()
         {
-            rebuildLooserTree();
+            rebuildLoserTree();
             assert(is_sentinel(*states[entry[0].index]));
         }
 
         // rebuild loser tree information from the values in current
-        void rebuildLooserTree()
+        void rebuildLoserTree()
         {
             int_type winner = initWinner(1);
             entry[0].index = winner;
@@ -631,7 +631,7 @@ namespace priority_queue_local
             logK++;
 
             // recompute loser tree information
-            rebuildLooserTree();
+            rebuildLoserTree();
 
             STXXL_VERBOSE1("ext_merger::doubleK (after) k: " << k << " KNKMAX:" << KNKMAX);
         }
@@ -673,7 +673,7 @@ namespace priority_queue_local
             }
 
             // recompute loser tree information
-            rebuildLooserTree();
+            rebuildLoserTree();
         }
 
 
@@ -740,9 +740,13 @@ namespace priority_queue_local
 				for(value_type* v = seqs[i].first + 1; v <= seqs[i].second; v++)
 				{
 					if(inv_cmp(*v, *(v - 1)))
+					{
 						STXXL_VERBOSE0("Error at position " << i << "/" << (v - seqs[i].first - 1) << "/"  << (v - seqs[i].first) << "   " << *(v - 1) << " " << *v)
+					}
 					if(is_sentinel(*v))
+					{
 						STXXL_VERBOSE0("Wrong sentinel at position " << (v - seqs[i].first))
+					}
 				}
 				assert(false);
 			}
@@ -886,21 +890,21 @@ namespace priority_queue_local
                 assert(k == 1);
                 assert(entry[0].index == 0);
                 assert(lastFree == -1 || l == 0);
-                //memcpy(to, current[0], l * sizeof(Element));
-                //std::copy(current[0],current[0]+l,to);
-                for (size_type i = 0; i < l; ++i, ++ (current[0]), ++begin)
-                    *begin = *(current[0]);
+                //memcpy(to, states[0], l * sizeof(Element));
+                //std::copy(states[0],states[0]+l,to);
+                for (size_type i = 0; i < l; ++i, ++ (states[0]), ++begin)
+                    *begin = *(states[0]);
 
 
-                entry[0].key = **current;
+                entry[0].key = **states;
                 if (segmentIsEmpty(0))
                     deallocateSegment(0);
 
                 break;
             case 1:
                 assert(k == 2);
-                merge_iterator(current[0], current[1], begin, l, cmp);
-                rebuildLooserTree();
+                merge_iterator(states[0], states[1], begin, l, cmp);
+                rebuildLoserTree();
                 if (segmentIsEmpty(0))
                     deallocateSegment(0);
 
@@ -910,8 +914,8 @@ namespace priority_queue_local
                 break;
             case 2:
                 assert(k == 4);
-                merge4_iterator(current[0], current[1], current[2], current[3], begin, l, cmp);
-                rebuildLooserTree();
+                merge4_iterator(states[0], states[1], states[2], states[3], begin, l, cmp);
+                rebuildLoserTree();
                 if (segmentIsEmpty(0))
                     deallocateSegment(0);
 
@@ -1174,7 +1178,7 @@ namespace priority_queue_local
         // free an empty segment .
         void deallocateSegment(int_type index)
         {
-            // reroute current pointer to some empty dummy segment
+            // reroute current pointer to some empty sentinel segment
             // with a sentinel key
             STXXL_VERBOSE2("loser_tree::deallocateSegment() deleting segment " <<
                            index);
@@ -1189,7 +1193,7 @@ namespace priority_queue_local
         // is this segment empty ?
         bool segmentIsEmpty(int_type i) const
         {
-            //return (is_sentinel(*(current[i])) &&  (current[i] != &dummy));
+            //return (is_sentinel(*(states[i])) &&  (&(*(states[i])) != &sentinel));
             return is_sentinel(*(states[i]));
         }
     };
@@ -1208,7 +1212,7 @@ namespace priority_queue_local
     private:
         struct Entry
         {
-            value_type key; // Key of Looser element (winner for 0)
+            value_type key; // Key of Loser element (winner for 0)
             int_type index; // number of loosing segment
         };
 
@@ -1221,7 +1225,7 @@ namespace priority_queue_local
         unsigned logK; // log of current tree size
         unsigned_type k; // invariant k = 1 << logK
 
-        Element dummy; // target of empty segment pointers
+        Element sentinel; // target of empty segment pointers
 
         // upper levels of loser trees
         // entry[0] contains the winner info
@@ -1230,8 +1234,8 @@ namespace priority_queue_local
         // leaf information
         // note that Knuth uses indices k..k-1
         // while we use 0..k-1
-        Element * current[KNKMAX]; // pointer to actual element
-		Element * current_end[KNKMAX]; // pointer to end of block for actual element
+        Element * current[KNKMAX]; // pointer to current element
+		Element * current_end[KNKMAX]; // pointer to end of block for current element
         Element * segment[KNKMAX]; // start of Segments
         unsigned_type segment_size[KNKMAX]; // just to count the internal memory consumption
 
@@ -1244,7 +1248,7 @@ namespace priority_queue_local
         void deallocateSegment(int_type index);
         void doubleK();
         void compactTree();
-        void rebuildLooserTree();
+        void rebuildLoserTree();
         bool segmentIsEmpty(int_type i);
         void multi_merge_k(Element * to, int_type l);
         template <unsigned LogK>
@@ -1259,7 +1263,7 @@ namespace priority_queue_local
             int_type winnerIndex = regEntry[0].index;
             Element winnerKey   = regEntry[0].key;
             Element * winnerPos;
-            //Element sup = dummy; // supremum
+            //Element sup = sentinel; // supremum
 
             assert(logK >= LogK);
             while (to != done)
@@ -1335,7 +1339,7 @@ namespace priority_queue_local
             std::swap(size_, obj.size_);
             std::swap(logK, obj.logK);
             std::swap(k, obj.k);
-            std::swap(dummy, obj.dummy);
+            std::swap(sentinel, obj.sentinel);
             swap_1D_arrays(entry, obj.entry, KNKMAX);
             swap_1D_arrays(current, obj.current, KNKMAX);
             swap_1D_arrays(current_end, obj.current_end, KNKMAX);
@@ -1358,15 +1362,15 @@ namespace priority_queue_local
         unsigned_type size() { return size_; }
     };
 
-///////////////////////// LooserTree ///////////////////////////////////
+///////////////////////// LoserTree ///////////////////////////////////
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     loser_tree<ValTp_, Cmp_, KNKMAX>::loser_tree() : lastFree(0), size_(0), logK(0), k(1), mem_cons_(0)
     {
         empty  [0] = 0;
         segment[0] = 0;
-        current[0] = &dummy;
-		current_end[0] = &dummy;
-        // entry and dummy are initialized by init
+        current[0] = &sentinel;
+		current_end[0] = &sentinel;
+        // entry and sentinel are initialized by init
         // since they need the value of supremum
         init();
     }
@@ -1374,15 +1378,15 @@ namespace priority_queue_local
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::init()
     {
-        dummy      = cmp.min_value();
-        rebuildLooserTree();
-        assert(current[entry[0].index] == &dummy);
+        sentinel      = cmp.min_value();
+        rebuildLoserTree();
+        assert(current[entry[0].index] == &sentinel);
     }
 
 
 // rebuild loser tree information from the values in current
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
-    void loser_tree<ValTp_, Cmp_, KNKMAX>::rebuildLooserTree()
+    void loser_tree<ValTp_, Cmp_, KNKMAX>::rebuildLoserTree()
     {
         int_type winner = initWinner(1);
         entry[0].index = winner;
@@ -1481,8 +1485,8 @@ namespace priority_queue_local
         assert(k < KNKMAX);
         for (int_type i = 2 * k - 1;  i >= int_type(k);  i--)
         {
-            current[i] = &dummy;
-			current_end[i] = &dummy;
+            current[i] = &sentinel;
+			current_end[i] = &sentinel;
             segment[i] = NULL;
             lastFree++;
             empty[lastFree] = i;
@@ -1493,7 +1497,7 @@ namespace priority_queue_local
         logK++;
 
         // recompute loser tree information
-        rebuildLooserTree();
+        rebuildLoserTree();
     }
 
 
@@ -1542,12 +1546,12 @@ namespace priority_queue_local
             lastFree++;
             empty[lastFree] = to;
 
-            current[to] = &dummy;
-            current_end[to] = &dummy;
+            current[to] = &sentinel;
+            current_end[to] = &sentinel;
         }
 
         // recompute loser tree information
-        rebuildLooserTree();
+        rebuildLoserTree();
     }
 
 
@@ -1617,12 +1621,12 @@ namespace priority_queue_local
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::deallocateSegment(int_type index)
     {
-        // reroute current pointer to some empty dummy segment
+        // reroute current pointer to some empty sentinel segment
         // with a sentinel key
         STXXL_VERBOSE2("loser_tree::deallocateSegment() deleting segment " <<
                        index << " address: " << segment[index] << " size: " << segment_size[index]);
-        current[index] = &dummy;
-        current_end[index] = &dummy;
+        current[index] = &sentinel;
+        current_end[index] = &sentinel;
 
         // free memory
         delete [] segment[index];
@@ -1677,7 +1681,7 @@ namespace priority_queue_local
 			}
 		#else
             merge_iterator(current[0], current[1], to, l, cmp);
-            rebuildLooserTree();
+            rebuildLoserTree();
 		#endif
             if (segmentIsEmpty(0))
                 deallocateSegment(0);
@@ -1702,7 +1706,7 @@ namespace priority_queue_local
 		#else
             merge4_iterator(current[0], current[1], current[2], current[3], to, l, cmp);
 			
-            rebuildLooserTree();
+            rebuildLoserTree();
 		#endif
             if (segmentIsEmpty(0))
                 deallocateSegment(0);
@@ -1770,11 +1774,11 @@ namespace priority_queue_local
     }
 
 
-// is this segment empty and does not point to dummy yet?
+// is this segment empty and does not point to sentinel yet?
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     inline bool loser_tree<ValTp_, Cmp_, KNKMAX>::segmentIsEmpty(int_type i)
     {
-        return (is_sentinel(*(current[i])) && (current[i] != &dummy));
+        return (is_sentinel(*(current[i])) && (current[i] != &sentinel));
     }
 
 // multi-merge for fixed K
