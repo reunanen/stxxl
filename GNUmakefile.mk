@@ -21,17 +21,17 @@ doxy release:
 	$(MAKE) -f Makefile $@
 
 lib:
-	$(MAKE) -f Makefile library_$(MODE) library_$(MODE)_mcstl
+	$(MAKE) -f Makefile library_$(MODE) library_$(MODE)_parallel_mode
 
 tests: lib
-	$(NICE) $(MAKE) -f Makefile tests_$(MODE) tests_$(MODE)_mcstl
+	$(NICE) $(MAKE) -f Makefile tests_$(MODE) tests_$(MODE)_parallel_mode
 
 header-compile-test: lib
 	$(NICE) $(MAKE) -C test/compile-stxxl-headers
-	$(NICE) $(MAKE) -C test/compile-stxxl-headers INSTANCE=mcstxxl
+	$(NICE) $(MAKE) -C test/compile-stxxl-headers INSTANCE=pmstxxl
 
 clean:
-	$(MAKE) -f Makefile clean_$(MODE) clean_$(MODE)_mcstl clean_doxy
+	$(MAKE) -f Makefile clean_$(MODE) clean_$(MODE)_parallel_mode clean_doxy
 	$(MAKE) -C test/compile-stxxl-headers clean
 
 .PHONY: all default-all doxy lib tests header-compile-test clean

@@ -15,9 +15,9 @@ SUBDIRS-clean: $(SUBDIRS:%=clean-in-%)
 # don't include optimization, warning and debug flags
 stxxl_mk_cppflags	 = $$(STXXL_CPPFLAGS_STXXL)
 stxxl_mk_ldlibs		 = $$(STXXL_LDLIBS_STXXL)
-ifeq ($(strip $(USE_MCSTL)),yes)
-stxxl_mk_cppflags	+= $$(STXXL_CPPFLAGS_MCSTL)
-stxxl_mk_ldlibs		+= $$(STXXL_LDLIBS_MCSTL)
+ifeq ($(strip $(USE_PARALLEL_MODE)),yes)
+stxxl_mk_cppflags	+= $$(STXXL_CPPFLAGS_PARALLEL_MODE)
+stxxl_mk_ldlibs		+= $$(STXXL_LDLIBS_PARALLEL_MODE)
 endif
 ifeq ($(strip $(USE_BOOST)),yes)
 stxxl_mk_cppflags	+= $$(STXXL_CPPFLAGS_BOOST)
@@ -40,8 +40,8 @@ $(LIBNAME).mk: build-lib
 	echo 'STXXL_CPPFLAGS_STXXL	 = $(STXXL_SPECIFIC)'	>> $@
 	echo 'STXXL_LDLIBS_STXXL	 = $(STXXL_LDLIBS)'	>> $@
 	echo 'STXXL_LIBDEPS		 = $(STXXL_LIBDEPS)'	>> $@
-	echo 'STXXL_CPPFLAGS_MCSTL	 = $(MCSTL_CPPFLAGS)'	>> $@
-	echo 'STXXL_LDLIBS_MCSTL	 = $(MCSTL_LDFLAGS)'	>> $@
+	echo 'STXXL_CPPFLAGS_PARALLEL_MODE	 = $(PARALLEL_MODE_CPPFLAGS)'	>> $@
+	echo 'STXXL_LDLIBS_PARALLEL_MODE	 = $(PARALLEL_MODE_LDFLAGS)'	>> $@
 	echo 'STXXL_CPPFLAGS_BOOST	 = $(BOOST_COMPILER_OPTIONS)'	>> $@
 	echo 'STXXL_LDLIBS_BOOST	 = $(BOOST_LINKER_OPTIONS)'	>> $@
 

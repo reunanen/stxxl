@@ -1007,8 +1007,8 @@ struct SR : public striping
 //! \remarks model of \b allocation_strategy concept
 struct RC : public striping
 {
-#ifdef __MCSTL__
-#define FORCE_SEQUENTIAL , mcstl::sequential_tag()
+#ifdef _GLIBCXX_PARALLEL
+#define FORCE_SEQUENTIAL , __gnu_parallel::sequential_tag()
 #else
 #define FORCE_SEQUENTIAL
 #endif

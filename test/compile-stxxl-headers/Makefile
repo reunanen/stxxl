@@ -1,7 +1,7 @@
 # $Id$
 
 INSTANCE	?= stxxl
-INSTANCE	?= mcstxxl
+INSTANCE	?= pmstxxl
 
 include ../../make.settings
 -include ../../$(INSTANCE).mk

@@ -11,10 +11,6 @@
  *  singler@ira.uka.de
  ****************************************************************************/
 
-#ifdef __MCSTL__
- #include <mcstl.h>
-#endif
-
 #include "stxxl/bits/stream/stream.h"
 #include "stxxl/sort"
 
@@ -1357,13 +1353,13 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         void initialize_current_block()
         {
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined (_GLIBCXX_PARALLEL) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
 
 // begin of STL-style merging
 
             //task: merge
 
-            if (!stxxl::SETTINGS::native_merge && mcstl::HEURISTIC::num_threads >= 1)
+            if (!stxxl::SETTINGS::native_merge && omp_get_max_threads() >= 1)
             {
                 seqs = new std::vector<sequence>(nruns);
                 buffers = new std::vector<block_type *> (nruns);
@@ -1385,20 +1381,20 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             losers = new loser_tree_type(prefetcher, nruns, run_cursor2_cmp_type(cmp));
 
 // end of native merging procedure
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined (_GLIBCXX_PARALLEL) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
             }
 #endif
         }
 
         void fill_current_block()
         {
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined (_GLIBCXX_PARALLEL) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
 
 // begin of STL-style merging
 
             //taks: merge
 
-            if (!stxxl::SETTINGS::native_merge && mcstl::HEURISTIC::num_threads >= 1)
+            if (!stxxl::SETTINGS::native_merge && omp_get_max_threads() >= 1)
             {
  #ifdef STXXL_CHECK_ORDER_IN_SORTS
                 value_type last_elem;
@@ -1445,7 +1441,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                     assert(less_equal_than_min_last > 0);
 
-                    mcstl::multiway_merge((*seqs).begin(), (*seqs).end(), current_block->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
+                    __gnu_parallel::multiway_merge((*seqs).begin(), (*seqs).end(), current_block->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
 
                     rest -= output_size;
 
@@ -1495,7 +1491,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             losers->multi_merge(current_block->elem);
 
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if defined (_GLIBCXX_PARALLEL) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
 // end of native merging procedure
         }
 #endif

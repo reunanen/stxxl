@@ -120,12 +120,12 @@ void syscall_request::serve ()
 
 
 
-#ifdef __MCSTL__
+#ifdef _GLIBCXX_PARALLEL
     std::for_each(
         waiters.begin(),
         waiters.end(),
         std::mem_fun(&onoff_switch::on),
-        mcstl::sequential_tag());
+        __gnu_parallel::sequential_tag());
 #else
     std::for_each(
         waiters.begin(),
