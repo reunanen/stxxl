@@ -127,8 +127,8 @@ __STXXL_BEGIN_NAMESPACE
         --offset;
         
         assert(block2 * modulo12 + block1 * modulo1 + offset == this->pos);
-        assert(0 <= block1 && block1 < modulo2);
-        assert(0 <= offset && offset < modulo1);
+        assert(/*0 <= block1 &&*/ block1 < modulo2);
+        assert(/*0 <= offset &&*/ offset < modulo1);
         
         return *this;
       }
@@ -1128,7 +1128,7 @@ private:
         _page_status[offset / (block_type::size * page_size)] = 0;
     }
     
-    const_reference const_element(size_type offset)
+    const_reference const_element(size_type offset) const
     {
       return const_element(double_blocked_index<PgSz_, block_type::size>(offset));
     }
