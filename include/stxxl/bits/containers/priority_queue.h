@@ -872,18 +872,18 @@ namespace priority_queue_local
         template <class OutputIterator>
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
+          size_type l = end - begin;
+
           STXXL_VERBOSE2("ext_merger::multi_merge l = " << l);
 
           if(begin == end)
               return;
 
-          size_type l = end - begin;
-
           assert(k > 0);
 
           //This is the place to make statistics about external multi_merge calls.
 
-          double start = omp_get_wtime();
+          double start = stxxl_timestamp();
 
 	#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 		typedef stxxl::int64 diff_type;
@@ -1125,7 +1125,7 @@ namespace priority_queue_local
             }
 
 		#endif
-            double stop = omp_get_wtime();
+            double stop = stxxl_timestamp();
 
             if(l > 1)
             {
@@ -1845,7 +1845,7 @@ namespace priority_queue_local
 
         //This is the place to make statistics about internal multi_merge calls.
 
-        double start = omp_get_wtime();
+        double start = stxxl_timestamp();
 
         /*
            multi_merge_k(to,l);
@@ -1970,7 +1970,7 @@ namespace priority_queue_local
         }
         //std::copy(to,to + l,std::ostream_iterator<ValTp_>(std::cout, "\n"));
 
-        double stop = omp_get_wtime();
+        double stop = stxxl_timestamp();
 
         if(l > 1)
         {
@@ -2372,9 +2372,9 @@ inline void priority_queue<Config_>::push(const value_type & obj)
 template <class Config_>
 priority_queue<Config_>::priority_queue(prefetch_pool < block_type > &p_pool_, write_pool<block_type> &w_pool_) :
     p_pool(p_pool_), w_pool(w_pool_),
+    insertHeap(N + 2),
     activeLevels(0), size_(0),
-    deallocate_pools(false),
-    insertHeap(N + 2)
+    deallocate_pools(false)
 {
     STXXL_VERBOSE2("priority_queue::priority_queue()");
     //etree = new ext_merger_type[ExtLevels](p_pool,w_pool);
@@ -2643,7 +2643,7 @@ void priority_queue<Config_>::emptyInsertHeap()
 
     ++(histogram[log2(N)].first);
 
-    double start = omp_get_wtime();
+    double start = stxxl_timestamp();
 
 #if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
     insertHeap.sort_to(SortTo);
@@ -2662,7 +2662,7 @@ void priority_queue<Config_>::emptyInsertHeap()
     }
 #endif
 
-    double stop = omp_get_wtime();
+    double stop = stxxl_timestamp();
 
     (histogram[log2(N)].second) += (stop - start);
 
