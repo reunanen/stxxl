@@ -705,7 +705,9 @@ namespace priority_queue_local
         template <class OutputIterator>
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
+#if FIXME_TYPO_CHECK_THIS
             STXXL_VERBOSE2("ext_merger::multi_merge l = " << l);
+#endif
 
 
 
