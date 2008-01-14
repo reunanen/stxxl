@@ -152,34 +152,31 @@ void stats::reset()
 }
 
 
-#ifdef COUNT_WAIT_TIME
-
 void stats::_reset_io_wait_time()
 {
+#ifdef COUNT_WAIT_TIME
     stxxl::wait_time_counter = 0.0;
-}
-
-double stats::get_io_wait_time() const
-{
-    return (stxxl::wait_time_counter);
-}
-
-double stats::increment_io_wait_time(double val)
-{
-    return stxxl::wait_time_counter += val;
-}
-#else
-
-void stats::_reset_io_wait_time() { }
-double stats::get_io_wait_time() const
-{
-    return -1.0;
-}
-double stats::increment_io_wait_time(double val)
-{
-    return -1.0;
-}
 #endif
+}
+
+double stats::get_io_wait_time() const
+{
+#ifdef COUNT_WAIT_TIME
+    return stxxl::wait_time_counter;
+#else
+    return -1.0;
+#endif
+}
+
+double stats::increment_io_wait_time(double val)
+{
+#ifdef COUNT_WAIT_TIME
+    return stxxl::wait_time_counter += val;
+#else
+    return -1.0;
+#endif
+}
+
 
 void stats::write_started (unsigned size_)
 {
@@ -212,6 +209,7 @@ void stats::write_started (unsigned size_)
     io_mutex.unlock ();
 #endif
 }
+
 void stats::write_finished ()
 {
 #ifdef STXXL_BOOST_THREADS
@@ -242,6 +240,7 @@ void stats::write_finished ()
     io_mutex.unlock ();
 #endif
 }
+
 void stats::read_started (unsigned size_)
 {
 #ifdef STXXL_BOOST_THREADS
@@ -273,6 +272,7 @@ void stats::read_started (unsigned size_)
     io_mutex.unlock ();
 #endif
 }
+
 void stats::read_finished ()
 {
 #ifdef STXXL_BOOST_THREADS
@@ -305,9 +305,7 @@ void stats::read_finished ()
 }
 
 
-#ifndef DISKQUEUE_HEADER
-
-std::ostream & operator << (std::ostream & o, const stats & s)
+std::ostream & operator << (std::ostream & o, const stats_data & s)
 {
     o << "STXXL I/O statistics" << std::endl;
     o << " total number of reads                      : " << s.get_reads() << std::endl;
@@ -330,12 +328,8 @@ std::ostream & operator << (std::ostream & o, const stats & s)
       << " @ " << ((s.get_read_volume() + s.get_written_volume()) / 1048576.0 / s.get_pio_time()) << " MB/sec."
       << std::endl;
     o << " I/O wait time                              : " << s.get_io_wait_time() << " sec." << std::endl;
-    o << " Time since the last reset                  : " << (stxxl_timestamp() - s.get_last_reset_time()) << " sec." << std::endl;
+    o << " Time since the last reset                  : " << s.get_elapsed_time() << " sec." << std::endl;
     return o;
 }
 
-#endif
-
-
 __STXXL_END_NAMESPACE
-
