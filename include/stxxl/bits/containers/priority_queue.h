@@ -670,7 +670,7 @@ namespace priority_queue_local
               const subhistogram_type& subhistogram = h->second;
               for(typename subhistogram_type::const_iterator sh = subhistogram.begin(); sh != subhistogram.end(); ++sh)
               {
-                STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(6) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
+                STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(10) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
               }
             }
         }
@@ -1805,7 +1805,7 @@ namespace priority_queue_local
           const subhistogram_type& subhistogram = h->second;
           for(typename subhistogram_type::const_iterator sh = subhistogram.begin(); sh != subhistogram.end(); ++sh)
           {
-            STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(6) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
+            STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(10) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
           }
         }
 
@@ -2430,7 +2430,7 @@ priority_queue<Config_>::~priority_queue()
     STXXL_VERBOSE2("priority_queue::~priority_queue()");
     for(typename histogram_type::const_iterator h = histogram.begin(); h != histogram.end(); ++h)
       {
-        STXXL_VERBOSE0("   log N <= " << std::setw(2) << h->first << " " << std::setw(10) << (1 << h->first) << ": " << std::setw(6) << h->second.first << " total " << std::setw(12) << ((1 << h->first) * h->second.first) << " elements;  time " << h->second.second);
+        STXXL_VERBOSE0("   log N  <= " << std::setw(2) << h->first << " " << std::setw(10) << (1 << h->first) << ": " << std::setw(10) << h->second.first << " total " << std::setw(12) << ((1 << h->first) * h->second.first) << " elements;  time " << h->second.second);
       }
 
 }
