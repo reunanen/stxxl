@@ -25,7 +25,12 @@
 #endif
 
 
-
+  /**
+   * @brief Similar to std::priority_queue, with the following differences:
+   * - Maximum size is fixed at construction time, so an array can be used.
+   * - Provides access to underlying heap, so (parallel) sorting in place is possible.
+   * - Can be cleared "at once", without reallocation.
+   */
   template<typename _Tp, typename _Sequence = std::vector<_Tp>,
      typename _Compare  = std::less<typename _Sequence::value_type> >
     class internal_priority_queue
@@ -111,12 +116,18 @@
         --N;
       }
 
+      /**
+       * @brief Sort all contained elements, write result to @c target.
+       */
       void sort_to(value_type* target)
       {
         std::sort(c.begin(), c.begin() + N, comp);
         std::reverse_copy(c.begin(), c.begin() + N, target);
       }
 
+      /**
+       * @brief Remove all contained elements.
+       */
       void clear()
       {
         N = 0;
@@ -128,7 +139,7 @@
 
 
 
-
+#if STXXL_PARALLEL_PQ_STATS
 template<typename Number>
 class StatisticalValue
 {
@@ -171,6 +182,7 @@ class StatisticalValue
         << " +- " << std::setprecision(6) << std::setw(10) << sv.std_dev();
       return o;
     }
+#endif
 
 __STXXL_BEGIN_NAMESPACE
 
@@ -178,6 +190,9 @@ __STXXL_BEGIN_NAMESPACE
 //!
 //! \{
 
+/**
+ * @brief Inverts the order of a comparison functor by swapping its arguments.
+ */
 template<class Predicate, typename first_argument_type, typename second_argument_type>
 class invert_order
 {
@@ -189,7 +204,7 @@ public:
 
         bool operator()(const first_argument_type& x, const second_argument_type& y) const
         {
-                return pred(y, x);
+          return pred(y, x);
         }
 };
 
@@ -199,9 +214,6 @@ namespace priority_queue_local
 {
 /////////////////////////////////////////////////////////////////////
 // auxiliary functions
-
-// XXX probably unncessary, pointer can be seen as iterator.
-
 
 // merge sz element from the two sentinel terminated input
 // sequences from0 and from1 to "to"
@@ -294,7 +306,7 @@ namespace priority_queue_local
         Merge3Case(1, 0, 2);
         Merge3Case(0, 2, 1);
         Merge3Case(2, 1, 0);
-	}
+  }
 
 
 // merge sz element from the four sentinel terminated input
@@ -421,10 +433,9 @@ namespace priority_queue_local
         typedef Cmp_ comparator_type;
         typedef AllocStr_ alloc_strategy;
         typedef value_type Element;
-        //typedef typed_block < sizeof(value_type), value_type > sentinel_block_type;
         typedef block_type sentinel_block_type;
 
-        enum { arity = Arity_, KNKMAX = 1UL << (LOG < Arity_ > ::value + 1) };
+        enum { arity = Arity_, KNKMAX = 1UL << (LOG < Arity_ - 1> ::value + 1) }; //LOG rounds down
 
         block_type * convert_block_pointer(sentinel_block_type * arg)
         {
@@ -437,19 +448,19 @@ namespace priority_queue_local
 
         bool is_sentinel(const Element & a) const
         {
-            return !(cmp(cmp.min_value(), a));	//a <= cmp.min_value(
+            return !(cmp(cmp.min_value(), a)); //a <= cmp.min_value(
         }
 
         bool not_sentinel(const Element & a) const
         {
-            return cmp(cmp.min_value(), a);	//a > cmp.min_value()
+            return cmp(cmp.min_value(), a); //a > cmp.min_value()
         }
 
         struct sequence_state
         {
-            unsigned_type current;	//current index
-            block_type * block;		//current block
-            std::list<bid_type> * bids; // TODO: really need a pointer ? list of blocks forming this sequence
+            unsigned_type current; //current index
+            block_type * block; //current block
+            std::list<bid_type> * bids; //list of blocks forming this sequence
 
             comparator_type cmp;
             ext_merger * merger;
@@ -467,7 +478,7 @@ namespace priority_queue_local
             ~sequence_state()
             {
                 STXXL_VERBOSE1("ext_merger sequence_state::~sequence_state()");
-                if (bids)
+                if (bids != NULL)
                 {
                     block_manager * bm = block_manager::get_instance();
                     bm->delete_blocks(bids->begin(), bids->end());
@@ -513,7 +524,7 @@ namespace priority_queue_local
                 {
                     STXXL_VERBOSE2("ext_merger sequence_state operator++ crossing block border ");
                     // go to the next block
-                    assert(bids);
+                    assert(bids != NULL);
                     if (bids->empty()) // if there is no next block
                     {
                         STXXL_VERBOSE1("ext_merger sequence_state operator++ it was the last block in the sequence ");
@@ -553,6 +564,7 @@ namespace priority_queue_local
 
         // stack of empty segments
         int_type free[KNKMAX]; // indices of free segments
+        bool populated[KNKMAX];
         int_type last_free; // where in "free" is the last valid entry?
 
         unsigned_type size_; // total number of elements stored
@@ -575,19 +587,6 @@ namespace priority_queue_local
         write_pool<block_type> *w_pool;
 
         sentinel_block_type sentinel_block;
-
-        // private member functions
-        /*
-           int_type initWinner(int_type root);
-           void update_on_insert(int_type node, const Element & newKey, int_type newIndex,
-                          Element * winnerKey, int_type * winnerIndex, int_type * mask);
-           void deallocate_segment(int_type index);
-           void doubleK();
-           void compactTree();
-           void rebuildLoserTree();
-           bool is_segment_empty(int_type i);
-           void multi_merge_k(Element * to, int_type length);
-         */
 
 #if STXXL_PARALLEL_PQ_STATS
         //histogram data
@@ -615,17 +614,15 @@ namespace priority_queue_local
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
+                populated[i] = false;
                 states[i].merger = this;
                 if (i >= arity)
-                  {
-                    STXXL_VERBOSE1("sentinel_block comes into play")
-                    states[i].block = convert_block_pointer(&(sentinel_block));
-                  }
+                  states[i].block = convert_block_pointer(&(sentinel_block));
                 else
                   states[i].block = new block_type;
 
-//                 for(unsigned_type j = 0; j < block_type::size; ++j)
-//                   (*(states[i].block))[j] = cmp.min_value();
+                for(unsigned_type j = 0; j < block_type::size; ++j)
+                  (*(states[i].block))[j] = cmp.min_value();
 
                 states[i].make_inf();
             }
@@ -647,14 +644,15 @@ namespace priority_queue_local
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
+                populated[i] = false;
                 states[i].merger = this;
                 if (i >= arity)
                     states[i].block = convert_block_pointer(&(sentinel_block));
                 else
                     states[i].block = new block_type;
 
-/*                for(unsigned_type j = 0; j < block_type::size; ++j)
-                  (*(states[i].block))[j] = cmp.min_value();*/
+                for(unsigned_type j = 0; j < block_type::size; ++j)
+                  (*(states[i].block))[j] = cmp.min_value();
 
                 states[i].make_inf();
             }
@@ -670,7 +668,7 @@ namespace priority_queue_local
             {
                 delete states[i].block;
             }
-            
+
 #if STXXL_PARALLEL_PQ_STATS
             for(typename histogram_type::const_iterator h = histogram.begin(); h != histogram.end(); ++h)
             {
@@ -787,7 +785,7 @@ namespace priority_queue_local
         void doubleK()
         {
             assert(k > 0);
-            assert(k < arity);
+            assert(2 * k <= arity);
             // make all new entries free
             // and push them on the free stack
             assert(last_free == -1); // stack was free (probably not needed)
@@ -818,6 +816,7 @@ namespace priority_queue_local
         // compact nonempty segments in the left half of the tree
         void compactTree()
         {
+            STXXL_VERBOSE0("Compacting");
             assert(logK > 0);
 
             // compact all nonempty segments to the left
@@ -827,7 +826,10 @@ namespace priority_queue_local
             {
                 if (not_sentinel(*(states[from])))
                 {
+                    assert(!populated[to]);
+                    assert(populated[from]);
                     states[to].swap_empty_back(states[from]);
+                    swap(populated[to], populated[from]);
                     ++to;
                 }
             }
@@ -885,9 +887,6 @@ namespace priority_queue_local
         {
           size_type length = end - begin;
 
-          if(length == 0)
-            return;
-
           STXXL_VERBOSE2("ext_merger::multi_merge length = " << length);
 
           if(begin == end)
@@ -907,28 +906,24 @@ namespace priority_queue_local
 
     std::vector<sequence> seqs;
     std::vector<int_type> orig_seq_index;
-    std::vector<value_type*> last;
+    std::vector<value_type*> last;  // points to last element in sequence, possibly a sentinel
 
     Cmp_ cmp;
     invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 
-    for(unsigned_type i = 0; i < k; ++i)	//initialize sequences
+    for(unsigned_type i = 0; i < k; ++i) //initialize sequences
     {
       if(states[i].current == states[i].block->size || is_sentinel(*states[i]))
         continue;
 
       seqs.push_back(std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end()));
-      //STXXL_VERBOSE0("segment consisting of " << states[i].bids->size() << " + 1 blocks");
+      *(seqs.back().second) = cmp.min_value();
+
       orig_seq_index.push_back(i);
 
-/*      if(seqs.back().first == seqs.back().second || is_sentinel(*seqs.back().first))
-      {
-        //empty sequence
-        last.push_back(&(*(seqs.back().first)));
-        STXXL_VERBOSE1("sequence " << i << " is empty.")
-      }
-      else*/
-        last.push_back(&(*(seqs.back().second - 1)));
+      last.push_back(&(*(seqs.back().second - 1))); //corresponding last element, always accessible
+
+      //STXXL_VERBOSE0("seq " << i << " " << *seqs.back().first << " " << *last.back());
 
       #if STXXL_CHECK_ORDER_IN_SORTS
       if(!is_sentinel(*seqs.back().first) && !stxxl::is_sorted(seqs.back().first, seqs.back().second, inv_cmp))
@@ -949,24 +944,22 @@ namespace priority_queue_local
       }
       #endif
 
-      *(seqs.back().second) = cmp.min_value();	//set sentinel
+      *(seqs.back().second) = cmp.min_value(); //set sentinel
     }
 
     assert(seqs.size() > 0);
-
-    std::vector<block_type*> buffers(seqs.size());
 
     #if STXXL_CHECK_ORDER_IN_SORTS
     value_type last_elem;
     #endif
 
-    diff_type rest = length;	//elements still to merge for this output block
+    diff_type rest = length; //elements still to merge for this output block
 
     while(rest > 0)
     {
-      value_type min_last;	//minimum of the sequences' last elements
+      value_type min_last; //minimum of the sequences' last elements
 
-      min_last = *(last[0]);	// maybe sentinel
+      min_last = *(last[0]); // maybe sentinel
       diff_type total_size = 0;
 
       total_size += (seqs[0].second - seqs[0].first);
@@ -986,6 +979,7 @@ namespace priority_queue_local
       }
 
       assert(total_size > 0);
+      assert(!is_sentinel(min_last));
 
       STXXL_VERBOSE1("min_last " << min_last << " total size " << total_size << " num_seq " << seqs.size());
 
@@ -1005,7 +999,7 @@ namespace priority_queue_local
         less_equal_than_min_last += (position - seqs[i].first);
       }
 
-      ptrdiff_t output_size = std::min(less_equal_than_min_last, rest);	//at most rest elements
+      ptrdiff_t output_size = std::min(less_equal_than_min_last, rest); //at most rest elements
 
       STXXL_VERBOSE1("output_size " << output_size << " <= " << less_equal_than_min_last << ", <= " << rest)
 
@@ -1013,7 +1007,7 @@ namespace priority_queue_local
 
       //main call
 
-      begin = mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false);	//sequence iterators are progressed appropriately
+      begin = mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false); //sequence iterators are progressed appropriately
 
       rest -= output_size;
       size_ -= output_size;
@@ -1021,25 +1015,30 @@ namespace priority_queue_local
       for(unsigned_type i = 0; i < seqs.size(); ++i)
       {
         sequence_state& state = states[orig_seq_index[i]];
-        state.current = seqs[i].first - state.block->begin();
 
-        assert(state.current >= 0);
+        state.current = seqs[i].first - state.block->begin();
 
         assert(seqs[i].first <= seqs[i].second);
 
-        if(seqs[i].first == seqs[i].second)	//has run empty
+        if(seqs[i].first == seqs[i].second) //has run empty
         {
-          if(state.bids->empty()) // if there is no next block
+          assert(state.current == state.block->size);
+          if(state.bids == NULL || state.bids->empty()) // if there is no next block
           {
-            STXXL_VERBOSE1("ext_merger::multi_merge(...) it was the last block in the sequence ")
+            STXXL_VERBOSE1("ext_merger::multi_merge(...) it was the last block in the sequence ");
 
             //empty sequence, leave it that way
-            last[i] = &(*(seqs[i].second));
-            STXXL_VERBOSE1("sequence " << i << " is empty, length " << (seqs[i].second - seqs[i].first))
+/*            delete state.bids;
+            state.bids = NULL;*/
+            last[i] = &(*(seqs[i].second)); //sentinel
           }
           else
           {
-            STXXL_VERBOSE1("ext_merger::multi_merge(...) there is another block ")
+#if STXXL_CHECK_ORDER_IN_SORTS
+            last_elem = *(seqs[i].first - 1);
+#endif
+            STXXL_VERBOSE0("set last_elem " << seqs[i].first - 1 - state.block->begin());
+            STXXL_VERBOSE1("ext_merger::multi_merge(...) there is another block ");
             bid_type bid = state.bids->front();
             state.bids->pop_front();
             if(!(state.bids->empty()))
@@ -1050,24 +1049,40 @@ namespace priority_queue_local
               p_pool->hint(next_bid,*w_pool);
             }
             p_pool->read(state.block, bid)->wait();
-            block_manager::get_instance()->delete_block(bid);
             state.current = 0;
             seqs[i] = std::make_pair(state.block->begin() + state.current, state.block->end());
-            if(seqs[i].first == seqs[i].second)
-            {
+            block_manager::get_instance()->delete_block(bid);
+
+      #if STXXL_CHECK_ORDER_IN_SORTS
+      STXXL_VERBOSE0("before " << last_elem << " after " << *seqs[i].first << " newly loaded block " <<bid);
+      if(!stxxl::is_sorted(seqs[i].first, seqs[i].second, inv_cmp))
+      {
+        STXXL_VERBOSE0("length " << i << " " << (seqs[i].second - seqs[i].first))
+        for(value_type* v = seqs[i].first + 1; v < seqs[i].second; ++v)
+        {
+          if(inv_cmp(*v, *(v - 1)))
+          {
+            STXXL_VERBOSE0("Error at position " << i << "/" << (v - seqs[i].first - 1) << "/"  << (v - seqs[i].first) << "   " << *(v - 1) << " " << *v)
+          }
+          if(is_sentinel(*v))
+          {
+            STXXL_VERBOSE0("Wrong sentinel at position " << (v - seqs[i].first))
+          }
+        }
+        assert(false);
+      }
+      #endif
+/*            if(seqs[i].first == seqs[i].second)
               //empty sequence
-              last[i] = &(*(seqs[i].second));
-              STXXL_VERBOSE1("sequence " << i << " is empty.")
-            }
-            else
+              last[i] = &(*(seqs[i].second)); //sentinel
+            else*/
               last[i] = &(*(seqs[i].second - 1));
-            *(seqs[i].second) = cmp.min_value();	//set sentinel
+
+            *(seqs[i].second) = cmp.min_value();//set sentinel
           }
         }
       }
     } //while (rest > 1)
-
-    STXXL_VERBOSE1("out of loop")
 
     for(unsigned_type i = 0; i < seqs.size(); ++i)
     {
@@ -1079,17 +1094,8 @@ namespace priority_queue_local
       }
     }
 
-  #else	//defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+  #else //defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 
-
-
-
-
-
-
-
-
-			
             switch (logK) {
             case 0:
                 assert(k == 1);
@@ -1164,15 +1170,14 @@ namespace priority_queue_local
                 compactTree();
             }
 
-		#endif
+    #endif
 #if STXXL_PARALLEL_PQ_STATS
-
             double stop = stxxl_timestamp();
 
             if(length > 1)
             {
-              ++(histogram[k][log2(length - 1) + 1].first);
-              (histogram[k][log2(length - 1) + 1].second) += (stop - start);
+              ++(histogram[seqs.size()][log2(length - 1) + 1].first);
+              (histogram[seqs.size()][log2(length - 1) + 1].second) += (stop - start);
             }
 #endif
         }
@@ -1301,10 +1306,6 @@ namespace priority_queue_local
         {
             STXXL_VERBOSE1("ext_merger::insert_segment(merger,...)" << this);
 
-#if STXXL_PARALLEL_PQ_STATS
-            ++num_segments;
-#endif
-
             if (segment_size > 0)
             {
                 // get a free slot
@@ -1320,9 +1321,8 @@ namespace priority_queue_local
                 // link new segment
                 assert(segment_size);
                 unsigned_type nblocks = segment_size / block_type::size;
-                STXXL_VERBOSE2("ext_merger::insert_segment(merger,...) inserting segment with " << nblocks << " blocks");
                 //assert(nblocks); // at least one block
-                STXXL_VERBOSE1("ext_merger::insert_segment nblocks=" << nblocks);
+                STXXL_VERBOSE0("ext_merger::insert_segment nblocks=" << nblocks);
                 if (nblocks == 0)
                 {
                     STXXL_VERBOSE1("ext_merger::insert_segment(merger,...) WARNING: inserting a segment with " <<
@@ -1339,20 +1339,26 @@ namespace priority_queue_local
                 std::list<bid_type> *bids = new std::list<bid_type>(nblocks);
                 bm->new_blocks(alloc_strategy(), bids->begin(), bids->end());
                 block_type * first_block = new block_type;
-				
+
                 another_merger.multi_merge(
                     first_block->begin() + (block_type::size - first_size),
                     first_block->end());
 
+                STXXL_VERBOSE0("last element of first block " << *(first_block->end() - 1));
+
                 assert(w_pool->size() > 0);
 
-                typename std::list<bid_type>::iterator curbid = bids->begin();
-                for (unsigned_type i = 0; i < nblocks; ++i, ++curbid)
+                for (typename std::list<bid_type>::iterator curbid = bids->begin(); curbid != bids->end(); ++curbid)
                 {
                     block_type * b = w_pool->steal();
                     another_merger.multi_merge(b->begin(), b->end());
-                    w_pool->write(b, *curbid);
+                    STXXL_VERBOSE0("first element of following block " << *curbid << " " << *(b->begin()));
+                    STXXL_VERBOSE0("last element of following block " << *curbid << " " << *(b->end() - 1));
+                    w_pool->write(b, *curbid); //->wait() does not help
+                    STXXL_VERBOSE0("written to block " << *curbid);
                 }
+
+                STXXL_VERBOSE0("=============");
 
                 insert_segment(bids, first_block, first_size, free_slot);
 
@@ -1381,6 +1387,9 @@ namespace priority_queue_local
 #if STXXL_PARALLEL_PQ_STATS
             ++num_segments;
 #endif
+            assert(!populated[slot]);
+
+            populated[slot] = true;
 
             STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this << " " << segment->size() << " " << slot);
             assert(first_size > 0);
@@ -1405,6 +1414,8 @@ namespace priority_queue_local
 #if STXXL_PARALLEL_PQ_STATS
             --num_segments;
 #endif
+            assert(populated[slot]);
+            populated[slot] = false;
 
             // reroute current pointer to some empty sentinel segment
             // with a sentinel key
@@ -1421,7 +1432,6 @@ namespace priority_queue_local
         // is this segment empty ?
         bool is_segment_empty(int_type i) const
         {
-            //return (is_sentinel(*(states[i])) &&  (&(*(states[i])) != &sentinel));
             return is_sentinel(*(states[i]));
         }
     }; //ext_merger
@@ -1606,7 +1616,7 @@ namespace priority_queue_local
         free  [0] = 0;
         segment[0] = 0;
         current[0] = &sentinel;
-		current_end[0] = &sentinel;
+        current_end[0] = &sentinel;
         // entry and sentinel are initialized by init
         // since they need the value of supremum
         init();
@@ -1884,7 +1894,7 @@ namespace priority_queue_local
 
         // free memory
         delete [] segment[index];
-        segment[index] = 0;
+        segment[index] = NULL;
         mem_cons_ -= segment_size[index];
 
         // push on the stack of free segment indices
@@ -1914,7 +1924,7 @@ namespace priority_queue_local
          */
 
 #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-		invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
+        invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 #endif
         switch (logK) {
         case 0:
@@ -1931,18 +1941,18 @@ namespace priority_queue_local
             break;
         case 1:
             assert(k == 2);
-		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-			{
-			std::pair<Element*, Element*> seqs[2] = {	std::make_pair(current[0], current_end[0]),
-														std::make_pair(current[1], current_end[1]) };
-			mcstl::multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length, false);
-			current[0] = seqs[0].first;
-			current[1] = seqs[1].first;
-			}
-		#else
+    #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+      {
+      std::pair<Element*, Element*> seqs[2] = { std::make_pair(current[0], current_end[0]),
+                            std::make_pair(current[1], current_end[1]) };
+      mcstl::multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length, false);
+      current[0] = seqs[0].first;
+      current[1] = seqs[1].first;
+      }
+    #else
             merge_iterator(current[0], current[1], to, length, cmp);
             rebuildLoserTree();
-		#endif
+    #endif
             if (is_segment_empty(0))
                 deallocate_segment(0);
 
@@ -1951,23 +1961,23 @@ namespace priority_queue_local
             break;
         case 2:
             assert(k == 4);
-		#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-			{
-			std::pair<Element*, Element*> seqs[4] = { 	std::make_pair(current[0], current_end[0]),
-														std::make_pair(current[1], current_end[1]),
-														std::make_pair(current[2], current_end[2]),
-														std::make_pair(current[3], current_end[3]) };
-			mcstl::multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length, false);
-			current[0] = seqs[0].first;
-			current[1] = seqs[1].first;
-			current[2] = seqs[2].first;
-			current[3] = seqs[3].first;
-			}
-		#else
+    #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+      {
+      std::pair<Element*, Element*> seqs[4] = { std::make_pair(current[0], current_end[0]),
+                            std::make_pair(current[1], current_end[1]),
+                            std::make_pair(current[2], current_end[2]),
+                            std::make_pair(current[3], current_end[3]) };
+      mcstl::multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length, false);
+      current[0] = seqs[0].first;
+      current[1] = seqs[1].first;
+      current[2] = seqs[2].first;
+      current[3] = seqs[3].first;
+      }
+    #else
             merge4_iterator(current[0], current[1], current[2], current[3], to, length, cmp);
-			
+
             rebuildLoserTree();
-		#endif
+    #endif
             if (is_segment_empty(0))
                 deallocate_segment(0);
 
@@ -1981,25 +1991,36 @@ namespace priority_queue_local
                 deallocate_segment(3);
 
             break;
-	#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-		default:
-		{
-		std::pair<Element*, Element*> seqs[k];
-		for(unsigned int i = 0; i < k; ++i)
-			seqs[i] = std::make_pair(current[i], current_end[i]);
-		
-		mcstl::multiway_merge_sentinel(seqs, seqs + k, to, inv_cmp, length, false);
+  #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+    default:
+    {
+    std::vector<std::pair<Element*, Element*> > seqs;
+    std::vector<int_type> orig_seq_index;
+    for(unsigned int i = 0; i < k; ++i)
+    {
+      if(current[i] != current_end[i] && !is_sentinel(*current[i]))
+      {
+        seqs.push_back(std::make_pair(current[i], current_end[i]));
+        orig_seq_index.push_back(i);
+      }
+    }
 
-		for(unsigned int i = 0; i < k; ++i)
-			current[i] = seqs[i].first;
-			
-		for(unsigned int i = 0; i < k; ++i)
-			if(is_segment_empty(i))
-				deallocate_segment(i);
-		break;
-		}
-		
-	#else
+    mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), to, inv_cmp, length, false);
+
+    for(unsigned int i = 0; i < seqs.size(); ++i)
+    {
+      int_type seg = orig_seq_index[i];
+      current[seg] = seqs[i].first;
+      if (is_segment_empty(seg))
+      {
+        STXXL_VERBOSE1("deallocated " << seg);
+        deallocate_segment(seg);
+      }
+    }
+    break;
+    }
+
+  #else
         case  3: multi_merge_f < 3 > (to, length);
             break;
         case  4: multi_merge_f < 4 > (to, length);
@@ -2018,7 +2039,7 @@ namespace priority_queue_local
             break;
         default: multi_merge_k(to, length);
             break;
-	#endif
+  #endif
         }
 
 
@@ -2037,8 +2058,8 @@ namespace priority_queue_local
 
         if(length > 1)
         {
-          ++(histogram[k][log2(length - 1) + 1].first);
-          (histogram[k][log2(length - 1) + 1].second += (stop - start));
+          ++(histogram[seq.size()][log2(length - 1) + 1].first);
+          (histogram[seq.size()][log2(length - 1) + 1].second += (stop - start));
         }
 #endif
 
@@ -2514,16 +2535,16 @@ int_type priority_queue<Config_>::refillBuffer2(int_type j)
 
     value_type * oldTarget;
     int_type deleteSize;
-    size_type treeSize = (j < IntLevels)  ?  itree[j].size()  :  etree[ j - IntLevels].size();
-    int_type bufferSize = (&(buffer2[j][0]) + N) - minBuffer2[j];
+    size_type treeSize = (j < IntLevels)  ?  itree[j].size()  :  etree[ j - IntLevels].size();  //elements left in segments
+    int_type bufferSize = buffer2[j] + N - minBuffer2[j]; //elements left in target buffer
     if (treeSize + bufferSize >= size_type(N) )
-    { // buffer will be filled
-        oldTarget = &(buffer2[j][0]);
+    { // buffer will be filled completely
+        oldTarget = buffer2[j];
         deleteSize = N - bufferSize;
     }
     else
     {
-        oldTarget = &(buffer2[j][0]) + N - int_type(treeSize) - bufferSize;
+        oldTarget = buffer2[j] + N - int_type(treeSize) - bufferSize;
         deleteSize = treeSize;
     }
 
@@ -2547,6 +2568,21 @@ int_type priority_queue<Config_>::refillBuffer2(int_type j)
 
     //STXXL_MSG(deleteSize + bufferSize);
     //std::copy(oldTarget,oldTarget + deleteSize + bufferSize,std::ostream_iterator<value_type>(std::cout, "\n"));
+#if STXXL_CHECK_ORDER_IN_SORTS
+      invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
+      if(!stxxl::is_sorted(minBuffer2[j], minBuffer2[j] + N, inv_cmp))
+      {
+        STXXL_VERBOSE0("" << deleteSize << " remaining " << bufferSize);
+        for(value_type* v = minBuffer2[j]  + 1; v < minBuffer2[j] + N; ++v)
+        {
+          if(inv_cmp(*v, *(v - 1)))
+          {
+            STXXL_VERBOSE0("Error in buffer " << j << " at position " << (v - minBuffer2[j]  - 1) << "/"  << (v - minBuffer2[j] ) << "   " << *(v - 2) << " " << *(v - 1) << " " << *v << " " << *(v + 1))
+          }
+        }
+        //assert(false);
+      }
+#endif
 
     return deleteSize + bufferSize;
 }
@@ -2562,9 +2598,10 @@ void priority_queue<Config_>::refillBuffer1()
     //activeLevels is <= 4
     for (int_type i = activeLevels - 1;  i >= 0;  i--)
     {
-        if ((&(buffer2[i][0]) + N) - minBuffer2[i] < BufferSize1)
+        if ((buffer2[i] + N) - minBuffer2[i] < BufferSize1)
         {
             sz = refillBuffer2(i);
+            //STXXL_VERBOSE0("refilled buffer " << i);
             // max active level dry now?
             if (sz == 0 && i == activeLevels - 1)
                 --activeLevels;
@@ -2578,7 +2615,7 @@ void priority_queue<Config_>::refillBuffer1()
         }
     }
 
-    if (totalSize >= BufferSize1) // buffer can be filled
+    if (totalSize >= BufferSize1) // buffer can be filled completely
     {
         minBuffer1 = buffer1;
         sz = BufferSize1; // amount to be copied
@@ -2591,6 +2628,10 @@ void priority_queue<Config_>::refillBuffer1()
         assert(size_ == size_type(sz)); // trees and buffer2 get empty
         size_ = 0;
     }
+
+#if STXXL_CHECK_ORDER_IN_SORTS
+      invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
+#endif
 
     // now call simplified refill routines
     // which can make the assumption that
@@ -2605,32 +2646,99 @@ void priority_queue<Config_>::refillBuffer1()
         minBuffer2[0] += sz;
         break;
     case 2:
-			priority_queue_local::merge_iterator(
+#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+            {
+              std::pair<value_type*, value_type*> seqs[2] =
+                { std::make_pair(minBuffer2[0], buffer2[0] + N),
+                  std::make_pair(minBuffer2[1], buffer2[1] + N) };
+              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+
+              minBuffer2[0] = seqs[0].first;
+              minBuffer2[1] = seqs[1].first;
+            }
+#else
+      priority_queue_local::merge_iterator(
             minBuffer2[0],
             minBuffer2[1], minBuffer1, sz, cmp);
         break;
+#endif
     case 3:
-			priority_queue_local::merge3_iterator(
+#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+            {
+              std::pair<value_type*, value_type*> seqs[2] =
+                { std::make_pair(minBuffer2[0], buffer2[0] + N),
+                  std::make_pair(minBuffer2[1], buffer2[1] + N),
+                  std::make_pair(minBuffer2[2], buffer2[2] + N) };
+              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+
+              minBuffer2[0] = seqs[0].first;
+              minBuffer2[1] = seqs[1].first;
+              minBuffer2[2] = seqs[2].first;
+            }
+#else
+      priority_queue_local::merge3_iterator(
             minBuffer2[0],
             minBuffer2[1],
             minBuffer2[2], minBuffer1, sz, cmp);
         break;
+#endif
     case 4:
+#if STXXL_CHECK_ORDER_IN_SORTS
+      if(!stxxl::is_sorted(minBuffer2[3], buffer2[3] + N, inv_cmp))
+      {
+        for(value_type* v = minBuffer2[3] + 1; v < buffer2[3] + N; ++v)
+        {
+          if(inv_cmp(*v, *(v - 1)))
+          {
+            STXXL_VERBOSE0("Error in buffer3 at position " << (v - minBuffer2[3] - 1) << "/"  << (v - minBuffer2[3]) << "   " << *(v - 1) << " " << *v)
+          }
+        }
+      }
+#endif
         STXXL_VERBOSE2("=1=" << minBuffer2[0][0]); //std::copy(minBuffer2[0],(&(buffer2[0][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=2=" << minBuffer2[1][0]); //std::copy(minBuffer2[1],(&(buffer2[1][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=3=" << minBuffer2[2][0]); //std::copy(minBuffer2[2],(&(buffer2[2][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
         STXXL_VERBOSE2("=4=" << minBuffer2[3][0]); //std::copy(minBuffer2[3],(&(buffer2[3][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
-		priority_queue_local::merge4_iterator(
+#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+            {
+              std::pair<value_type*, value_type*> seqs[2] =
+                { std::make_pair(minBuffer2[0], buffer2[0] + N),
+                  std::make_pair(minBuffer2[1], buffer2[1] + N),
+                  std::make_pair(minBuffer2[2], buffer2[2] + N),
+                  std::make_pair(minBuffer2[3], buffer2[3] + N) };
+              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+
+              minBuffer2[0] = seqs[0].first;
+              minBuffer2[1] = seqs[1].first;
+              minBuffer2[2] = seqs[2].first;
+              minBuffer2[3] = seqs[3].first;
+            }
+#else
+      priority_queue_local::merge4_iterator(
             minBuffer2[0],
             minBuffer2[1],
             minBuffer2[2],
-            minBuffer2[3], minBuffer1, sz, cmp);	//side effect free
+            minBuffer2[3], minBuffer1, sz, cmp); //side effect free
+#endif
         break;
     default:
         STXXL_FORMAT_ERROR_MSG(msg, "priority_queue<...>::refillBuffer1(): Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4")
         throw std::runtime_error(msg.str());
     }
 
+#if STXXL_CHECK_ORDER_IN_SORTS
+      if(!stxxl::is_sorted(minBuffer1, buffer1 + BufferSize1, inv_cmp))
+      {
+        for(value_type* v = minBuffer1 + 1; v < buffer1 + BufferSize1; ++v)
+        {
+          if(inv_cmp(*v, *(v - 1)))
+          {
+            STXXL_VERBOSE0("Error at position " << (v - minBuffer1 - 1) << "/"  << (v - minBuffer1) << "   " << *(v - 1) << " " << *v)
+          }
+        }
+        assert(false);
+      }
+#endif
     //std::copy(minBuffer1,minBuffer1 + sz,std::ostream_iterator<value_type>(std::cout, "\n"));
 }
 
@@ -2700,7 +2808,7 @@ template <class Config_>
 void priority_queue<Config_>::emptyInsertHeap()
 {
     assert(insertHeap.size() == (N + 1));
-  
+
     STXXL_VERBOSE2("priority_queue::emptyInsertHeap()");
     const value_type sup = getSupremum();
 
@@ -2742,12 +2850,6 @@ void priority_queue<Config_>::emptyInsertHeap()
 #endif
 
     assert(insertHeap.size() == 1);
-//     for(int i = 0; i < 5; ++i)
-//     {
-//       STXXL_VERBOSE0("el " << newSegment[i]);
-//     }
-// 
-//     STXXL_VERBOSE0("top " << insertHeap.top())
 
     newSegment[N] = sup; // sentinel
 
