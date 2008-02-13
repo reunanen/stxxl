@@ -17,7 +17,7 @@ STXXL_ROOT	?= $(HOME)/work/stxxl
 ifeq ($(strip $(USE_ICPC)),yes)
 COMPILER	?= icpc
 OPENMPFLAG	?= -openmp
-ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
+ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC) -w1
 endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
@@ -97,8 +97,6 @@ CPPFLAGS_i686	?= -march=i686
 #### ICPC OPTIONS ################################################
 
 ifeq ($(strip $(USE_ICPC)),yes)
-
-STXXL_SPECIFIC	+= -include stxxl/bits/common/intel_compatibility.h
 
 endif
 

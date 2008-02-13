@@ -829,7 +829,7 @@ namespace priority_queue_local
                     assert(!populated[to]);
                     assert(populated[from]);
                     states[to].swap_empty_back(states[from]);
-                    swap(populated[to], populated[from]);
+                    std::swap(populated[to], populated[from]);
                     ++to;
                 }
             }

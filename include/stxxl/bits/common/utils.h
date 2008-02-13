@@ -1,8 +1,6 @@
 #ifndef MYUTILS_HEADER
 #define MYUTILS_HEADER
 
-#include "intel_compatibility.h"
-
 /***************************************************************************
  *            utils.h
  *

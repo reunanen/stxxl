@@ -32,6 +32,11 @@
 #include <memory.h>
 #endif
 
+#ifdef __MCSTL__
+#define FORCE_SEQUENTIAL , mcstl::sequential_tag()
+#else
+#define FORCE_SEQUENTIAL
+#endif
 
 __STXXL_BEGIN_NAMESPACE
 
@@ -476,7 +481,7 @@ class DiskAllocator
 
 protected:
 
-    typedef std::map < stxxl::int64, stxxl::int64 > sortseq;
+    typedef std::map < stxxl::int64, stxxl::int64 FORCE_SEQUENTIAL> sortseq;
     sortseq free_space;
     //  sortseq used_space;
     stxxl::int64 free_bytes;
@@ -1007,11 +1012,6 @@ struct SR : public striping
 //! \remarks model of \b allocation_strategy concept
 struct RC : public striping
 {
-#ifdef __MCSTL__
-#define FORCE_SEQUENTIAL , mcstl::sequential_tag()
-#else
-#define FORCE_SEQUENTIAL
-#endif
     std::vector<int> perm;
 
     RC (int b, int e) : striping (b, e), perm (diff)
@@ -1038,7 +1038,6 @@ struct RC : public striping
     {
         return "randomized cycling striping";
     }
-#undef FORCE_SEQUENTIAL
 };
 
 //! \brief 'single disk' disk allocation scheme functor
@@ -1329,6 +1328,7 @@ void block_manager::delete_blocks (
 
 __STXXL_END_NAMESPACE
 
+#undef FORCE_SEQUENTIAL
 
 #endif
 // vim: et:ts=4:sw=4
