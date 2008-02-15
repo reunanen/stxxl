@@ -481,7 +481,7 @@ class DiskAllocator
 
 protected:
 
-    typedef std::map < stxxl::int64, stxxl::int64 FORCE_SEQUENTIAL> sortseq;
+    typedef std::map < stxxl::int64, stxxl::int64 > sortseq;
     sortseq free_space;
     //  sortseq used_space;
     stxxl::int64 free_bytes;
