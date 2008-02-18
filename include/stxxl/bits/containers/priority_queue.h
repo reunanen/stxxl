@@ -544,7 +544,10 @@ namespace priority_queue_local
                             bid_type next_bid = bids->front();
                             merger->p_pool->hint(next_bid, *(merger->w_pool));
                         }
+                        merger->p_pool->hint(bid, *(merger->w_pool)); //Ensure that block was hinted. Otherwise, synchronization between write pool and prefetch pool is not safe, danger of race conditions.
+                        //A better way of solving this is to timely hint the second external block.
                         merger->p_pool->read(block, bid)->wait();
+                        STXXL_VERBOSE0("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
                         block_manager::get_instance()->delete_block(bid);
                         current = 0;
                     }
@@ -663,7 +666,7 @@ namespace priority_queue_local
 
         virtual ~ext_merger()
         {
-            STXXL_VERBOSE0("ext_merger::~ext_merger()");
+            STXXL_VERBOSE1("ext_merger::~ext_merger()");
             for (int_type i = 0; i < arity; ++i)
             {
                 delete states[i].block;
@@ -816,7 +819,7 @@ namespace priority_queue_local
         // compact nonempty segments in the left half of the tree
         void compactTree()
         {
-            STXXL_VERBOSE0("Compacting");
+            STXXL_VERBOSE1("Compacting");
             assert(logK > 0);
 
             // compact all nonempty segments to the left
@@ -1048,7 +1051,9 @@ namespace priority_queue_local
               bid_type next_bid = state.bids->front();
               p_pool->hint(next_bid,*w_pool);
             }
+            p_pool->hint(bid, *w_pool); //Ensure that block was hinted. Otherwise, synchronization between write pool and prefetch pool is not safe, danger of race conditions.
             p_pool->read(state.block, bid)->wait();
+            STXXL_VERBOSE0("first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
             state.current = 0;
             seqs[i] = std::make_pair(state.block->begin() + state.current, state.block->end());
             block_manager::get_instance()->delete_block(bid);
@@ -1095,6 +1100,12 @@ namespace priority_queue_local
     }
 
   #else //defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+
+//             for(unsigned_type i = 0; i < k; ++i) //initialize sequences
+//             {
+//               if(states[i].bids != NULL && !states[i].bids->empty())
+//                 p_pool->hint(states[i].bids->front());
+//             }
 
             switch (logK) {
             case 0:
@@ -1353,9 +1364,9 @@ namespace priority_queue_local
                     block_type * b = w_pool->steal();
                     another_merger.multi_merge(b->begin(), b->end());
                     STXXL_VERBOSE0("first element of following block " << *curbid << " " << *(b->begin()));
-                    STXXL_VERBOSE0("last element of following block " << *curbid << " " << *(b->end() - 1));
+                    STXXL_VERBOSE1("last element of following block " << *curbid << " " << *(b->end() - 1));
                     w_pool->write(b, *curbid); //->wait() does not help
-                    STXXL_VERBOSE0("written to block " << *curbid);
+                    STXXL_VERBOSE0("written to block " << *curbid << " cached in " << b);
                 }
 
                 STXXL_VERBOSE0("=============");
@@ -1854,7 +1865,7 @@ namespace priority_queue_local
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     loser_tree<ValTp_, Cmp_, KNKMAX>::~loser_tree()
     {
-        STXXL_VERBOSE0("loser_tree::~loser_tree()");
+        STXXL_VERBOSE1("loser_tree::~loser_tree()");
         for (unsigned_type i = 0; i < k; ++i)
         {
             if (segment[i])
