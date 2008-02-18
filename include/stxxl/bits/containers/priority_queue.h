@@ -542,10 +542,10 @@ namespace priority_queue_local
                             STXXL_VERBOSE2("ext_merger sequence_state operator++ one more block exists in a sequence: " <<
                                            "flushing this block in write cache (if not written yet) and giving hint to prefetcher");
                             bid_type next_bid = bids->front();
+                            //Hint next block of sequence.
+                            //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
                             merger->p_pool->hint(next_bid, *(merger->w_pool));
                         }
-                        merger->p_pool->hint(bid, *(merger->w_pool)); //Ensure that block was hinted. Otherwise, synchronization between write pool and prefetch pool is not safe, danger of race conditions.
-                        //A better way of solving this is to timely hint the second external block.
                         merger->p_pool->read(block, bid)->wait();
                         STXXL_VERBOSE0("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
                         block_manager::get_instance()->delete_block(bid);
@@ -948,6 +948,11 @@ namespace priority_queue_local
       #endif
 
       *(seqs.back().second) = cmp.min_value(); //set sentinel
+
+      //Hint first non-internal (actually second) block of this sequence.
+      //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
+      if(states[i].bids != NULL && !states[i].bids->empty())
+        p_pool->hint(states[i].bids->front(), *w_pool);
     }
 
     assert(seqs.size() > 0);
@@ -1049,9 +1054,10 @@ namespace priority_queue_local
               STXXL_VERBOSE2("ext_merger::multi_merge(...) one more block exists in a sequence: "<<
               "flushing this block in write cache (if not written yet) and giving hint to prefetcher")
               bid_type next_bid = state.bids->front();
+              //Hint next block of sequence.
+              //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
               p_pool->hint(next_bid,*w_pool);
             }
-            p_pool->hint(bid, *w_pool); //Ensure that block was hinted. Otherwise, synchronization between write pool and prefetch pool is not safe, danger of race conditions.
             p_pool->read(state.block, bid)->wait();
             STXXL_VERBOSE0("first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
             state.current = 0;
@@ -1101,11 +1107,13 @@ namespace priority_queue_local
 
   #else //defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 
-//             for(unsigned_type i = 0; i < k; ++i) //initialize sequences
-//             {
-//               if(states[i].bids != NULL && !states[i].bids->empty())
-//                 p_pool->hint(states[i].bids->front());
-//             }
+            //Hint first non-internal (actually second) block of each sequence.
+            //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
+            for(unsigned_type i = 0; i < k; ++i)
+            {
+              if(states[i].bids != NULL && !states[i].bids->empty())
+                p_pool->hint(states[i].bids->front(), *w_pool);
+            }
 
             switch (logK) {
             case 0:
