@@ -547,7 +547,7 @@ namespace priority_queue_local
                             merger->p_pool->hint(next_bid, *(merger->w_pool));
                         }
                         merger->p_pool->read(block, bid)->wait();
-                        STXXL_VERBOSE0("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
+                        STXXL_VERBOSE1("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
                         block_manager::get_instance()->delete_block(bid);
                         current = 0;
                     }
@@ -926,8 +926,6 @@ namespace priority_queue_local
 
       last.push_back(&(*(seqs.back().second - 1))); //corresponding last element, always accessible
 
-      //STXXL_VERBOSE0("seq " << i << " " << *seqs.back().first << " " << *last.back());
-
       #if STXXL_CHECK_ORDER_IN_SORTS
       if(!is_sentinel(*seqs.back().first) && !stxxl::is_sorted(seqs.back().first, seqs.back().second, inv_cmp))
       {
@@ -1045,7 +1043,6 @@ namespace priority_queue_local
 #if STXXL_CHECK_ORDER_IN_SORTS
             last_elem = *(seqs[i].first - 1);
 #endif
-            STXXL_VERBOSE0("set last_elem " << seqs[i].first - 1 - state.block->begin());
             STXXL_VERBOSE1("ext_merger::multi_merge(...) there is another block ");
             bid_type bid = state.bids->front();
             state.bids->pop_front();
@@ -1059,13 +1056,13 @@ namespace priority_queue_local
               p_pool->hint(next_bid,*w_pool);
             }
             p_pool->read(state.block, bid)->wait();
-            STXXL_VERBOSE0("first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
+            STXXL_VERBOSE1("first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
             state.current = 0;
             seqs[i] = std::make_pair(state.block->begin() + state.current, state.block->end());
             block_manager::get_instance()->delete_block(bid);
 
       #if STXXL_CHECK_ORDER_IN_SORTS
-      STXXL_VERBOSE0("before " << last_elem << " after " << *seqs[i].first << " newly loaded block " <<bid);
+      STXXL_VERBOSE1("before " << last_elem << " after " << *seqs[i].first << " newly loaded block " <<bid);
       if(!stxxl::is_sorted(seqs[i].first, seqs[i].second, inv_cmp))
       {
         STXXL_VERBOSE0("length " << i << " " << (seqs[i].second - seqs[i].first))
@@ -1341,7 +1338,7 @@ namespace priority_queue_local
                 assert(segment_size);
                 unsigned_type nblocks = segment_size / block_type::size;
                 //assert(nblocks); // at least one block
-                STXXL_VERBOSE0("ext_merger::insert_segment nblocks=" << nblocks);
+                STXXL_VERBOSE1("ext_merger::insert_segment nblocks=" << nblocks);
                 if (nblocks == 0)
                 {
                     STXXL_VERBOSE1("ext_merger::insert_segment(merger,...) WARNING: inserting a segment with " <<
@@ -1363,7 +1360,7 @@ namespace priority_queue_local
                     first_block->begin() + (block_type::size - first_size),
                     first_block->end());
 
-                STXXL_VERBOSE0("last element of first block " << *(first_block->end() - 1));
+                STXXL_VERBOSE1("last element of first block " << *(first_block->end() - 1));
 
                 assert(w_pool->size() > 0);
 
@@ -1371,13 +1368,11 @@ namespace priority_queue_local
                 {
                     block_type * b = w_pool->steal();
                     another_merger.multi_merge(b->begin(), b->end());
-                    STXXL_VERBOSE0("first element of following block " << *curbid << " " << *(b->begin()));
+                    STXXL_VERBOSE1("first element of following block " << *curbid << " " << *(b->begin()));
                     STXXL_VERBOSE1("last element of following block " << *curbid << " " << *(b->end() - 1));
                     w_pool->write(b, *curbid); //->wait() does not help
-                    STXXL_VERBOSE0("written to block " << *curbid << " cached in " << b);
+                    STXXL_VERBOSE1("written to block " << *curbid << " cached in " << b);
                 }
-
-                STXXL_VERBOSE0("=============");
 
                 insert_segment(bids, first_block, first_size, free_slot);
 
@@ -2620,7 +2615,6 @@ void priority_queue<Config_>::refillBuffer1()
         if ((buffer2[i] + N) - minBuffer2[i] < BufferSize1)
         {
             sz = refillBuffer2(i);
-            //STXXL_VERBOSE0("refilled buffer " << i);
             // max active level dry now?
             if (sz == 0 && i == activeLevels - 1)
                 --activeLevels;
@@ -2702,22 +2696,6 @@ void priority_queue<Config_>::refillBuffer1()
         break;
 #endif
     case 4:
-#if STXXL_CHECK_ORDER_IN_SORTS
-      if(!stxxl::is_sorted(minBuffer2[3], buffer2[3] + N, inv_cmp))
-      {
-        for(value_type* v = minBuffer2[3] + 1; v < buffer2[3] + N; ++v)
-        {
-          if(inv_cmp(*v, *(v - 1)))
-          {
-            STXXL_VERBOSE0("Error in buffer3 at position " << (v - minBuffer2[3] - 1) << "/"  << (v - minBuffer2[3]) << "   " << *(v - 1) << " " << *v)
-          }
-        }
-      }
-#endif
-        STXXL_VERBOSE2("=1=" << minBuffer2[0][0]); //std::copy(minBuffer2[0],(&(buffer2[0][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
-        STXXL_VERBOSE2("=2=" << minBuffer2[1][0]); //std::copy(minBuffer2[1],(&(buffer2[1][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
-        STXXL_VERBOSE2("=3=" << minBuffer2[2][0]); //std::copy(minBuffer2[2],(&(buffer2[2][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
-        STXXL_VERBOSE2("=4=" << minBuffer2[3][0]); //std::copy(minBuffer2[3],(&(buffer2[3][0])) + N,std::ostream_iterator<value_type>(std::cout, ","));
 #if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
               std::pair<value_type*, value_type*> seqs[2] =
