@@ -124,8 +124,9 @@ public:
     {
         for (busy_blocks_iterator i2 = busy_blocks.begin(); i2 != busy_blocks.end(); ++i2)
         {
-          if(i2->bid == bid && i2->block != block)
-            STXXL_VERBOSE0("WAW dependency");
+            if (i2->bid == bid && i2->block != block) {
+                STXXL_VERBOSE0("WAW dependency");
+            }
         }
         request_ptr result = block->write(bid);
         ++busy_blocks_size;

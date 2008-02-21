@@ -1410,7 +1410,7 @@ namespace priority_queue_local
 
             sequence_state & new_sequence = states[slot];
             new_sequence.current = block_type::size - first_size;
-            assert(new_sequence.current >= 0);
+            //assert(new_sequence.current >= 0);
             std::swap(new_sequence.block, first_block);
             delete first_block;
             std::swap(new_sequence.bids, segment);
