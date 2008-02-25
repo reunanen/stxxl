@@ -15,9 +15,10 @@ USE_ICPC	?= no	# will be overriden from main Makefile
 STXXL_ROOT	?= $(HOME)/work/stxxl
 
 ifeq ($(strip $(USE_ICPC)),yes)
-COMPILER	?= icpc
+COMPILER	?= icpc 
 OPENMPFLAG	?= -openmp
-ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC) -w1
+ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
+WARNINGS	?= -Wall -w1 -openmp-report0 -vec-report0
 endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
@@ -40,9 +41,8 @@ BOOST_INCLUDE	?= /usr/include/boost-1_33
 COMPILER	?= g++
 LINKER		?= $(COMPILER)
 OPT		?= -O3 # compiler optimization level
-WARNINGS	?= -Wall
 DEBUG		?= # put here -g option to include the debug information into the binaries
-
+WARNINGS	?= -W -Wall
 LIBNAME		?= stxxl
 
 
