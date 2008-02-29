@@ -117,6 +117,7 @@ namespace stream
         {
             if (block_type::has_filler)
                 std::sort(
+#if 1
                     ArrayOfSequencesIterator<
                         block_type,
                         value_type,
@@ -127,7 +128,8 @@ namespace stream
                         value_type,
                         block_type::size>
                       (run, elements),
-/*                    TwoToOneDimArrayRowAdaptor <
+#else
+                    TwoToOneDimArrayRowAdaptor <
                                                 block_type,
                                                 value_type,
                                                 block_type::size > (run, 0 ),
@@ -135,7 +137,8 @@ namespace stream
                                                block_type,
                                                value_type,
                                                block_type::size > (run,
-                                                                   elements ),*/
+                                                                   elements ),
+#endif
                     cmp);
 
             else
@@ -807,6 +810,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             if (block_type::has_filler)
                 std::sort(
+#if 1
                     ArrayOfSequencesIterator<
                         block_type,
                         value_type,
@@ -817,7 +821,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                         value_type,
                         block_type::size>
                       (run, elements),
-/*                    TwoToOneDimArrayRowAdaptor <
+#else
+                    TwoToOneDimArrayRowAdaptor <
                                                 block_type,
                                                 value_type,
                                                 block_type::size > (run, 0 ),
@@ -825,7 +830,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                                                block_type,
                                                value_type,
                                                block_type::size > (run,
-                                                                   elements ),*/
+                                                                   elements ),
+#endif
                     cmp);
 
             else
@@ -1248,6 +1254,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 }
             }
             if (!is_sorted(
+#if 1
                     ArrayOfSequencesIterator<
                         block_type,
                         typename block_type::value_type,
@@ -1258,7 +1265,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                         typename block_type::value_type,
                         block_type::size>
                       (blocks, sruns.runs_sizes[irun]),
-/*                    TwoToOneDimArrayRowAdaptor <
+#else
+                    TwoToOneDimArrayRowAdaptor <
                                                 block_type,
                                                 value_type,
                                                 block_type::size > (blocks, 0 ),
@@ -1269,7 +1277,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                                                                    //nblocks*block_type::size
                                                                    //(irun<nruns-1)?(nblocks*block_type::size): (sruns.elements%(nblocks*block_type::size))
                                                                    sruns.runs_sizes[irun]
-                    ),*/
+                    ),
+#endif
                     cmp) )
             {
                 STXXL_ERRMSG("check_sorted_runs  wrong order in the run");

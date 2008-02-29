@@ -308,6 +308,7 @@ struct TwoToOneDimArrayAdaptorBase
     }
 
 
+#if 0
 //////////////////////////
 template < class one_dim_array_type, class data_type,
           unsigned dim_size, class pos_type =
@@ -404,6 +405,7 @@ TwoToOneDimArrayAdaptorBase < one_dim_array_type, data_type,
     }
     STXXL_ADAPTOR_ARITHMETICS(pos)
 };
+#endif
 
 
     template <typename array_type, typename value_type, unsigned_type modulo>
