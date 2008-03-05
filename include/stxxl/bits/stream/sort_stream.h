@@ -650,10 +650,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         return pos;
       }
 
-      runs_creator(); // default construction is forbidden
-      runs_creator(const runs_creator & ); // copy construction is forbidden
-      runs_creator & operator = (const runs_creator &); // copying is forbidden
-
     public:
         //! \brief Creates the object
         //! \param i input stream
@@ -712,10 +708,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         return pos;
       }
 
-      runs_creator_batch(); // default construction is forbidden
-      runs_creator_batch(const runs_creator_batch & ); // copy construction is forbidden
-      runs_creator_batch & operator = (const runs_creator_batch &); // copying is forbidden
-
     public:
         //! \brief Creates the object
         //! \param i input stream
@@ -765,6 +757,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                        Cmp_,
                        BlockSize_,
                        AllocStr_>
+		       : private noncopyable
     {
         Cmp_ cmp;
     public:
@@ -1079,6 +1072,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                        Cmp_,
                        BlockSize_,
                        AllocStr_>
+		       : private noncopyable
     {
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
