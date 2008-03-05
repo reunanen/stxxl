@@ -423,7 +423,7 @@ namespace priority_queue_local
               class Cmp_,
               unsigned Arity_,
               class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
-    class ext_merger
+    class ext_merger : private noncopyable
     {
     public:
         typedef stxxl::uint64 size_type;
@@ -599,12 +599,7 @@ namespace priority_queue_local
         histogram_type histogram; //k, total_size, num_occurences
 #endif
 
-    private:
-        ext_merger(const ext_merger &);   // forbidden
-        ext_merger & operator = (const ext_merger &);  // forbidden
     public:
-
-
         ext_merger() : last_free(0), size_(0), logK(0), k(1)
 #if STXXL_PARALLEL_PQ_STATS
             , num_segments(0)
@@ -1454,7 +1449,7 @@ namespace priority_queue_local
     //////////////////////////////////////////////////////////////////////
 // The data structure from Knuth, "Sorting and Searching", Section 5.4.1
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
-    class loser_tree
+    class loser_tree : private noncopyable
     {
     public:
         typedef ValTp_ value_type;
@@ -1584,9 +1579,7 @@ namespace priority_queue_local
         {
             return cmp(cmp.min_value(), a);
         }
-    private:
-        loser_tree & operator = (const loser_tree &); // forbidden
-        loser_tree(const loser_tree &); // forbidden
+
     public:
         loser_tree();
         ~loser_tree();
@@ -2212,7 +2205,7 @@ __STXXL_BEGIN_NAMESPACE
 
 //! \brief External priority queue data structure
 template <class Config_>
-class priority_queue
+class priority_queue : private noncopyable
 {
 public:
     typedef Config_ Config;
@@ -2291,12 +2284,6 @@ protected:
     value_type getSupremum() const { return cmp.min_value(); } //{ return buffer2[0][KNN].key; }
     int_type getSize1( ) const { return ( buffer1 + BufferSize1) - minBuffer1; }
     int_type getSize2(int_type i) const { return &(buffer2[i][N]) - minBuffer2[i]; }
-
-
-    // forbidden cals
-    priority_queue();
-    priority_queue & operator = (const priority_queue &);
-    priority_queue(const priority_queue & );
 
 #if STXXL_PARALLEL_PQ_STATS
     // histogram 
