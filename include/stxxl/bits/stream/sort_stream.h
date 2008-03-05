@@ -1500,10 +1500,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             sruns(r),
             m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
             current_block(NULL),
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
-            last_element(cmp.min_value()),
-#endif
             prefetcher(NULL)
+#ifdef STXXL_CHECK_ORDER_IN_SORTS
+            , last_element(cmp.min_value())
+#endif
         {
             assert(m_ > 0);
             initialize(r);
@@ -1516,10 +1516,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         basic_runs_merger(value_cmp c, unsigned_type memory_to_use) :
             m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
             current_block(NULL),
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
-            last_element(cmp.min_value()),
-#endif
             prefetcher(NULL)
+#ifdef STXXL_CHECK_ORDER_IN_SORTS
+            , last_element(cmp.min_value())
+#endif
         {
             assert(m_ > 0);
         }
@@ -1548,7 +1548,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             }
 
 #ifdef STXXL_CHECK_ORDER_IN_SORTS
-            assert(check_sorted_runs(r, c));
+            assert(check_sorted_runs(r, cmp));
 #endif
 
             current_block = new block_type;
