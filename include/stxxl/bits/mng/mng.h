@@ -391,7 +391,7 @@ public:
  */
 
 template<unsigned BLK_SIZE>
-class BIDArray
+class BIDArray : private noncopyable
 {
 protected:
     unsigned_type _size;
@@ -451,7 +451,7 @@ public:
 };
 
 
-class DiskAllocator
+class DiskAllocator : private noncopyable
 {
 #ifdef STXXL_BOOST_THREADS
     boost::mutex mutex;
@@ -829,7 +829,7 @@ void DiskAllocator::delete_block (const BID < BLK_SIZE > &bid)
 
 //! \brief Access point to disks properties
 //! \remarks is a singleton
-class config
+class config : private noncopyable
 {
     struct DiskEntry
     {
@@ -1140,7 +1140,7 @@ struct offset_allocator
 
 //! Manages allocation and deallocation of blocks in multiple/single disk setting
 //! \remarks is a singleton
-class block_manager
+class block_manager : private noncopyable
 {
     DiskAllocator * *disk_allocators;
     file * * disk_files;

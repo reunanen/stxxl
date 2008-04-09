@@ -2657,7 +2657,6 @@ namespace stream
         Input &input;
         BinaryPredicate binary_pred;
         typename Input::value_type current;
-        unique();
     public:
         typedef typename Input::value_type value_type;
         unique(Input & input_, BinaryPredicate binary_pred_) : input(input_), binary_pred(binary_pred_)
@@ -2698,7 +2697,6 @@ namespace stream
     {
         Input &input;
         typename Input::value_type current;
-        unique();
     public:
         typedef typename Input::value_type value_type;
         unique(Input & input_) : input(input_)
