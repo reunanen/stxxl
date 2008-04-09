@@ -435,7 +435,7 @@ namespace priority_queue_local
         typedef value_type Element;
         typedef block_type sentinel_block_type;
 
-        enum { arity = Arity_, KNKMAX = 1UL << (LOG < Arity_ - 1> ::value + 1) }; //LOG rounds down
+        enum { arity = Arity_, KNKMAX = 1UL << (LOG2 < Arity_ > ::ceil) };
 
         block_type * convert_block_pointer(sentinel_block_type * arg)
         {

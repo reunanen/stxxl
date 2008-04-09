@@ -11,6 +11,7 @@
  ****************************************************************************/
 
 #include "stxxl/bits/namespace.h"
+#include "stxxl/bits/common/types.h"
 
 
 __STXXL_BEGIN_NAMESPACE
@@ -87,19 +88,19 @@ public:
     typedef NilCase result;
 };
 
-//rounding down
-template <unsigned Input>
-class LOG
+//! \internal, use LOG2 instead
+template <unsigned_type Input>
+class LOG2_floor
 {
 public:
     enum
     {
-        value = LOG < Input / 2 > ::value + 1
+        value = LOG2_floor < Input / 2 > ::value + 1
     };
 };
 
 template <>
-class LOG < 1 >
+class LOG2_floor < 1 >
 {
 public:
     enum
@@ -109,12 +110,45 @@ public:
 };
 
 template <>
-class LOG < 0 >
+class LOG2_floor < 0 >
 {
 public:
     enum
     {
         value = 0
+    };
+};
+
+template <unsigned_type Input>
+class LOG2
+{
+public:
+    enum
+    {
+	floor = LOG2_floor < Input > ::value,
+	ceil = LOG2_floor < Input - 1 > ::value + 1
+    };
+};
+
+template <>
+class LOG2 < 1 >
+{
+public:
+    enum
+    {
+	floor = 0,
+	ceil = 0
+    };
+};
+
+template <>
+class LOG2 < 0 >
+{
+public:
+    enum
+    {
+	floor = 0,
+	ceil = 0
     };
 };
 
