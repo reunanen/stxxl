@@ -33,12 +33,6 @@
 #include <memory.h>
 #endif
 
-#ifdef __MCSTL__
-#define FORCE_SEQUENTIAL , mcstl::sequential_tag()
-#else
-#define FORCE_SEQUENTIAL
-#endif
-
 __STXXL_BEGIN_NAMESPACE
 
 //! \defgroup mnglayer Block management layer
@@ -1021,7 +1015,7 @@ struct RC : public striping
             perm[i] = i;
 
         stxxl::random_number<random_uniform_fast> rnd;
-        std::random_shuffle (perm.begin (), perm.end (), rnd FORCE_SEQUENTIAL);
+        std::random_shuffle (perm.begin (), perm.end (), rnd __STXXL_FORCE_SEQUENTIAL);
     }
     RC () : striping (), perm (diff)
     {
@@ -1029,7 +1023,7 @@ struct RC : public striping
             perm[i] = i;
 
         random_number<random_uniform_fast> rnd;
-        std::random_shuffle (perm.begin (), perm.end (), rnd FORCE_SEQUENTIAL);
+        std::random_shuffle (perm.begin (), perm.end (), rnd __STXXL_FORCE_SEQUENTIAL);
     }
     int operator     () (int i) const
     {
@@ -1328,8 +1322,6 @@ void block_manager::delete_blocks (
 //! \}
 
 __STXXL_END_NAMESPACE
-
-#undef FORCE_SEQUENTIAL
 
 #endif
 // vim: et:ts=4:sw=4
