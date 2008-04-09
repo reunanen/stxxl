@@ -10,7 +10,7 @@ usage:
 
 settings_gnu:
 	cmp -s make.settings.gnu make.settings || \
-		cp make.settings.gnu make.settings
+		cp --remove-destination make.settings.gnu make.settings
 
 settings_msvc:
 	copy make.settings.msvc make.settings
@@ -68,6 +68,9 @@ doxy: Doxyfile
 
 clean_doxy:
 	$(RM) -r doc/doxy
+
+count:
+	sloccount --addlang makefile .
 
 # optional parameters:
 # DATE=""     if you *don't* want a -YYYYMMDD in the version

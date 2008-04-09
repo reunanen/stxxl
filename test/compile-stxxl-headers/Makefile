@@ -3,12 +3,13 @@
 INSTANCE	?= stxxl
 INSTANCE	?= mcstxxl
 
-include ../../make.settings
--include ../../$(INSTANCE).mk
+TOPDIR		?= ../..
+include $(TOPDIR)/make.settings
+-include $(TOPDIR)/$(INSTANCE).mk
 
 CXX		 = $(STXXL_CXX)
 OPT		 = -O3
-WARNINGS	 = -W -Wall
+WARNINGS	 = $(STXXL_WARNFLAGS)
 
 CPPFLAGS	+= $(STXXL_CPPFLAGS)
 CPPFLAGS	+= $(OPT) $(WARNINGS)
@@ -39,13 +40,13 @@ all: compile-test
 preprocess-test: $(HEADERS_ESCAPED:%=test-header-%.$(INSTANCE).ii)
 compile-test: $(HEADERS_ESCAPED:%=test-header-%.$(INSTANCE).o)
 
-test-header-%.cpp::
+test-header-%.th.cpp::
 	echo '#include "$(subst ~,/,$*)"' > $@
 
-%.$(INSTANCE).ii: %.cpp
+%.$(INSTANCE).ii: %.th.cpp
 	$(CXX) $(CPPFLAGS) -E $< -o $@
 
-%.$(INSTANCE).o: %.cpp
+%.$(INSTANCE).o: %.th.cpp $(wildcard ../../$(INSTANCE).mk)
 	$(COMPILE.cc) $(OUTPUT_OPTION) $<
 
 clean:

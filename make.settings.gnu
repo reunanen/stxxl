@@ -1,10 +1,12 @@
 # This -*- Makefile -*- is intended for processing with GNU make.
 
+TOPDIR	?= $(error TOPDIR not defined) # DO NOT CHANGE! This is set elsewhere.
+
 # Change this file according to your paths.
 
 # Instead of modifying this file, you could also set your modified variables
 # in make.settings.local (needs to be created first).
--include $(dir $(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))make.settings.local
+-include $(TOPDIR)/make.settings.local
 
 
 USE_BOOST	?= no	# set 'yes' to use Boost libraries or 'no' to not use Boost libraries
@@ -15,30 +17,27 @@ USE_ICPC	?= no	# will be overriden from main Makefile
 STXXL_ROOT	?= $(HOME)/work/stxxl
 
 ifeq ($(strip $(USE_ICPC)),yes)
-COMPILER	?= icpc 
-OPENMPFLAG	?= -openmp
-ICPC_MCSTL_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
+COMPILER_ICPC	?= icpc
+COMPILER	?= $(COMPILER_ICPC)
+#ICPC_GCC	?= gcc-x.y    # override the gcc/g++ used to find headers and libraries
 WARNINGS	?= -Wall -w1 -openmp-report0 -vec-report0
 endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
-COMPILER	?= g++-4.2.2
-OPENMPFLAG	?= -fopenmp
+COMPILER_GCC	?= g++-4.2.3
 ifeq ($(strip $(USE_ICPC)),yes)
 LIBNAME		?= mcstxxl_icpc
 else
 LIBNAME		?= mcstxxl
 endif
-# the base directory of your MCSTL installation
-MCSTL_BASE	?= $(HOME)/work/mcstl
-# mcstl branch, leave empty for default branch (e.g. if installed from release tarball)
-MCSTL_BRANCH	?= #branches/standalone
-# only set the following variables if autodetection does not work:
+# the root directory of your MCSTL installation
+MCSTL_ROOT	?= $(HOME)/work/mcstl
 endif
 
-BOOST_INCLUDE	?= /usr/include/boost-1_33
+#BOOST_ROOT	?= /usr/local/boost-1.34.1
 
-COMPILER	?= g++
+COMPILER_GCC	?= g++
+COMPILER	?= $(COMPILER_GCC)
 LINKER		?= $(COMPILER)
 OPT		?= -O3 # compiler optimization level
 DEBUG		?= # put here -g option to include the debug information into the binaries
@@ -74,7 +73,40 @@ LIBNAME		?= stxxl
 
 #### STXXL OPTIONS ###############################################
 
+# check, whether stxxl has been configured
+ifeq (,$(strip $(wildcard $(STXXL_ROOT)/include/stxxl.h)))
+$(warning *** WARNING: STXXL has not been configured correctly)
+ifeq (,$(strip $(wildcard $(CURDIR)/make.settings.local)))
+ifneq (,$(strip $(wildcard $(CURDIR)/include/stxxl.h)))
+$(warning *** WARNING: trying autoconfiguration for STXXL_ROOT=$(CURDIR:$(HOME)%=$$(HOME)%))
+$(warning *** WARNING: you did not have a make.settings.local file -- creating ...)
+$(shell echo 'STXXL_ROOT	 = $(CURDIR:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
+MCSTL_ROOT	?= $(HOME)/work/mcstl
+$(shell echo '#MCSTL_ROOT	 = $(MCSTL_ROOT:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
+$(shell echo '#COMPILER_GCC	 = g++-4.2.3' >> $(CURDIR)/make.settings.local)
+$(shell echo '#COMPILER_ICPC	 = icpc' >> $(CURDIR)/make.settings.local)
+$(error ERROR: Please check make.settings.local and try again)
+endif
+else
+$(warning *** WARNING: Please check make.settings.local)
+endif
+$(error ERROR: could not find a STXXL installation in STXXL_ROOT=$(STXXL_ROOT))
+endif
+
+# in the top dir, check whether STXXL_ROOT points to ourselves
+ifneq (,$(wildcard make.settings))
+stat1	 = $(shell stat -L -c '%d:%i' ./)
+stat2	 = $(shell stat -L -c '%d:%i' $(STXXL_ROOT)/)
+
+ifneq ($(stat1),$(stat2))
+$(error ERROR: STXXL_ROOT=$(STXXL_ROOT) points to a different STXXL installation)
+endif
+endif
+
+PTHREAD_FLAG	?= -pthread
+
 STXXL_SPECIFIC	+= \
+	$(PTHREAD_FLAG) \
 	$(CPPFLAGS_ARCH) \
 	-DSORT_OPTIMAL_PREFETCHING \
 	-DUSE_MALLOC_LOCK \
@@ -83,7 +115,8 @@ STXXL_SPECIFIC	+= \
 	-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE \
 	$(POSIX_MEMALIGN) $(XOPEN_SOURCE)
 
-STXXL_LDLIBS	+= -L$(strip $(STXXL_ROOT))/lib -l$(LIBNAME) -lpthread
+STXXL_LDFLAGS	+= $(PTHREAD_FLAG)
+STXXL_LDLIBS	+= -L$(strip $(STXXL_ROOT))/lib -l$(LIBNAME)
 
 STXXL_LIBDEPS	+= $(strip $(STXXL_ROOT))/lib/lib$(LIBNAME).$(LIBEXT)
 
@@ -98,6 +131,13 @@ CPPFLAGS_i686	?= -march=i686
 
 ifeq ($(strip $(USE_ICPC)),yes)
 
+OPENMPFLAG	?= -openmp
+
+ICPC_CPPFLAGS	+= $(if $(ICPC_GCC),-gcc-name=$(strip $(ICPC_GCC)))
+ICPC_LDFLAGS	+= $(if $(ICPC_GCC),-gcc-name=$(strip $(ICPC_GCC)))
+
+STXXL_SPECIFIC	+= -include bits/intel_compatibility.h
+
 endif
 
 ##################################################################
@@ -107,59 +147,16 @@ endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
 
-MCSTL_ROOT		?= $(strip $(MCSTL_BASE))$(if $(strip $(MCSTL_BRANCH)),/$(strip $(MCSTL_BRANCH)))
+OPENMPFLAG	?= -fopenmp
 
-ifeq (,$(strip $(wildcard $(MCSTL_ROOT)/c++/mcstl.h)))
+ifeq (,$(strip $(wildcard $(strip $(MCSTL_ROOT))/c++/mcstl.h)))
 $(error ERROR: could not find a MCSTL installation in MCSTL_ROOT=$(MCSTL_ROOT))
-endif
-
-ifeq ($(strip $(USE_ICPC)),yes)
-MCSTL_CPPFLAGS		+= $(ICPC_MCSTL_CPPFLAGS)
 endif
 
 MCSTL_CPPFLAGS		+= $(OPENMPFLAG) -D__MCSTL__ $(MCSTL_INCLUDES_PREPEND) -I$(MCSTL_ROOT)/c++
 MCSTL_LDFLAGS		+= $(OPENMPFLAG)
 
-ifeq (,$(strip $(wildcard $(MCSTL_ROOT)/c++/bits/stl_algo.h)))
-# not from libstdc++ branch, need to find the correct original symlink
-
-ifneq (,$(strip $(wildcard $(MCSTL_ROOT)/originals)))
-MCSTL_ORIG_BASE		?= $(MCSTL_ROOT)
-endif
-MCSTL_ORIG_BASE		?= $(MCSTL_BASE)
-
-# find a KEY=VALUE element in WORDS and return VALUE
-# usage: $(call get_value,KEY,WORDS)
-get_value		 = $(subst $(1)=,,$(filter $(1)=%,$(2)))
-empty			 =#
-space			 = $(empty) $(empty)
-gcc_version_result	:= $(shell $(COMPILER) -v 2>&1)
-gcc_version		 = $(call get_value,THE_GCC_VERSION,$(subst gcc$(space)version$(space),THE_GCC_VERSION=,$(gcc_version_result)))
-gcc_prefix		 = $(call get_value,--prefix,$(gcc_version_result))
-gcc_gxx_incdir		 = $(call get_value,--with-gxx-include-dir,$(gcc_version_result))
-MCSTL_ORIGINAL_INC_CXX	?= $(firstword $(wildcard $(gcc_gxx_incdir) $(gcc_prefix)/include/c++/$(gcc_version)) $(cxx_incdir_from_compile))
-ifeq (,$(strip $(MCSTL_ORIGINAL_INC_CXX)))
-# do a test compilation, generate dependencies and parse the header paths
-compile_test_vector_deps:= $(shell echo -e '\043include <vector>' > cxx-header-path-test.cpp; $(COMPILER) -M cxx-header-path-test.cpp 2>/dev/null; $(RM) cxx-header-path-test.cpp)
-cxx_incdir_from_compile	 = $(patsubst %/vector,%,$(firstword $(filter %/vector, $(compile_test_vector_deps))))
-export cxx_incdir_from_compile
-endif
-MCSTL_ORIGINALS		?= $(strip $(MCSTL_ORIG_BASE))/originals/$(subst /,_,$(MCSTL_ORIGINAL_INC_CXX))
-
-ifeq (,$(strip $(MCSTL_ORIGINAL_INC_CXX)))
-$(error ERROR: could not determine MCSTL_ORIGINAL_INC_CXX, please set this variable manually, it's your compilers ($(COMPILER)) include/c++ path)
-endif
-ifeq (,$(strip $(wildcard $(MCSTL_ORIGINALS)/original)))
-$(error ERROR: your mcstl in $(MCSTL_ORIG_BASE) is not configured properly: $(MCSTL_ORIGINALS)/original does not exist)
-endif
-
-MCSTL_CPPFLAGS		+= -I$(MCSTL_ORIGINALS)
-
-else # from libstdc++ branch
-
 MCSTL_INCLUDES_PREPEND	+= $(if $(findstring 4.3,$(COMPILER)),-I$(MCSTL_ROOT)/c++/mod_stl/gcc-4.3)
-
-endif # (not) from libstdc++ branch
 
 endif
 
@@ -174,14 +171,15 @@ BOOST_COMPILER_OPTIONS	 = \
 	-DSTXXL_BOOST_FILESYSTEM \
 	-DSTXXL_BOOST_THREADS \
 	-DSTXXL_BOOST_RANDOM \
-	-I$(strip $(BOOST_INCLUDE)) \
-	-pthread
+	$(if $(strip $(BOOST_ROOT)),-I$(strip $(BOOST_ROOT)))
 
-BOOST_LINKER_OPTIONS	 = \
-	-lboost_thread-gcc-mt \
-	-lboost_date_time-gcc-mt \
-	-lboost_iostreams-gcc-mt \
-	-lboost_filesystem-gcc-mt
+BOOST_LIB_COMPILER_SUFFIX	?= 
+BOOST_LIB_MT_SUFFIX		?= -mt
+BOOST_LINKER_OPTIONS		 = \
+	-lboost_thread$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
+	-lboost_date_time$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
+	-lboost_iostreams$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
+	-lboost_filesystem$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX)
 
 ##################################################################
 
@@ -248,7 +246,7 @@ bin	?= $(strip $(EXEEXT))
 
 #### COMPILE/LINK RULES ###########################################
 
-DEPS_MAKEFILES	:= $(wildcard ../Makefile.subdir.gnu ../make.settings ../make.settings.local)
+DEPS_MAKEFILES	:= $(wildcard ../Makefile.subdir.gnu ../make.settings ../make.settings.local GNUmakefile Makefile.local)
 %.$o: %.cpp $(DEPS_MAKEFILES)
 	@$(RM) $@ $*.$d
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -MD -MF $*.$dT -c $(OUTPUT_OPTION) $< && mv $*.$dT $*.$d
@@ -261,8 +259,17 @@ LINK_STXXL	 = $(LINKER) $1 $(STXXL_LINKER_OPTIONS) -o $@
 ###################################################################
 
 
+ifeq ($(strip $(USE_ICPC)),yes)
+STXXL_CPPFLAGS_CXX	+= $(ICPC_CPPFLAGS)
+STXXL_LDLIBS_CXX	+= $(ICPC_LDFLAGS)
+endif
+
+STXXL_COMPILER_OPTIONS	+= $(STXXL_CPPFLAGS_CXX)
 STXXL_COMPILER_OPTIONS	+= $(STXXL_SPECIFIC)
 STXXL_COMPILER_OPTIONS	+= $(OPT) $(DEBUG) $(WARNINGS)
+STXXL_LINKER_OPTIONS	+= $(STXXL_LDLIBS_CXX)
+STXXL_LINKER_OPTIONS	+= $(DEBUG)
+STXXL_LINKER_OPTIONS	+= $(STXXL_LDFLAGS)
 STXXL_LINKER_OPTIONS	+= $(STXXL_LDLIBS)
 
 ifeq ($(strip $(USE_MCSTL)),yes)

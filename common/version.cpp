@@ -1,6 +1,10 @@
 #include <stxxl/bits/version.h>
 
-#define STXXL_VERSION_STRING_MA_MI_PL "1.1.0"
+#ifdef STXXL_BOOST_CONFIG
+#include<boost/version.hpp>
+#endif
+
+#define STXXL_VERSION_STRING_MA_MI_PL "1.1.90"
 
 // version.defs gets created if a snapshot/beta/rc/release is done
 #ifdef HAVE_VERSION_DEFS
@@ -35,6 +39,23 @@ const char * stxxl::get_version_string()
 #endif
 #ifdef STXXL_VERSION_STRING_COMMENT
            " (" STXXL_VERSION_STRING_COMMENT ")"
+#endif
+#ifdef __MCSTL__
+           " + MCSTL"
+#ifdef MCSTL_VERSION_STRING_DATE
+           " " MCSTL_VERSION_STRING_DATE
+#endif
+#ifdef MCSTL_VERSION_STRING_SVN_REVISION
+           " (SVN r" MCSTL_VERSION_STRING_SVN_REVISION ")"
+#endif
+#endif
+#ifdef STXXL_BOOST_CONFIG
+           " + Boost "
+#define Y(x) # x
+#define X(x) Y(x)
+           X(BOOST_VERSION)
+#undef X
+#undef Y
 #endif
     ;
 }
