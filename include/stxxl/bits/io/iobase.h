@@ -9,7 +9,9 @@
  *  dementiev@mpi-sb.mpg.de
  ****************************************************************************/
 
-#define STXXL_IO_STATS
+#ifndef STXXL_IO_STATS
+ #define STXXL_IO_STATS 1
+#endif
 
 
 #ifdef STXXL_BOOST_CONFIG
@@ -630,7 +632,7 @@ private:
 #endif
 
 
-#ifdef STXXL_IO_STATS
+#if STXXL_IO_STATS
     stats * iostats;
 #endif
 
