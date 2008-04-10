@@ -91,7 +91,7 @@ inline void UNUSED(const U &)
  #define STXXL_VERBOSE2(x) \
     { std::cout << "[STXXL-VERBOSE2] " << x << std::endl << std::flush; \
       stxxl::logger::get_instance()->log_stream() << "[STXXL-VERBOSE2] " << x << std::endl << std::flush; \
-    };
+    }
 #else
  #define STXXL_VERBOSE2(x)
 #endif
@@ -100,7 +100,7 @@ inline void UNUSED(const U &)
  #define STXXL_VERBOSE3(x) \
     { std::cout << "[STXXL-VERBOSE3] " << x << std::endl << std::flush; \
       stxxl::logger::get_instance()->log_stream() << "[STXXL-VERBOSE3] " << x << std::endl << std::flush; \
-    };
+    }
 #else
  #define STXXL_VERBOSE3(x)
 #endif
@@ -113,82 +113,51 @@ inline void UNUSED(const U &)
 #endif
 
 #define STXXL_FORMAT_ERROR_MSG(str_, errmsg_) \
-    std::ostringstream str_; str_ << "Error in " << errmsg_;
+    std::ostringstream str_; str_ << "Error in " << errmsg_
 
+#define STXXL_THROW(exception_type, location, error_message) \
+    { \
+        std::ostringstream msg_; \
+        msg_ << "Error in " << location << ": " << error_message; \
+        throw exception_type(msg_.str()); \
+    }
 
-#ifndef STXXL_DEBUG_ON
- #define STXXL_DEBUG_ON 1
-#endif
-
-inline std::string perror_string()
-{
-    return std::string(strerror(errno));
-}
+#define STXXL_THROW2(exception_type, error_message) \
+    STXXL_THROW(exception_type, "function " << STXXL_PRETTY_FUNCTION_NAME, \
+                "Info: " << error_message << " " << strerror(errno))
 
 template<typename E>
-inline void stxxl_util_function_error(const char *func_name)
+inline void stxxl_util_function_error(const char *func_name, const char* expr = 0)
 {
-#if STXXL_DEBUG_ON
     std::ostringstream str_;
-    str_ << "Error in function " << func_name << " " << perror_string();
+    str_ << "Error in function " << func_name << " " << (expr ? expr : strerror(errno));
     throw E(str_.str());
-#else
-    UNUSED(func_name);
-#endif
 }
 
  #define stxxl_function_error(exception_type) \
     stxxl::stxxl_util_function_error<exception_type>(STXXL_PRETTY_FUNCTION_NAME)
 
 template<typename E>
-inline void stxxl_util_nassert(int cond, const char *expr, const char *func_name)
+inline bool helper_check_success(bool success, const char *func_name, const char *expr = 0)
 {
-    if (cond) {
-#if STXXL_DEBUG_ON
-        std::ostringstream str_;
-        str_ << "Error in function: " << func_name << " " << expr;
-        throw E(str_.str());
-#else
-        UNUSED(expr);
-        UNUSED(func_name);
-#endif
-    }
+    if (!success)
+        stxxl_util_function_error<E>(func_name, expr);
+    return success;
 }
 
- #define stxxl_nassert(expr, exception_type) \
-    stxxl::stxxl_util_nassert<exception_type>(expr, __STXXL_STRING (expr), STXXL_PRETTY_FUNCTION_NAME)
-
-// returns true if cond succeeded
-template<typename E>
-inline bool stxxl_util_try(int cond, const char *func_name)
+template<typename E, typename INT>
+inline bool helper_check_eq_0(INT res, const char *func_name, const char *expr)
 {
-    if (cond < 0) {
-#if STXXL_DEBUG_ON
-        std::ostringstream str_;
-        str_ << "Error in function " << func_name << " " << perror_string();
-        throw E(str_.str());
-#else
-        UNUSED(func_name);
-#endif
-        return false;
-    }
-    return true;
+    return helper_check_success<E>(res == 0, func_name, expr);
 }
+
+#define check_pthread_call(expr) \
+    stxxl::helper_check_eq_0<stxxl::resource_error>(expr, STXXL_PRETTY_FUNCTION_NAME, __STXXL_STRING(expr))
 
 template<typename E, typename INT>
 inline bool helper_check_ge_0(INT res, const char *func_name)
 {
-    if (res >= 0) {
-        UNUSED(func_name);
-        return true;
-    } else {
-#if STXXL_DEBUG_ON
-        std::ostringstream str_;
-        str_ << "Error in function " << func_name << " " << perror_string();
-        throw E(str_.str());
-#endif
-        return false;
-    }
+    return helper_check_success<E>(res >= 0, func_name);
 }
 
 #define stxxl_check_ge_0(expr, exception_type) \
@@ -197,38 +166,13 @@ inline bool helper_check_ge_0(INT res, const char *func_name)
 template<typename E, typename INT>
 inline bool helper_check_ne_0(INT res, const char *func_name)
 {
-    if (res != 0) {
-        UNUSED(func_name);
-        return true;
-    } else {
-#if STXXL_DEBUG_ON
-        std::ostringstream str_;
-        str_ << "Error in function " << func_name << " " << perror_string();
-        throw E(str_.str());
-#endif
-        return false;
-    }
+    return helper_check_success<E>(res != 0, func_name);
 }
 
 #define stxxl_check_ne_0(expr, exception_type) \
     stxxl::helper_check_ne_0<exception_type>(expr, STXXL_PRETTY_FUNCTION_NAME)
 
-#if STXXL_DEBUG_ON
-
- #define stxxl_ifcheck_i(expr, info, exception_type) \
-    if ((expr) < 0) \
-    { \
-        std::ostringstream str_; \
-        str_ << "Error in function " << \
-        STXXL_PRETTY_FUNCTION_NAME << " Info: " << \
-        info << " " << perror_string(); \
-        throw exception_type(str_.str()); \
-    }
-
- #define stxxl_debug(expr) expr
-
-
- #ifdef BOOST_MSVC
+#ifdef BOOST_MSVC
 
   #define stxxl_win_lasterror_exit(errmsg, exception_type)  \
     { \
@@ -249,18 +193,6 @@ inline bool helper_check_ne_0(INT res, const char *func_name)
         throw exception_type(str_.str());  \
     }
 
- #endif
-
-#else
-
- #define stxxl_ifcheck_i(expr, info, exception_type) expr; if (0) { }
-
- #define stxxl_debug(expr)
-
- #ifdef BOOST_MSVC
-  #define stxxl_win_lasterror_exit(errmsg) stxxl::UNUSED(42)
- #endif
-
 #endif
 
 inline double
@@ -274,7 +206,7 @@ inline
 std::string
 stxxl_tmpfilename (std::string dir, std::string prefix)
 {
-    //stxxl_debug(cerr <<" TMP:"<< dir.c_str() <<":"<< prefix.c_str()<< endl);
+    //STXXL_VERBOSE0(" TMP:"<< dir.c_str() <<":"<< prefix.c_str());
     int rnd;
     char buffer[1024];
     std::string result;

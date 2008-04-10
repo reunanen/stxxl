@@ -892,6 +892,8 @@ namespace priority_queue_local
 
           assert(k > 0);
 
+          STXXL_VERBOSE1("\next multi_merge from " << k << " sequence(s).");
+
           //This is the place to make statistics about external multi_merge calls.
 
 #if STXXL_PARALLEL_PQ_STATS
@@ -2706,8 +2708,8 @@ void priority_queue<Config_>::refillBuffer1()
 #endif
         break;
     default:
-        STXXL_FORMAT_ERROR_MSG(msg, "priority_queue<...>::refillBuffer1(): Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4")
-        throw std::runtime_error(msg.str());
+        STXXL_THROW(std::runtime_error, "priority_queue<...>::refillBuffer1()",
+	            "Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4");
     }
 
 #if STXXL_CHECK_ORDER_IN_SORTS
