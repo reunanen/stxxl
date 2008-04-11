@@ -2468,6 +2468,7 @@ priority_queue<Config_>::priority_queue(prefetch_pool < block_type > &p_pool_, w
     deallocate_pools(false)
 {
     STXXL_VERBOSE2("priority_queue::priority_queue()");
+    assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
     //etree = new ext_merger_type[ExtLevels](p_pool,w_pool);
     etree = new ext_merger_type[ExtLevels];
     for (int_type j = 0; j < ExtLevels; ++j)
@@ -2492,6 +2493,7 @@ priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type 
     deallocate_pools(true)
 {
     STXXL_VERBOSE2("priority_queue::priority_queue()");
+    assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
     etree = new ext_merger_type[ExtLevels];
     for (int_type j = 0; j < ExtLevels; ++j)
         etree[j].set_pools(&p_pool, &w_pool);
