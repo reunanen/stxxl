@@ -878,7 +878,7 @@ namespace priority_queue_local
             return (arity * block_type::raw_size);
         }
 
-        // delete the (begin-end) smallest elements and write them to "to"
+        // delete the (length = end-begin) smallest elements and write them to "begin..end"
         // empty segments are deallocated
         // require:
         // - there are at least length elements
@@ -890,6 +890,8 @@ namespace priority_queue_local
           size_type length = end - begin;
 
           STXXL_VERBOSE2("ext_merger::multi_merge length = " << length);
+
+	    // FIXME: I'm afraid, this may deallocate empty segments repeatedly -- AnBe
 
           if(begin == end)
               return;
@@ -1117,7 +1119,7 @@ namespace priority_queue_local
             case 0:
                 assert(k == 1);
                 assert(entry[0].index == 0);
-                assert(last_free == -1 || length == 0);
+                assert(last_free == -1);
                 //memcpy(to, states[0], length * sizeof(Element));
                 //std::copy(states[0],states[0]+length,to);
                 for (size_type i = 0; i < length; ++i, ++ (states[0]), ++begin)
@@ -1176,7 +1178,6 @@ namespace priority_queue_local
             default: multi_merge_k(begin, end);
                 break;
             }
-
 
 
             size_ -= length;
@@ -2557,6 +2558,9 @@ int_type priority_queue<Config_>::refillBuffer2(int_type j)
         deleteSize = treeSize;
     }
 
+    if (deleteSize > 0)
+    {
+
     // shift  rest to beginning
     // possible hack:
     // - use memcpy if no overlap
@@ -2572,6 +2576,8 @@ int_type priority_queue<Config_>::refillBuffer2(int_type j)
         //external
         etree[j - IntLevels].multi_merge(oldTarget + bufferSize,
                                          oldTarget + bufferSize + deleteSize);
+    }
+
     }
 
 
