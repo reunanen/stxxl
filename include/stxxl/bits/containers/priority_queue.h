@@ -465,6 +465,10 @@ namespace priority_queue_local
             comparator_type cmp;
             ext_merger * merger;
 
+        private:
+            sequence_state & operator = (sequence_state & obj);
+
+        public:
             //! \returns current element
             const value_type & operator * () const
             {
@@ -502,15 +506,15 @@ namespace priority_queue_local
                 return cmp(cmp.min_value(), a);
             }
 
-            void swap_empty_back(sequence_state& obj)
+            void swap(sequence_state & obj)
             {
-              if(&obj != this)
-              {
-                assert(is_sentinel((*block)[current]));
-                std::swap(current, obj.current);
-                std::swap(block, obj.block);
-                std::swap(bids, obj.bids);
-              }
+                if (&obj != this)
+                {
+                    std::swap(current, obj.current);
+                    std::swap(block, obj.block);
+                    std::swap(bids, obj.bids);
+                    assert(merger == obj.merger);
+                }
             }
 
             sequence_state & operator ++ ()
@@ -826,7 +830,7 @@ namespace priority_queue_local
                 {
                     assert(!populated[to]);
                     assert(populated[from]);
-                    states[to].swap_empty_back(states[from]);
+                    states[to].swap(states[from]);
                     std::swap(populated[to], populated[from]);
                     ++to;
                 }
