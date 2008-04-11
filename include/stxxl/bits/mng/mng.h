@@ -33,6 +33,7 @@
 #include <memory.h>
 #endif
 
+
 __STXXL_BEGIN_NAMESPACE
 
 //! \defgroup mnglayer Block management layer
@@ -1333,6 +1334,7 @@ void block_manager::delete_blocks (
 //! \}
 
 __STXXL_END_NAMESPACE
+
 
 #endif
 // vim: et:ts=4:sw=4

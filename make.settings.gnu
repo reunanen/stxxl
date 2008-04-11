@@ -40,8 +40,9 @@ COMPILER_GCC	?= g++
 COMPILER	?= $(COMPILER_GCC)
 LINKER		?= $(COMPILER)
 OPT		?= -O3 # compiler optimization level
-DEBUG		?= # put here -g option to include the debug information into the binaries
 WARNINGS	?= -W -Wall
+DEBUG		?= # put here -g option to include the debug information into the binaries
+
 LIBNAME		?= stxxl
 
 

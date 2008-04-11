@@ -306,7 +306,7 @@ namespace priority_queue_local
         Merge3Case(1, 0, 2);
         Merge3Case(0, 2, 1);
         Merge3Case(2, 1, 0);
-  }
+    }
 
 
 // merge sz element from the four sentinel terminated input
@@ -560,6 +560,7 @@ namespace priority_queue_local
             }
         };
 
+
         // this version of ext_merger is based on the loser tree data structure
 
         //a pair consisting a value 
@@ -577,7 +578,7 @@ namespace priority_queue_local
         unsigned_type size_; // total number of elements stored
         // previously size_type size_;
         unsigned logK; // log of current tree size
-        unsigned_type k; // invariant k = 1 << logK
+        unsigned_type k; // invariant k = 1 << logK, always a power of two
 
         //Element sentinel; // target of empty segment pointers
 
@@ -859,7 +860,8 @@ namespace priority_queue_local
         }
 
 
-/*        void swap(ext_merger & obj)
+#if 0
+        void swap(ext_merger & obj)
         {
             std::swap(cmp, obj.cmp);
             swap_1D_arrays(free, obj.free, KNKMAX);
@@ -872,7 +874,8 @@ namespace priority_queue_local
 
             // std::swap(p_pool,obj.p_pool);
             // std::swap(w_pool,obj.w_pool);
-        }*/
+        }
+#endif
         unsigned_type mem_cons() const // only rough estimation
         {
             return (arity * block_type::raw_size);
@@ -887,14 +890,17 @@ namespace priority_queue_local
         template <class OutputIterator>
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
-          size_type length = end - begin;
+            size_type length = end - begin;
 
-          STXXL_VERBOSE2("ext_merger::multi_merge length = " << length);
+            STXXL_VERBOSE2("ext_merger::multi_merge length = " << length);
+
+            if (length == 0)
+                return;
 
 	    // FIXME: I'm afraid, this may deallocate empty segments repeatedly -- AnBe
 
-          if(begin == end)
-              return;
+            if(begin == end)
+                return;
 
           assert(k > 0);
 
@@ -1477,7 +1483,7 @@ namespace priority_queue_local
 
         unsigned_type size_; // total number of elements stored
         unsigned logK; // log of current tree size
-        unsigned_type k; // invariant k = 1 << logK
+        unsigned_type k; // invariant k = 1 << logK, always a power of two
 
         Element sentinel; // target of free segment pointers
 
