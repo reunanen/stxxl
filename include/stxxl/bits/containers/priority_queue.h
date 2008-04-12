@@ -218,7 +218,7 @@ public:
 
 // merge sz element from the two sentinel terminated input
 // sequences from0 and from1 to "to"
-// advance fo and from1 accordingly.
+// advance from0 and from1 accordingly
 // require: at least sz nonsentinel elements available in from0, from1
 // require: to may overwrite one of the sources as long as
 //   *(fromx + sz) is before the end of fromx
@@ -248,7 +248,7 @@ public:
 
 // merge sz element from the three sentinel terminated input
 // sequences from0, from1 and from2 to "to"
-// advance from0, from1 and from2 accordingly.
+// advance from0, from1 and from2 accordingly
 // require: at least sz nonsentinel elements available in from0, from1 and from2
 // require: to may overwrite one of the sources as long as
 //   *(fromx + sz) is before the end of fromx
@@ -314,8 +314,8 @@ public:
 
 // merge sz element from the four sentinel terminated input
 // sequences from0, from1, from2 and from3 to "to"
-// advance from0, from1, from2 and from3 accordingly.
-// require: at least sz nonsentinel elements available in from0, from1, from2 and from2
+// advance from0, from1, from2 and from3 accordingly
+// require: at least sz nonsentinel elements available in from0, from1, from2 and from3
 // require: to may overwrite one of the sources as long as
 //   *(fromx + sz) is before the end of fromx
     template <class InputIterator, class OutputIterator, class Cmp_>
@@ -424,7 +424,10 @@ public:
     }
 
 
-
+    /**
+     *!  \brief  External merger, based on the loser tree data structure.
+     *!  \param  Arity_  maximum arity of merger, does not need to be a power of two
+     */
     template <  class BlockType_,
               class Cmp_,
               unsigned Arity_,
@@ -441,6 +444,7 @@ public:
         typedef value_type Element;
         typedef block_type sentinel_block_type;
 
+        // KNKMAX / 2  <  arity  <=  KNKMAX
         enum { arity = Arity_, KNKMAX = 1UL << (LOG2 < Arity_ > ::ceil) };
 
         block_type * convert_block_pointer(sentinel_block_type * arg)
@@ -454,12 +458,12 @@ public:
 
         bool is_sentinel(const Element & a) const
         {
-            return !(cmp(cmp.min_value(), a)); //a <= cmp.min_value(
+            return !(cmp(cmp.min_value(), a)); // a <= cmp.min_value()
         }
 
         bool not_sentinel(const Element & a) const
         {
-            return cmp(cmp.min_value(), a); //a > cmp.min_value()
+            return cmp(cmp.min_value(), a); // a > cmp.min_value()
         }
 
         struct sequence_state : private noncopyable
@@ -562,8 +566,6 @@ public:
         };
 
 
-        // this version of ext_merger is based on the loser tree data structure
-
         //a pair consisting a value 
         struct Entry
         {
@@ -577,11 +579,11 @@ public:
         int_type last_free; // where in "free" is the last valid entry?
 
         unsigned_type size_; // total number of elements stored
-        // previously size_type size_;
         unsigned logK; // log of current tree size
-        unsigned_type k; // invariant k = 1 << logK, always a power of two
-
-        //Element sentinel; // target of empty segment pointers
+        unsigned_type k; // invariant (k == 1 << logK), always a power of two
+        // only entries 0 .. arity-1 may hold actual sequences, the other
+        // entries arity .. KNKMAX-1 are sentinels to make the size of the tree
+        // a power of two always
 
         // upper levels of loser trees
         // entry[0] contains the winner info
@@ -814,7 +816,6 @@ public:
 
             // recompute loser tree information
             rebuildLoserTree();
-
         }
 
 
@@ -890,7 +891,6 @@ public:
         // require:
         // - there are at least length elements
         // - segments are ended by sentinels
-        //void multi_merge(Element *to, unsigned_type length)
         template <class OutputIterator>
         void multi_merge(OutputIterator begin, OutputIterator end)
         {
@@ -902,9 +902,7 @@ public:
                 return;
 
 	    // FIXME: I'm afraid, this may deallocate empty segments repeatedly -- AnBe
-
-            if(begin == end)
-                return;
+            // Oh yeah, it does. :-(
 
           assert(k > 0);
 
@@ -1135,7 +1133,6 @@ public:
                 for (size_type i = 0; i < length; ++i, ++ (states[0]), ++begin)
                     *begin = *(states[0]);
 
-
                 entry[0].key = **states;
                 if (is_segment_empty(0))
                     deallocate_segment(0);
@@ -1214,7 +1211,6 @@ public:
         // multi-merge for arbitrary K
         template <class OutputIterator>
         void multi_merge_k(OutputIterator begin, OutputIterator end)
-        //void multi_merge_k(Element *to, int_type length)
         {
             Entry * currentPos;
             Element currentKey;
@@ -1260,17 +1256,14 @@ public:
         }
 
         template <class OutputIterator, unsigned LogK>
-        //void multi_merge_f(Element *to, int_type length)
         void multi_merge_f(OutputIterator begin, OutputIterator end)
         {
-            //int_type kReg = k;
             OutputIterator done = end;
             OutputIterator to = begin;
             int_type winnerIndex = entry[0].index;
             Entry * regEntry   = entry;
             sequence_state * regStates = states;
             Element winnerKey   = entry[0].key;
-
 
             assert(logK >= LogK);
             while (to != done)
@@ -1329,7 +1322,6 @@ public:
 
         // insert segment beginning at to
         // require: spaceIsAvailable() == 1
-        //void insert_segment(Element *to, unsigned_type sz)
         template <class Merger>
         void insert_segment(Merger & another_merger, size_type segment_size)
         {
@@ -1488,7 +1480,7 @@ public:
 
         unsigned_type size_; // total number of elements stored
         unsigned logK; // log of current tree size
-        unsigned_type k; // invariant k = 1 << logK, always a power of two
+        unsigned_type k; // invariant (k == 1 << logK), always a power of two
 
         Element sentinel; // target of free segment pointers
 
@@ -2236,8 +2228,7 @@ public:
         ExtLevels = Config::ExtLevels,
         Levels = Config::IntLevels + Config::ExtLevels,
         BlockSize = Config::BlockSize,
-        ExtKMAX = Config::ExtKMAX//,
-        //X = Config::BlockSize * (Config::k - Config::m) / Config::E
+        ExtKMAX = Config::ExtKMAX
     };
 
     //! \brief The type of object stored in the \b priority_queue
@@ -2732,7 +2723,7 @@ void priority_queue<Config_>::refillBuffer1()
         break;
     default:
         STXXL_THROW(std::runtime_error, "priority_queue<...>::refillBuffer1()",
-	            "Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4");
+                    "Overflow! The number of buffers on 2nd level in stxxl::priority_queue is currently limited to 4");
     }
 
 #if STXXL_CHECK_ORDER_IN_SORTS
