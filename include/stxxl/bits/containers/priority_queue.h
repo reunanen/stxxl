@@ -831,12 +831,14 @@ public:
             int_type to   = 0;
             for (int_type from = 0;  from < int_type(k);  from++)
             {
-                if (not_sentinel(*(states[from])))
+                if (!is_segment_empty(from))
                 {
-                    assert(!populated[to]);
                     assert(populated[from]);
-                    states[to].swap(states[from]);
-                    std::swap(populated[to], populated[from]);
+                    if (from != to) {
+                        assert(!populated[to]);
+                        states[to].swap(states[from]);
+                        std::swap(populated[to], populated[from]);
+                    }
                     ++to;
                 }
             }
