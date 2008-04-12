@@ -25,6 +25,17 @@
 #endif
 
 
+__STXXL_BEGIN_NAMESPACE
+
+//! \addtogroup stlcontinternals
+//!
+//! \{
+
+/*! \internal
+ */
+namespace priority_queue_local
+{
+
   /**
    * @brief Similar to std::priority_queue, with the following differences:
    * - Maximum size is fixed at construction time, so an array can be used.
@@ -141,7 +152,7 @@
 
 #if STXXL_PARALLEL_PQ_STATS
 template<typename Number>
-class StatisticalValue
+class StatisticalValue : private noncopyable
 {
   private:
     Number sum, square_sum;
@@ -184,12 +195,6 @@ class StatisticalValue
     }
 #endif
 
-__STXXL_BEGIN_NAMESPACE
-
-//! \addtogroup stlcontinternals
-//!
-//! \{
-
 /**
  * @brief Inverts the order of a comparison functor by swapping its arguments.
  */
@@ -208,10 +213,6 @@ public:
         }
 };
 
-/*! \internal
- */
-namespace priority_queue_local
-{
 /////////////////////////////////////////////////////////////////////
 // auxiliary functions
 
@@ -306,6 +307,8 @@ namespace priority_queue_local
         Merge3Case(1, 0, 2);
         Merge3Case(0, 2, 1);
         Merge3Case(2, 1, 0);
+
+#undef Merge3Case
     }
 
 
@@ -415,6 +418,9 @@ namespace priority_queue_local
         Merge4Case(0, 3, 2, 1);
         Merge4Case(3, 2, 1, 0);
         Merge4Case(2, 1, 0, 3);
+
+#undef StartMerge4
+#undef Merge4Case
     }
 
 
@@ -456,7 +462,7 @@ namespace priority_queue_local
             return cmp(cmp.min_value(), a); //a > cmp.min_value()
         }
 
-        struct sequence_state
+        struct sequence_state : private noncopyable
         {
             unsigned_type current; //current index
             block_type * block; //current block
@@ -465,10 +471,6 @@ namespace priority_queue_local
             comparator_type cmp;
             ext_merger * merger;
 
-        private:
-            sequence_state & operator = (sequence_state & obj);
-
-        public:
             //! \returns current element
             const value_type & operator * () const
             {
@@ -477,7 +479,6 @@ namespace priority_queue_local
 
             sequence_state() : bids(NULL)
             { }
-
 
             ~sequence_state()
             {
@@ -692,6 +693,7 @@ namespace priority_queue_local
             w_pool = w_pool_;
         }
 
+    private:
         void init()
         {
             rebuildLoserTree();
@@ -876,6 +878,8 @@ namespace priority_queue_local
             // std::swap(w_pool,obj.w_pool);
         }
 #endif
+
+    public:
         unsigned_type mem_cons() const // only rough estimation
         {
             return (arity * block_type::raw_size);
@@ -921,7 +925,7 @@ namespace priority_queue_local
     std::vector<value_type*> last;  // points to last element in sequence, possibly a sentinel
 
     Cmp_ cmp;
-    invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
+    priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 
     for(unsigned_type i = 0; i < k; ++i) //initialize sequences
     {
@@ -1206,6 +1210,7 @@ namespace priority_queue_local
 #endif
         }
 
+    private:
         // multi-merge for arbitrary K
         template <class OutputIterator>
         void multi_merge_k(OutputIterator begin, OutputIterator end)
@@ -1315,7 +1320,7 @@ namespace priority_queue_local
             regEntry[0].key   = winnerKey;
         }
 
-
+    public:
         bool spaceIsAvailable() const // for new segment
         {
             return k < arity || last_free >= 0;
@@ -1944,7 +1949,7 @@ namespace priority_queue_local
          */
 
 #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-        invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
+        priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 #endif
         switch (logK) {
         case 0:
@@ -2247,7 +2252,7 @@ public:
 
 protected:
 
-    typedef internal_priority_queue<value_type, std::vector<value_type>, comparator_type>
+    typedef priority_queue_local::internal_priority_queue<value_type, std::vector<value_type>, comparator_type>
     insert_heap_type;
 
     typedef priority_queue_local::loser_tree<
@@ -2300,7 +2305,7 @@ protected:
 
 #if STXXL_PARALLEL_PQ_STATS
     // histogram 
-    typedef std::map<int_type, std::pair<int_type, StatisticalValue<double> > > histogram_type;
+    typedef std::map<int_type, std::pair<int_type, priority_queue_local::StatisticalValue<double> > > histogram_type;
     histogram_type histogram; //k, total_size, num_occurences
 #endif
 
@@ -2590,7 +2595,7 @@ int_type priority_queue<Config_>::refillBuffer2(int_type j)
     //STXXL_MSG(deleteSize + bufferSize);
     //std::copy(oldTarget,oldTarget + deleteSize + bufferSize,std::ostream_iterator<value_type>(std::cout, "\n"));
 #if STXXL_CHECK_ORDER_IN_SORTS
-      invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
+      priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
       if(!stxxl::is_sorted(minBuffer2[j], minBuffer2[j] + N, inv_cmp))
       {
         STXXL_VERBOSE0("" << deleteSize << " remaining " << bufferSize);
@@ -2650,7 +2655,7 @@ void priority_queue<Config_>::refillBuffer1()
     }
 
 #if STXXL_CHECK_ORDER_IN_SORTS
-      invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
+      priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
 #endif
 
     // now call simplified refill routines
