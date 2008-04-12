@@ -471,9 +471,9 @@ public:
             unsigned_type current; //current index
             block_type * block; //current block
             std::list<bid_type> * bids; //list of blocks forming this sequence
-
             comparator_type cmp;
             ext_merger * merger;
+            bool allocated;
 
             //! \returns current element
             const value_type & operator * () const
@@ -481,7 +481,7 @@ public:
                 return (*block)[current];
             }
 
-            sequence_state() : bids(NULL)
+            sequence_state() : bids(NULL), allocated(false)
             { }
 
             ~sequence_state()
@@ -519,6 +519,7 @@ public:
                     std::swap(block, obj.block);
                     std::swap(bids, obj.bids);
                     assert(merger == obj.merger);
+                    std::swap(allocated, obj.allocated);
                 }
             }
 
@@ -575,7 +576,6 @@ public:
 
         // stack of empty segments
         int_type free[KNKMAX]; // indices of free segments
-        bool populated[KNKMAX];
         int_type last_free; // where in "free" is the last valid entry?
 
         unsigned_type size_; // total number of elements stored
@@ -665,7 +665,6 @@ public:
 
             for (int_type i = 0; i < KNKMAX; ++i)
             {
-                populated[i] = false;
                 states[i].merger = this;
                 if (i < arity)
                     states[i].block = new block_type;
@@ -817,11 +816,10 @@ public:
             {
                 if (!is_segment_empty(from))
                 {
-                    assert(populated[from]);
+                    assert(is_segment_allocated(from));
                     if (from != to) {
-                        assert(!populated[to]);
+                        assert(!is_segment_allocated(to));
                         states[to].swap(states[from]);
-                        std::swap(populated[to], populated[from]);
                     }
                     ++to;
                 }
@@ -836,7 +834,7 @@ public:
             // overwrite garbage and compact the stack of free segments
             last_free = -1; // none free
             for ( ;  to < int_type(k);  to++) {
-                assert(!populated[to]);
+                assert(!is_segment_allocated(to));
                 // push
                 if (to < arity)
                 {
@@ -1396,10 +1394,7 @@ public:
 #if STXXL_PARALLEL_PQ_STATS
             ++num_segments;
 #endif
-            assert(!populated[slot]);
-
-            populated[slot] = true;
-
+            assert(!is_segment_allocated(slot));
             assert(first_size > 0);
 
             sequence_state & new_sequence = states[slot];
@@ -1414,17 +1409,19 @@ public:
                 assert(segment->empty());
                 delete segment;
             }
+            new_sequence.allocated = true;
+            assert(is_segment_allocated(slot));
         }
 
         // free an empty segment .
         void deallocate_segment(int_type slot)
         {
-            STXXL_VERBOSE1("ext_merger::deallocate_segment() deleting segment " << slot << " populated=" << int(populated[slot]));
+            STXXL_VERBOSE1("ext_merger::deallocate_segment() deleting segment " << slot << " allocated=" << int(is_segment_allocated(slot)));
 #if STXXL_PARALLEL_PQ_STATS
             --num_segments;
 #endif
-            assert(populated[slot]);
-            populated[slot] = false;
+            assert(is_segment_allocated(slot));
+            states[slot].allocated = false;
 
             // reroute current pointer to some empty sentinel segment
             // with a sentinel key
@@ -1440,6 +1437,13 @@ public:
         bool is_segment_empty(int_type i) const
         {
             return is_sentinel(*(states[i]));
+        }
+
+        // Is this segment allocated? Otherwise it's empty,
+        // already on the stack of free segments and can be reused.
+        bool is_segment_allocated(unsigned_type slot) const
+        {
+            return states[slot].allocated;
         }
     }; //ext_merger
 
