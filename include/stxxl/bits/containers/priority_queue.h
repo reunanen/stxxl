@@ -791,12 +791,12 @@ public:
         // may only be called if no free slots are left ?? necessary ??
         void doubleK()
         {
+            STXXL_VERBOSE1("ext_merger::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " last_free=" << last_free);
             assert(k > 0);
             assert(2 * k <= arity);
             // make all new entries free
             // and push them on the free stack
             assert(last_free == -1); // stack was free (probably not needed)
-            STXXL_VERBOSE1("ext_merger::doubleK (before) k: " << k << " KNKMAX:" << KNKMAX << " last_free " << last_free);
 
             for (int_type i = 2 * k - 1;  i >= int_type(k);  i--) //backwards
             {
@@ -811,7 +811,8 @@ public:
             // double the size
             k *= 2;
             logK++;
-            STXXL_VERBOSE1("ext_merger::doubleK (after) k: " << k << " KNKMAX:" << KNKMAX << " last_free " << last_free);
+
+            STXXL_VERBOSE1("ext_merger::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " last_free=" << last_free);
             assert(last_free >= 0);
 
             // recompute loser tree information
@@ -822,7 +823,7 @@ public:
         // compact nonempty segments in the left half of the tree
         void compactTree()
         {
-            STXXL_VERBOSE1("Compacting");
+            STXXL_VERBOSE1("ext_merger::compactTree (before) k=" << k << " logK=" << logK << " last_free=" << last_free);
             assert(logK > 0);
 
             // compact all nonempty segments to the left
@@ -849,6 +850,7 @@ public:
             // overwrite garbage and compact the stack of free segments
             last_free = -1; // none free
             for ( ;  to < int_type(k);  to++) {
+                assert(!populated[to]);
                 // push
                 if (to < arity)
                 {
@@ -857,6 +859,9 @@ public:
                 }
                 states[to].make_inf();
             }
+
+            STXXL_VERBOSE1("ext_merger::compactTree (after)  k=" << k << " logK=" << logK << " last_free=" << last_free);
+            assert(k > 0);
 
             // recompute loser tree information
             rebuildLoserTree();
@@ -896,7 +901,7 @@ public:
         {
             size_type length = end - begin;
 
-            STXXL_VERBOSE2("ext_merger::multi_merge length = " << length);
+            STXXL_VERBOSE1("ext_merger::multi_merge from " << k << " sequence(s), length = " << length);
 
             if (length == 0)
                 return;
@@ -904,9 +909,7 @@ public:
 	    // FIXME: I'm afraid, this may deallocate empty segments repeatedly -- AnBe
             // Oh yeah, it does. :-(
 
-          assert(k > 0);
-
-          STXXL_VERBOSE1("\next multi_merge from " << k << " sequence(s).");
+            assert(k > 0);
 
           //This is the place to make statistics about external multi_merge calls.
 
@@ -1060,7 +1063,7 @@ public:
             if(!(state.bids->empty()))
             {
               STXXL_VERBOSE2("ext_merger::multi_merge(...) one more block exists in a sequence: "<<
-              "flushing this block in write cache (if not written yet) and giving hint to prefetcher")
+              "flushing this block in write cache (if not written yet) and giving hint to prefetcher");
               bid_type next_bid = state.bids->front();
               //Hint next block of sequence.
               //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
@@ -1076,16 +1079,16 @@ public:
       STXXL_VERBOSE1("before " << last_elem << " after " << *seqs[i].first << " newly loaded block " <<bid);
       if(!stxxl::is_sorted(seqs[i].first, seqs[i].second, inv_cmp))
       {
-        STXXL_VERBOSE0("length " << i << " " << (seqs[i].second - seqs[i].first))
+        STXXL_VERBOSE0("length " << i << " " << (seqs[i].second - seqs[i].first));
         for(value_type* v = seqs[i].first + 1; v < seqs[i].second; ++v)
         {
           if(inv_cmp(*v, *(v - 1)))
           {
-            STXXL_VERBOSE0("Error at position " << i << "/" << (v - seqs[i].first - 1) << "/"  << (v - seqs[i].first) << "   " << *(v - 1) << " " << *v)
+            STXXL_VERBOSE0("Error at position " << i << "/" << (v - seqs[i].first - 1) << "/"  << (v - seqs[i].first) << "   " << *(v - 1) << " " << *v);
           }
           if(is_sentinel(*v))
           {
-            STXXL_VERBOSE0("Wrong sentinel at position " << (v - seqs[i].first))
+            STXXL_VERBOSE0("Wrong sentinel at position " << (v - seqs[i].first));
           }
         }
         assert(false);
@@ -1403,6 +1406,7 @@ public:
         void insert_segment(std::list < bid_type > * segment, block_type * first_block,
                             unsigned_type first_size, int_type slot)
         {
+            STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this << " " << segment->size() << " " << slot);
 #if STXXL_PARALLEL_PQ_STATS
             ++num_segments;
 #endif
@@ -1410,7 +1414,6 @@ public:
 
             populated[slot] = true;
 
-            STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this << " " << segment->size() << " " << slot);
             assert(first_size > 0);
 
             sequence_state & new_sequence = states[slot];
@@ -1430,6 +1433,7 @@ public:
         // free an empty segment .
         void deallocate_segment(int_type slot)
         {
+            STXXL_VERBOSE1("ext_merger::deallocate_segment() deleting segment " << slot << " populated=" << int(populated[slot]));
 #if STXXL_PARALLEL_PQ_STATS
             --num_segments;
 #endif
@@ -1438,8 +1442,6 @@ public:
 
             // reroute current pointer to some empty sentinel segment
             // with a sentinel key
-            STXXL_VERBOSE2("loser_tree::deallocate_segment() deleting segment " <<
-                           slot);
 
             states[slot].make_inf();
 
@@ -2519,6 +2521,7 @@ priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type 
 template <class Config_>
 priority_queue<Config_>::~priority_queue()
 {
+    STXXL_VERBOSE2("priority_queue::~priority_queue()");
     if (deallocate_pools)
     {
         delete & p_pool;
@@ -2528,7 +2531,6 @@ priority_queue<Config_>::~priority_queue()
     delete [] etree;
 
 #if STXXL_PARALLEL_PQ_STATS
-    STXXL_VERBOSE2("priority_queue::~priority_queue()");
     for(typename histogram_type::const_iterator h = histogram.begin(); h != histogram.end(); ++h)
       {
         STXXL_VERBOSE0("   log N  <= " << std::setw(2) << h->first << " " << std::setw(10) << (1 << h->first) << ": " << std::setw(10) << h->second.first << " total " << std::setw(12) << ((1 << h->first) * h->second.first) << " elements;  time " << h->second.second);
@@ -2807,9 +2809,9 @@ int_type priority_queue<Config_>::makeSpaceAvailable(int_type level)
 template <class Config_>
 void priority_queue<Config_>::emptyInsertHeap()
 {
+    STXXL_VERBOSE2("priority_queue::emptyInsertHeap()");
     assert(insertHeap.size() == (N + 1));
 
-    STXXL_VERBOSE2("priority_queue::emptyInsertHeap()");
     const value_type sup = getSupremum();
 
     // build new segment
