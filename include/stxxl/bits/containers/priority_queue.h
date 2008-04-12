@@ -608,32 +608,9 @@ public:
 #endif
 
     public:
-        ext_merger() : last_free(0), size_(0), logK(0), k(1)
-#if STXXL_PARALLEL_PQ_STATS
-            , num_segments(0)
-#endif
+        ext_merger() :
+            last_free(0), size_(0), logK(0), k(1), p_pool(0), w_pool(0)
         {
-          STXXL_VERBOSE3("external merger constructed");
-
-          for(unsigned_type i = 0; i < block_type::size; ++i)
-            sentinel_block[i] = cmp.min_value();
-
-            for (int_type i = 0; i < KNKMAX; ++i)
-            {
-                populated[i] = false;
-                states[i].merger = this;
-                if (i >= arity)
-                  states[i].block = convert_block_pointer(&(sentinel_block));
-                else
-                  states[i].block = new block_type;
-
-                for(unsigned_type j = 0; j < block_type::size; ++j)
-                  (*(states[i].block))[j] = cmp.min_value();
-
-                states[i].make_inf();
-            }
-
-            free[0] = 0; //total state: one free sequence
             init();
         }
 
@@ -643,27 +620,6 @@ public:
             p_pool(p_pool_),
             w_pool(w_pool_)
         {
-            STXXL_VERBOSE2("ext_merger::ext_merger(...)");
-
-            for(unsigned_type i = 0; i < block_type::size; ++i)
-              sentinel_block[i] = cmp.min_value();
-
-            for (int_type i = 0; i < KNKMAX; ++i)
-            {
-                populated[i] = false;
-                states[i].merger = this;
-                if (i >= arity)
-                    states[i].block = convert_block_pointer(&(sentinel_block));
-                else
-                    states[i].block = new block_type;
-
-                for(unsigned_type j = 0; j < block_type::size; ++j)
-                  (*(states[i].block))[j] = cmp.min_value();
-
-                states[i].make_inf();
-            }
-
-            free[0] = 0; //total state: one free sequence
             init();
         }
 
@@ -698,6 +654,34 @@ public:
     private:
         void init()
         {
+            STXXL_VERBOSE2("ext_merger::init()");
+
+#if STXXL_PARALLEL_PQ_STATS
+            num_segments = 0;
+#endif
+
+            for (unsigned_type i = 0; i < block_type::size; ++i)
+              sentinel_block[i] = cmp.min_value();
+
+            for (int_type i = 0; i < KNKMAX; ++i)
+            {
+                populated[i] = false;
+                states[i].merger = this;
+                if (i < arity)
+                    states[i].block = new block_type;
+                else
+                    states[i].block = convert_block_pointer(&(sentinel_block));
+
+                // why?
+                for (unsigned_type j = 0; j < block_type::size; ++j)
+                  (*(states[i].block))[j] = cmp.min_value();
+
+                states[i].make_inf();
+            }
+
+            assert(k == 1);
+            free[0] = 0; //total state: one free sequence
+
             rebuildLoserTree();
             assert(is_sentinel(*states[entry[0].index]));
         }
