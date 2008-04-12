@@ -793,7 +793,7 @@ public:
         {
             STXXL_VERBOSE1("ext_merger::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " last_free=" << last_free);
             assert(k > 0);
-            assert(2 * k <= arity);
+            assert(k < arity);
             // make all new entries free
             // and push them on the free stack
             assert(last_free == -1); // stack was free (probably not needed)
