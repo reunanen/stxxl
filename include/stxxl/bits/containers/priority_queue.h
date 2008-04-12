@@ -890,9 +890,6 @@ public:
             if (length == 0)
                 return;
 
-	    // FIXME: I'm afraid, this may deallocate empty segments repeatedly -- AnBe
-            // Oh yeah, it does. :-(
-
             assert(k > 0);
 
           //This is the place to make statistics about external multi_merge calls.
@@ -1129,10 +1126,10 @@ public:
                 assert(k == 2);
                 merge_iterator(states[0], states[1], begin, length, cmp);
                 rebuildLoserTree();
-                if (is_segment_empty(0))
+                if (is_segment_empty(0) && is_segment_allocated(0))
                     deallocate_segment(0);
 
-                if (is_segment_empty(1))
+                if (is_segment_empty(1) && is_segment_allocated(1))
                     deallocate_segment(1);
 
                 break;
@@ -1140,16 +1137,16 @@ public:
                 assert(k == 4);
                 merge4_iterator(states[0], states[1], states[2], states[3], begin, length, cmp);
                 rebuildLoserTree();
-                if (is_segment_empty(0))
+                if (is_segment_empty(0) && is_segment_allocated(0))
                     deallocate_segment(0);
 
-                if (is_segment_empty(1))
+                if (is_segment_empty(1) && is_segment_allocated(1))
                     deallocate_segment(1);
 
-                if (is_segment_empty(2))
+                if (is_segment_empty(2) && is_segment_allocated(2))
                     deallocate_segment(2);
 
-                if (is_segment_empty(3))
+                if (is_segment_empty(3) && is_segment_allocated(3))
                     deallocate_segment(3);
 
                 break;
