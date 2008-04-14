@@ -633,15 +633,15 @@ public:
             unsigned_type index; // the number of losing segment
         };
 
-        // stack of empty segments
-        internal_bounded_stack<unsigned_type, arity> free_segments;
-
-        unsigned_type size_; // total number of elements stored
-        unsigned logK; // log of current tree size
+        size_type size_; // total number of elements stored
+        unsigned_type logK; // log of current tree size
         unsigned_type k; // invariant (k == 1 << logK), always a power of two
         // only entries 0 .. arity-1 may hold actual sequences, the other
         // entries arity .. KNKMAX-1 are sentinels to make the size of the tree
         // a power of two always
+
+        // stack of empty segments
+        internal_bounded_stack<unsigned_type, arity> free_segments;
 
         // upper levels of loser trees
         // entry[0] contains the winner info
