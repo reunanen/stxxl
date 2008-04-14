@@ -634,8 +634,7 @@ public:
         };
 
         // stack of empty segments
-        int_type free[KNKMAX]; // indices of free segments
-        int_type last_free; // where in "free" is the last valid entry?
+        internal_bounded_stack<unsigned_type, arity> free_segments;
 
         unsigned_type size_; // total number of elements stored
         unsigned logK; // log of current tree size
@@ -668,14 +667,14 @@ public:
 
     public:
         ext_merger() :
-            last_free(0), size_(0), logK(0), k(1), p_pool(0), w_pool(0)
+            size_(0), logK(0), k(1), p_pool(0), w_pool(0)
         {
             init();
         }
 
         ext_merger( prefetch_pool < block_type > * p_pool_,
                     write_pool<block_type> * w_pool_) :
-            last_free(0), size_(0), logK(0), k(1),
+            size_(0), logK(0), k(1),
             p_pool(p_pool_),
             w_pool(w_pool_)
         {
@@ -738,7 +737,7 @@ public:
             }
 
             assert(k == 1);
-            free[0] = 0; //total state: one free sequence
+            free_segments.push(0); //total state: one free sequence
 
             rebuildLoserTree();
             assert(is_sentinel(*states[entry[0].index]));
@@ -830,32 +829,28 @@ public:
         }
 
         // make the tree two times as wide
-        // may only be called if no free slots are left ?? necessary ??
         void doubleK()
         {
-            STXXL_VERBOSE1("ext_merger::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " last_free=" << last_free);
+            STXXL_VERBOSE1("ext_merger::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " #free=" << free_segments.size());
             assert(k > 0);
             assert(k < arity);
+            assert(free_segments.empty()); // stack was free (probably not needed)
+
             // make all new entries free
             // and push them on the free stack
-            assert(last_free == -1); // stack was free (probably not needed)
-
             for (int_type i = 2 * k - 1;  i >= int_type(k);  i--) //backwards
             {
                 states[i].make_inf();
                 if (i < arity)
-                {
-                    last_free++;
-                    free[last_free] = i;
-                }
+                    free_segments.push(i);
             }
 
             // double the size
             k *= 2;
             logK++;
 
-            STXXL_VERBOSE1("ext_merger::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " last_free=" << last_free);
-            assert(last_free >= 0);
+            STXXL_VERBOSE1("ext_merger::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " arity=" << arity << " #free=" << free_segments.size());
+            assert(!free_segments.empty());
 
             // recompute loser tree information
             rebuildLoserTree();
@@ -865,7 +860,7 @@ public:
         // compact nonempty segments in the left half of the tree
         void compactTree()
         {
-            STXXL_VERBOSE1("ext_merger::compactTree (before) k=" << k << " logK=" << logK << " last_free=" << last_free);
+            STXXL_VERBOSE1("ext_merger::compactTree (before) k=" << k << " logK=" << logK << " #free=" << free_segments.size());
             assert(logK > 0);
 
             // compact all nonempty segments to the left
@@ -891,19 +886,15 @@ public:
             }
 
             // overwrite garbage and compact the stack of free segments
-            last_free = -1; // none free
+            free_segments.clear(); // none free
             for ( ;  to < int_type(k);  to++) {
                 assert(!is_segment_allocated(to));
-                // push
-                if (to < arity)
-                {
-                    last_free++;
-                    free[last_free] = to;
-                }
                 states[to].make_inf();
+                if (to < arity)
+                    free_segments.push(to);
             }
 
-            STXXL_VERBOSE1("ext_merger::compactTree (after)  k=" << k << " logK=" << logK << " last_free=" << last_free);
+            STXXL_VERBOSE1("ext_merger::compactTree (after)  k=" << k << " logK=" << logK << " #free=" << free_segments.size());
             assert(k > 0);
 
             // recompute loser tree information
@@ -915,8 +906,7 @@ public:
         void swap(ext_merger & obj)
         {
             std::swap(cmp, obj.cmp);
-            swap_1D_arrays(free, obj.free, KNKMAX);
-            std::swap(last_free, obj.last_free);
+            std::swap(free_segments, obj.free_segments);
             std::swap(size_, obj.size_);
             std::swap(logK, obj.logK);
             std::swap(k, obj.k);
@@ -1170,7 +1160,7 @@ public:
             case 0:
                 assert(k == 1);
                 assert(entry[0].index == 0);
-                assert(last_free == -1);
+                assert(free_segments.empty());
                 //memcpy(to, states[0], length * sizeof(Element));
                 //std::copy(states[0],states[0]+length,to);
                 for (size_type i = 0; i < length; ++i, ++ (states[0]), ++begin)
@@ -1233,7 +1223,7 @@ public:
             size_ -= length;
 
             // compact tree if it got considerably smaller
-            if (k > 1 && int_type(last_free) >= int_type(3 * k / 5 - 1) ) {
+            if (k > 1 && free_segments.size() >= (3 * k / 5)) {
                 // using k/2 would be worst case inefficient
                 compactTree();
             }
@@ -1359,7 +1349,7 @@ public:
     public:
         bool spaceIsAvailable() const // for new segment
         {
-            return k < arity || last_free >= 0;
+            return k < arity || !free_segments.empty();
         }
 
 
@@ -1373,13 +1363,12 @@ public:
             if (segment_size > 0)
             {
                 // get a free slot
-                if (last_free < 0) { // tree is too small
-                    assert(last_free == -1);
+                if (free_segments.empty()) { // tree is too small
                     doubleK();
                 }
-                assert(last_free >= 0);
-                int_type free_slot = free[last_free];
-                last_free--; // pop
+                assert(!free_segments.empty());
+                unsigned_type free_slot = free_segments.top();
+                free_segments.pop();
 
 
                 // link new segment
@@ -1485,8 +1474,7 @@ public:
             states[slot].make_inf();
 
             // push on the stack of free segment indices
-            last_free++;
-            free[last_free] = slot;
+            free_segments.push(slot);
         }
 
         // is this segment empty ?
