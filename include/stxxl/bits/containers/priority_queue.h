@@ -430,6 +430,60 @@ public:
 
 
     /**
+     * \brief Similar to std::stack, with the following differences:
+     * - Maximum size is fixed at compilation time, so an array can be used.
+     * - Can be cleared "at once", without reallocation.
+     */
+    template <typename Tp_, unsigned_type max_size_>
+    class internal_bounded_stack
+    {
+        typedef Tp_ value_type;
+        typedef unsigned_type size_type;
+        enum { max_size = max_size_ };
+
+        size_type size_;
+        value_type array[max_size];
+
+     public:
+        internal_bounded_stack() : size_(0) { }
+
+        void push(const value_type & x)
+        {
+            assert(size_ < max_size);
+            array[size_++] = x;
+        }
+
+        const value_type & top() const
+        {
+            assert(size_ > 0);
+            return array[size_ - 1];
+        }
+
+        void pop()
+        {
+            assert(size_ > 0);
+            --size_;
+        }
+
+        void clear()
+        {
+            size_ = 0;
+        }
+
+        size_type size() const
+        {
+            return size_;
+        }
+
+        bool empty() const
+        {
+            return size_ == 0;
+        }
+
+    };
+
+
+    /**
      *!  \brief  External merger, based on the loser tree data structure.
      *!  \param  Arity_  maximum arity of merger, does not need to be a power of two
      */
@@ -3110,3 +3164,4 @@ namespace std
 }
 
 #endif
+// vim: et:ts=4:sw=4
