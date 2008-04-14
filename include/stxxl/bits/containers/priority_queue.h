@@ -1511,8 +1511,7 @@ public:
 
         comparator_type cmp;
         // stack of free segments
-        int_type free[KNKMAX]; // indices of free segments
-        int_type last_free; // where in "free" is the last valid entry?
+        internal_bounded_stack<unsigned_type, KNKMAX> free_segments;
 
         unsigned_type size_; // total number of elements stored
         unsigned logK; // log of current tree size
@@ -1634,8 +1633,7 @@ public:
         void swap(loser_tree & obj)
         {
             std::swap(cmp, obj.cmp);
-            swap_1D_arrays(free, obj.free, KNKMAX);
-            std::swap(last_free, obj.last_free);
+            std::swap(free_segments, obj.free_segments);
             std::swap(size_, obj.size_);
             std::swap(logK, obj.logK);
             std::swap(k, obj.k);
@@ -1655,8 +1653,11 @@ public:
         void multi_merge(Element *, unsigned_type length);
 
         unsigned_type mem_cons() const { return mem_cons_; }
-        bool spaceIsAvailable() // for new segment
-        { return k < KNKMAX || last_free >= 0; }
+
+        bool spaceIsAvailable() const // for new segment
+        {
+            return k < KNKMAX || !free_segments.empty();
+        }
 
         void insert_segment(Element * to, unsigned_type sz); // insert segment beginning at to
         unsigned_type size() { return size_; }
@@ -1664,9 +1665,9 @@ public:
 
 ///////////////////////// LoserTree ///////////////////////////////////
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
-    loser_tree<ValTp_, Cmp_, KNKMAX>::loser_tree() : last_free(0), size_(0), logK(0), k(1), mem_cons_(0)
+    loser_tree<ValTp_, Cmp_, KNKMAX>::loser_tree() : size_(0), logK(0), k(1), mem_cons_(0)
     {
-        free  [0] = 0;
+        free_segments.push(0);
         segment[0] = 0;
         current[0] = &sentinel;
         current_end[0] = &sentinel;
@@ -1775,28 +1776,26 @@ public:
 
 
 // make the tree two times as wide
-// may only be called if no free slots are left ?? necessary ??
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::doubleK()
     {
+        assert(free_segments.empty()); // stack was free (probably not needed)
+        assert(k < KNKMAX);
         // make all new entries free
         // and push them on the free stack
-        assert(last_free == -1); // stack was free (probably not needed)
-        assert(k < KNKMAX);
         for (int_type i = 2 * k - 1;  i >= int_type(k);  i--)
         {
             current[i] = &sentinel;
             current_end[i] = &sentinel;
             segment[i] = NULL;
-            last_free++;
-            free[last_free] = i;
+            free_segments.push(i);
         }
 
         // double the size
         k *= 2;
         logK++;
 
-        assert(last_free >= 0);
+        assert(!free_segments.empty());
 
         // recompute loser tree information
         rebuildLoserTree();
@@ -1842,14 +1841,11 @@ public:
         }
 
         // overwrite garbage and compact the stack of free segments
-        last_free = -1; // none free
+        free_segments.clear(); // none free
         for ( ;  to < int_type(k);  to++) {
-            // push
-            last_free++;
-            free[last_free] = to;
-
             current[to] = &sentinel;
             current_end[to] = &sentinel;
+            free_segments.push(to);
         }
 
         // recompute loser tree information
@@ -1872,13 +1868,12 @@ public:
             assert( is_sentinel(to[sz]));
 
             // get a free slot
-            if (last_free < 0) { // tree is too small
-                assert(last_free == -1);
+            if (free_segments.empty()) { // tree is too small
                 doubleK();
             }
-            assert(last_free >= 0);
-            int_type index = free[last_free];
-            last_free--; // pop
+            assert(!free_segments.empty());
+            unsigned_type index = free_segments.top();
+            free_segments.pop();
 
 
             // link new segment
@@ -1951,8 +1946,7 @@ public:
         mem_cons_ -= segment_size[index];
 
         // push on the stack of free segment indices
-        last_free++;
-        free[last_free] = index;
+        free_segments.push(index);
     }
 
 
@@ -1983,7 +1977,7 @@ public:
         case 0:
             assert(k == 1);
             assert(entry[0].index == 0);
-            assert(last_free == -1 || length == 0);
+            assert(free_segments.empty());
             //memcpy(to, current[0], length * sizeof(Element));
             std::copy(current[0], current[0] + length, to);
             current[0] += length;
@@ -2100,7 +2094,7 @@ public:
         size_ -= length;
 
         // compact tree if it got considerably smaller
-        if (k > 1 && int_type(last_free) >= int_type(3 * k / 5 - 1) ) {
+        if (k > 1 && free_segments.size() >= (3 * k / 5) ) {
             // using k/2 would be worst case inefficient
             compactTree();
         }
