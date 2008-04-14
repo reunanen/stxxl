@@ -24,6 +24,11 @@
 #include <bits/mcstl_multiway_merge.h>
 #endif
 
+#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#else
+#undef STXXL_PARALLEL_PQ_STATS
+#define STXXL_PARALLEL_PQ_STATS 0
+#endif
 
 __STXXL_BEGIN_NAMESPACE
 
@@ -152,7 +157,7 @@ namespace priority_queue_local
 
 #if STXXL_PARALLEL_PQ_STATS
 template<typename Number>
-class StatisticalValue : private noncopyable
+class StatisticalValue
 {
   private:
     Number sum, square_sum;
@@ -2064,8 +2069,8 @@ public:
 
         if(length > 1)
         {
-          ++(histogram[seq.size()][log2(length - 1) + 1].first);
-          (histogram[seq.size()][log2(length - 1) + 1].second += (stop - start));
+          ++(histogram[k][log2(length - 1) + 1].first);
+          (histogram[k][log2(length - 1) + 1].second += (stop - start));
         }
 #endif
 
