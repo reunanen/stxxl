@@ -630,7 +630,7 @@ public:
         struct Entry
         {
             value_type key; // Key of Loser element (winner for 0)
-            int_type index; // the number of losing segment
+            unsigned_type index; // the number of losing segment
         };
 
         // stack of empty segments
@@ -659,9 +659,9 @@ public:
 
 #if STXXL_PARALLEL_PQ_STATS
         //histogram data
-        int_type num_segments;
-        typedef std::map<int_type, std::pair<int_type, StatisticalValue<double> > > subhistogram_type;
-        typedef std::map<int_type, subhistogram_type> histogram_type;
+        unsigned_type num_segments;
+        typedef std::map<unsigned_type, std::pair<unsigned_type, StatisticalValue<double> > > subhistogram_type;
+        typedef std::map<unsigned_type, subhistogram_type> histogram_type;
         histogram_type histogram; //k, total_size, num_occurences
 #endif
 
@@ -684,7 +684,7 @@ public:
         virtual ~ext_merger()
         {
             STXXL_VERBOSE1("ext_merger::~ext_merger()");
-            for (int_type i = 0; i < arity; ++i)
+            for (unsigned_type i = 0; i < arity; ++i)
             {
                 delete states[i].block;
             }
@@ -721,7 +721,7 @@ public:
             for (unsigned_type i = 0; i < block_type::size; ++i)
               sentinel_block[i] = cmp.min_value();
 
-            for (int_type i = 0; i < KNKMAX; ++i)
+            for (unsigned_type i = 0; i < KNKMAX; ++i)
             {
                 states[i].merger = this;
                 if (i < arity)
@@ -746,7 +746,7 @@ public:
         // rebuild loser tree information from the values in current
         void rebuildLoserTree()
         {
-            int_type winner = initWinner(1);
+            unsigned_type winner = initWinner(1);
             entry[0].index  = winner;
             entry[0].key    = *(states[winner]);
         }
@@ -757,13 +757,13 @@ public:
         // from scratch in linear time
         // initialize entry[root].index and the subtree rooted there
         // return winner index
-        int_type initWinner(int_type root)
+        unsigned_type initWinner(unsigned_type root)
         {
-            if (root >= int_type(k)) { // leaf reached
+            if (root >= k) { // leaf reached
                 return root - k;
             } else {
-                int_type left  = initWinner(2 * root    );
-                int_type right = initWinner(2 * root + 1);
+                unsigned_type left  = initWinner(2 * root    );
+                unsigned_type right = initWinner(2 * root + 1);
                 Element lk    = *(states[left ]);
                 Element rk    = *(states[right]);
                 if (!(cmp(lk, rk))) { // right subtree looses
@@ -784,12 +784,12 @@ public:
         // update each node on the path to the root top down.
         // This is implemented recursively
         void update_on_insert(
-            int_type node,
+            unsigned_type node,
             const Element & newKey,
-            int_type newIndex,
+            unsigned_type newIndex,
             Element * winnerKey,
-            int_type * winnerIndex,        // old winner
-            int_type * mask)        // 1 << (ceil(log KNK) - dist-from-root)
+            unsigned_type * winnerIndex,        // old winner
+            unsigned_type * mask)        // 1 << (ceil(log KNK) - dist-from-root)
         {
             if (node == 0) { // winner part of root
                 *mask = 1 << (logK - 1);
@@ -803,7 +803,7 @@ public:
             } else {
                 update_on_insert(node >> 1, newKey, newIndex, winnerKey, winnerIndex, mask);
                 Element loserKey   = entry[node].key;
-                int_type loserIndex = entry[node].index;
+                unsigned_type loserIndex = entry[node].index;
                 if ((*winnerIndex & *mask) != (newIndex & *mask)) { // different subtrees
                     if (cmp(loserKey, newKey)) { // newKey will have influence here
                         if (cmp(*winnerKey, newKey) ) { // old winner loses here
@@ -838,7 +838,7 @@ public:
 
             // make all new entries free
             // and push them on the free stack
-            for (int_type i = 2 * k - 1;  i >= int_type(k);  i--) //backwards
+            for (unsigned_type i = 2 * k - 1; i >= k; i--) //backwards
             {
                 states[i].make_inf();
                 if (i < arity)
@@ -865,8 +865,8 @@ public:
 
             // compact all nonempty segments to the left
 
-            int_type to   = 0;
-            for (int_type from = 0;  from < int_type(k);  from++)
+            unsigned_type to = 0;
+            for (unsigned_type from = 0; from < k; from++)
             {
                 if (!is_segment_empty(from))
                 {
@@ -880,14 +880,14 @@ public:
             }
 
             // half degree as often as possible
-            while (to < int_type(k / 2)) {
+            while (to < (k / 2)) {
                 k /= 2;
                 logK--;
             }
 
             // overwrite garbage and compact the stack of free segments
             free_segments.clear(); // none free
-            for ( ;  to < int_type(k);  to++) {
+            for ( ;  to < k;  to++) {
                 assert(!is_segment_allocated(to));
                 states[to].make_inf();
                 if (to < arity)
@@ -952,7 +952,7 @@ public:
     typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
 
     std::vector<sequence> seqs;
-    std::vector<int_type> orig_seq_index;
+    std::vector<unsigned_type> orig_seq_index;
     std::vector<value_type*> last;  // points to last element in sequence, possibly a sentinel
 
     Cmp_ cmp;
@@ -1138,7 +1138,7 @@ public:
 
     for(unsigned_type i = 0; i < seqs.size(); ++i)
     {
-      int_type seg = orig_seq_index[i];
+      unsigned_type seg = orig_seq_index[i];
       if (is_segment_empty(seg))
       {
         STXXL_VERBOSE1("deallocated " << seg);
@@ -1247,11 +1247,11 @@ public:
         {
             Entry * currentPos;
             Element currentKey;
-            int_type currentIndex; // leaf pointed to by current entry
-            int_type kReg = k;
+            unsigned_type currentIndex; // leaf pointed to by current entry
+            unsigned_type kReg = k;
             OutputIterator done = end;
             OutputIterator to = begin;
-            int_type winnerIndex = entry[0].index;
+            unsigned_type winnerIndex = entry[0].index;
             Element winnerKey   = entry[0].key;
 
             while (to != done)
@@ -1270,7 +1270,7 @@ public:
 
 
                 // go up the entry-tree
-                for (int_type i = (winnerIndex + kReg) >> 1;  i > 0;  i >>= 1) {
+                for (unsigned_type i = (winnerIndex + kReg) >> 1;  i > 0;  i >>= 1) {
                     currentPos = entry + i;
                     currentKey = currentPos->key;
                     if (cmp(winnerKey, currentKey)) {
@@ -1293,7 +1293,7 @@ public:
         {
             OutputIterator done = end;
             OutputIterator to = begin;
-            int_type winnerIndex = entry[0].index;
+            unsigned_type winnerIndex = entry[0].index;
             Entry * regEntry   = entry;
             sequence_state * regStates = states;
             Element winnerKey   = entry[0].key;
@@ -1323,7 +1323,7 @@ public:
         Entry * pos ## L = regEntry + ((winnerIndex + (1 << LogK)) >> (((int (LogK - L) + 1) >= 0) ? ((LogK - L) + 1) : 0)); \
         Element key ## L = pos ## L->key; \
         if (cmp(winnerKey, key ## L)) { \
-            int_type index ## L  = pos ## L->index; \
+            unsigned_type index ## L  = pos ## L->index; \
             pos ## L->key   = winnerKey; \
             pos ## L->index = winnerIndex; \
             winnerKey     = key ## L; \
@@ -1417,8 +1417,8 @@ public:
 
                 // propagate new information up the tree
                 Element dummyKey;
-                int_type dummyIndex;
-                int_type dummyMask;
+                unsigned_type dummyIndex;
+                unsigned_type dummyMask;
                 update_on_insert((free_slot + k) >> 1, *(states[free_slot]), free_slot,
                                &dummyKey, &dummyIndex, &dummyMask);
             } else {
@@ -1433,7 +1433,7 @@ public:
         /*! \param first_size number of elements in the first block
          */
         void insert_segment(std::list < bid_type > * segment, block_type * first_block,
-                            unsigned_type first_size, int_type slot)
+                            unsigned_type first_size, unsigned_type slot)
         {
             STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this << " " << segment->size() << " " << slot);
 #if STXXL_PARALLEL_PQ_STATS
@@ -1459,7 +1459,7 @@ public:
         }
 
         // free an empty segment .
-        void deallocate_segment(int_type slot)
+        void deallocate_segment(unsigned_type slot)
         {
             STXXL_VERBOSE1("ext_merger::deallocate_segment() deleting segment " << slot << " allocated=" << int(is_segment_allocated(slot)));
 #if STXXL_PARALLEL_PQ_STATS
@@ -1478,9 +1478,9 @@ public:
         }
 
         // is this segment empty ?
-        bool is_segment_empty(int_type i) const
+        bool is_segment_empty(unsigned_type slot) const
         {
-            return is_sentinel(*(states[i]));
+            return is_sentinel(*(states[slot]));
         }
 
         // Is this segment allocated? Otherwise it's empty,
