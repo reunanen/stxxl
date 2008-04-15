@@ -1439,10 +1439,10 @@ public:
     protected:
         /*! \param first_size number of elements in the first block
          */
-        void insert_segment(std::list < bid_type > * segment, block_type * first_block,
+        void insert_segment(std::list < bid_type > * bidlist, block_type * first_block,
                             unsigned_type first_size, unsigned_type slot)
         {
-            STXXL_VERBOSE1("ext_merger::insert_segment(segment_bids,...) " << this << " " << segment->size() << " " << slot);
+            STXXL_VERBOSE1("ext_merger::insert_segment(bidlist,...) " << this << " " << bidlist->size() << " " << slot);
 #if STXXL_PARALLEL_PQ_STATS
             ++num_segments;
 #endif
@@ -1451,15 +1451,14 @@ public:
 
             sequence_state & new_sequence = states[slot];
             new_sequence.current = block_type::size - first_size;
-            //assert(new_sequence.current >= 0);
             std::swap(new_sequence.block, first_block);
             delete first_block;
-            std::swap(new_sequence.bids, segment);
-            assert(segment == NULL || segment->empty());
-            if (segment)
+            std::swap(new_sequence.bids, bidlist);
+            assert(!bidlist); // experimental
+            if (bidlist) // the old list
             {
-                assert(segment->empty());
-                delete segment;
+                assert(bidlist->empty());
+                delete bidlist;
             }
             new_sequence.allocated = true;
             assert(is_segment_allocated(slot));
