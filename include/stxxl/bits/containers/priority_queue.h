@@ -640,7 +640,7 @@ public:
         // entries arity .. KNKMAX-1 are sentinels to make the size of the tree
         // a power of two always
 
-        // stack of empty segments
+        // stack of empty segment indices
         internal_bounded_stack<unsigned_type, arity> free_segments;
 
         // upper levels of loser trees
@@ -713,6 +713,7 @@ public:
         void init()
         {
             STXXL_VERBOSE2("ext_merger::init()");
+            assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
 
 #if STXXL_PARALLEL_PQ_STATS
             num_segments = 0;
@@ -885,7 +886,7 @@ public:
                 logK--;
             }
 
-            // overwrite garbage and compact the stack of free segments
+            // overwrite garbage and compact the stack of free segment indices
             free_segments.clear(); // none free
             for ( ;  to < k;  to++) {
                 assert(!is_segment_allocated(to));
@@ -940,6 +941,7 @@ public:
                 return;
 
             assert(k > 0);
+            assert(length <= size_);
 
           //This is the place to make statistics about external multi_merge calls.
 
@@ -1223,6 +1225,9 @@ public:
             size_ -= length;
 
             // compact tree if it got considerably smaller
+            STXXL_VERBOSE3("ext_merger  compact? k=" << k << " #used=" << (std::min<unsigned_type>(arity, k) - free_segments.size())
+                           << " #free=" << free_segments.size() << " trigger=" << (3 * k / 5)
+                           << " triggered=" << (k > 1 && free_segments.size() >= (3 * k / 5)));
             if (k > 1 && free_segments.size() >= (3 * k / 5)) {
                 // using k/2 would be worst case inefficient
                 compactTree();
@@ -1398,6 +1403,7 @@ public:
                     first_block->end());
 
                 STXXL_VERBOSE1("last element of first block " << *(first_block->end() - 1));
+                assert(!cmp(*(first_block->begin() + (block_type::size - first_size)), *(first_block->end() - 1)));
 
                 assert(w_pool->size() > 0);
 
@@ -1407,6 +1413,7 @@ public:
                     another_merger.multi_merge(b->begin(), b->end());
                     STXXL_VERBOSE1("first element of following block " << *curbid << " " << *(b->begin()));
                     STXXL_VERBOSE1("last element of following block " << *curbid << " " << *(b->end() - 1));
+                    assert(!cmp(*(b->begin()), *(b->end() - 1)));
                     w_pool->write(b, *curbid); //->wait() does not help
                     STXXL_VERBOSE1("written to block " << *curbid << " cached in " << b);
                 }
@@ -1467,10 +1474,6 @@ public:
 #endif
             assert(is_segment_allocated(slot));
             states[slot].allocated = false;
-
-            // reroute current pointer to some empty sentinel segment
-            // with a sentinel key
-
             states[slot].make_inf();
 
             // push on the stack of free segment indices
@@ -1484,7 +1487,7 @@ public:
         }
 
         // Is this segment allocated? Otherwise it's empty,
-        // already on the stack of free segments and can be reused.
+        // already on the stack of free segment indices and can be reused.
         bool is_segment_allocated(unsigned_type slot) const
         {
             return states[slot].allocated;
@@ -1514,7 +1517,7 @@ public:
         };
 
         comparator_type cmp;
-        // stack of free segments
+        // stack of free segment indices
         internal_bounded_stack<unsigned_type, KNKMAX> free_segments;
 
         unsigned_type size_; // total number of elements stored
@@ -1683,6 +1686,7 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::init()
     {
+        assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
         sentinel      = cmp.min_value();
         rebuildLoserTree();
         assert(current[entry[0].index] == &sentinel);
@@ -1784,11 +1788,14 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::doubleK()
     {
-        assert(free_segments.empty()); // stack was free (probably not needed)
+        STXXL_VERBOSE3("loser_tree::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_segments.size());
+        assert(k > 0);
         assert(k < KNKMAX);
+        assert(free_segments.empty()); // stack was free (probably not needed)
+
         // make all new entries free
         // and push them on the free stack
-        for (int_type i = 2 * k - 1;  i >= int_type(k);  i--)
+        for (int_type i = 2 * k - 1;  i >= int_type(k);  i--) // backwards
         {
             current[i] = &sentinel;
             current_end[i] = &sentinel;
@@ -1800,6 +1807,7 @@ public:
         k *= 2;
         logK++;
 
+        STXXL_VERBOSE3("loser_tree::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_segments.size());
         assert(!free_segments.empty());
 
         // recompute loser tree information
@@ -1811,6 +1819,7 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::compactTree()
     {
+        STXXL_VERBOSE3("loser_tree::compactTree (before) k=" << k << " logK=" << logK << " #free=" << free_segments.size());
         assert(logK > 0);
 
         // compact all nonempty segments to the left
@@ -1845,13 +1854,15 @@ public:
             logK--;
         }
 
-        // overwrite garbage and compact the stack of free segments
+        // overwrite garbage and compact the stack of free segment indices
         free_segments.clear(); // none free
         for ( ;  to < int_type(k);  to++) {
             current[to] = &sentinel;
             current_end[to] = &sentinel;
             free_segments.push(to);
         }
+
+        STXXL_VERBOSE3("loser_tree::compactTree (after)  k=" << k << " logK=" << logK << " #free=" << free_segments.size());
 
         // recompute loser tree information
         rebuildLoserTree();
@@ -1969,6 +1980,7 @@ public:
             return;
 
         assert(k > 0);
+        assert(length <= size_);
 
         //This is the place to make statistics about internal multi_merge calls.
 
@@ -2100,6 +2112,9 @@ public:
         size_ -= length;
 
         // compact tree if it got considerably smaller
+        STXXL_VERBOSE3("loser_tree  compact? k=" << k << " #used=" << (std::min<unsigned_type>(KNKMAX, k) - free_segments.size())
+                       << " #free=" << free_segments.size() << " trigger=" << (3 * k / 5)
+                       << " triggered=" << (k > 1 && free_segments.size() >= (3 * k / 5)));
         if (k > 1 && free_segments.size() >= (3 * k / 5) ) {
             // using k/2 would be worst case inefficient
             compactTree();
@@ -2532,6 +2547,7 @@ template <class Config_>
 priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type w_pool_mem) :
     p_pool(*(new prefetch_pool<block_type>(p_pool_mem / BlockSize))),
     w_pool(*(new write_pool<block_type>(w_pool_mem / BlockSize))),
+    insertHeap(N + 2),
     activeLevels(0), size_(0),
     deallocate_pools(true)
 {
