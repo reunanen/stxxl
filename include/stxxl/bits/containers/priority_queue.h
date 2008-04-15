@@ -257,14 +257,14 @@ public:
 // require: at least sz nonsentinel elements available in from0, from1 and from2
 // require: to may overwrite one of the sources as long as
 //   *(fromx + sz) is before the end of fromx
-    template <class InputIterator, class Cmp_>
+    template <class InputIterator, class OutputIterator, class Cmp_>
     void merge3_iterator(
         InputIterator & from0,
         InputIterator & from1,
         InputIterator & from2,
-        InputIterator to, unsigned_type sz, Cmp_ cmp)
+        OutputIterator to, unsigned_type sz, Cmp_ cmp)
     {
-        InputIterator done    = to + sz;
+        OutputIterator done = to + sz;
 
         if (cmp(*from1, *from0)) {
             if (cmp(*from2, *from1)) {
