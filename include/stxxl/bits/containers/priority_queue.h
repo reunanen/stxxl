@@ -1494,6 +1494,10 @@ public:
 
     //////////////////////////////////////////////////////////////////////
 // The data structure from Knuth, "Sorting and Searching", Section 5.4.1
+    /**
+     *!  \brief  Loser tree from Knuth, "Sorting and Searching", Section 5.4.1
+     *!  \param  KNKMAX  maximum arity of loser tree, has to be a power of two
+     */
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     class loser_tree : private noncopyable
     {
@@ -1689,6 +1693,7 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::rebuildLoserTree()
     {
+        assert(LOG2<KNKMAX>::floor == LOG2<KNKMAX>::ceil); // KNKMAX needs to be a power of two
         int_type winner = initWinner(1);
         entry[0].index = winner;
         entry[0].key   = *(current[winner]);

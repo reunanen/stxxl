@@ -73,8 +73,7 @@ int main()
     merger.insert_segment(dummy, 1024 * 4);
     merger.multi_merge(output.begin(), output.end());
 
-    //template <class ValTp_,class Cmp_,unsigned KNKMAX>
-    loser_tree < my_type, my_cmp, 10 > loser;
+    loser_tree < my_type, my_cmp, 8 > loser;
     my_type * seq1 = make_sequence(dummy, 1024);
     cnt = 20;
     my_type * seq2 = make_sequence(dummy, 1024);
