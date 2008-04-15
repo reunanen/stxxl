@@ -1963,17 +1963,18 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * to, unsigned_type length)
     {
-        STXXL_VERBOSE3("loser_tree::multi_merge(" << to << "," << length << ")");
+        STXXL_VERBOSE3("loser_tree::multi_merge(to=" << to << ", len=" << length << ") k=" << k);
+
+        if (length == 0)
+            return;
+
+        assert(k > 0);
 
         //This is the place to make statistics about internal multi_merge calls.
 
 #if STXXL_PARALLEL_PQ_STATS
         double start = stxxl_timestamp();
 #endif
-
-        /*
-           multi_merge_k(to,length);
-         */
 
 #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
         priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
