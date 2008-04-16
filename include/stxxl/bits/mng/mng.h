@@ -7,6 +7,8 @@
  *  Sat Aug 24 23:55:27 2002
  *  Copyright  2002  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
+ *  Copyright  2008  Johannes Singler
+ *  singler@ira.uka.de
  ****************************************************************************/
 
 #include "stxxl/io"

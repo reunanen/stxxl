@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Copyright (C) 2007 by Johannes Singler                                *
+ *   Copyright (C) 2008 by Johannes Singler                                *
  *   singler@ira.uka.de                                                    *
  *   Distributed under the Boost Software License, Version 1.0.            *
  *   (See accompanying file LICENSE_1_0.txt or copy at                     *

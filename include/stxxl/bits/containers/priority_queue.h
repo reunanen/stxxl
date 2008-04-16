@@ -7,6 +7,8 @@
  *  Thu Jul  3 15:22:50 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
+ *  Copyright  2008  Johannes Singler
+ *  singler@ira.uka.de
  ****************************************************************************/
 
 #include "stxxl/bits/mng/mng.h"

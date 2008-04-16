@@ -7,7 +7,7 @@
  *  Thu Oct  2 12:09:50 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
- *  Copyright  2007  Johannes Singler
+ *  Copyright  2008  Johannes Singler
  *  singler@ira.uka.de
  ****************************************************************************/
 

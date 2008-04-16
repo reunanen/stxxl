@@ -1,10 +1,17 @@
+#ifndef STXXL_SETTINGS_HEADER
+#define STXXL_SETTINGS_HEADER
+
+/***************************************************************************
+ *            settings.h
+ *
+ *  Copyright  2008  Johannes Singler
+ *  singler@ira.uka.de
+ ****************************************************************************/
+ 
 /**
  * @file settings.h
  * @brief Provides a static class to store runtime tuning parameters.
  */
-
-#ifndef SETTINGS_HEADER
-#define SETTINGS_HEADER
 
 #include "stxxl/bits/namespace.h"
 
@@ -24,4 +31,4 @@ typedef settings<> SETTINGS;
 
 __STXXL_END_NAMESPACE
 
-#endif /* SETTINGS_HEADER */
+#endif /* STXXL_SETTINGS_HEADER */
