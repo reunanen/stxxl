@@ -2305,13 +2305,13 @@ protected:
     write_pool<block_type>    &w_pool;
     ext_merger_type * etree;
 
-    // one delete buffer for each tree (extra space for sentinel)
-    value_type buffer2[Levels][N + 1]; // tree->buffer2->buffer1
-    value_type * minBuffer2[Levels];
+    // one delete buffer for each tree => group buffer
+    value_type buffer2[Levels][N + 1]; // tree->buffer2->buffer1 (extra space for sentinel)
+    value_type * minBuffer2[Levels];  // minBuffer2[i] is current start of buffer2[i], end is buffer2[i] + N
 
     // overall delete buffer
     value_type buffer1[BufferSize1 + 1];
-    value_type * minBuffer1;
+    value_type * minBuffer1;  // is current start of buffer1, end is buffer1 + BufferSize1
 
     comparator_type cmp;
 
@@ -2606,22 +2606,22 @@ unsigned_type priority_queue<Config_>::refillBuffer2(unsigned_type j)
     if (deleteSize > 0)
     {
 
-    // shift  rest to beginning
-    // possible hack:
-    // - use memcpy if no overlap
-    memmove(oldTarget, minBuffer2[j], bufferSize * sizeof(value_type));
-    minBuffer2[j] = oldTarget;
+        // shift  rest to beginning
+        // possible hack:
+        // - use memcpy if no overlap
+        memmove(oldTarget, minBuffer2[j], bufferSize * sizeof(value_type));
+        minBuffer2[j] = oldTarget;
 
-    // fill remaining space from tree
-    if (j < IntLevels)
-        itree[j].multi_merge(oldTarget + bufferSize, deleteSize);
+        // fill remaining space from tree
+        if (j < IntLevels)
+            itree[j].multi_merge(oldTarget + bufferSize, deleteSize);
 
-    else
-    {
-        //external
-        etree[j - IntLevels].multi_merge(oldTarget + bufferSize,
-                                         oldTarget + bufferSize + deleteSize);
-    }
+        else
+        {
+            //external
+            etree[j - IntLevels].multi_merge(oldTarget + bufferSize,
+                                            oldTarget + bufferSize + deleteSize);
+        }
 
     }
 
@@ -2630,10 +2630,10 @@ unsigned_type priority_queue<Config_>::refillBuffer2(unsigned_type j)
     //std::copy(oldTarget,oldTarget + deleteSize + bufferSize,std::ostream_iterator<value_type>(std::cout, "\n"));
 #if STXXL_CHECK_ORDER_IN_SORTS
       priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
-      if(!stxxl::is_sorted(minBuffer2[j], minBuffer2[j] + N, inv_cmp))
+      if(!stxxl::is_sorted(minBuffer2[j], minBuffer2[j] + bufferSize, inv_cmp))
       {
-        STXXL_VERBOSE0("" << deleteSize << " remaining " << bufferSize);
-        for(value_type* v = minBuffer2[j]  + 1; v < minBuffer2[j] + N; ++v)
+        STXXL_VERBOSE0("deleteSize: " << deleteSize << " bufferSize: " << bufferSize);
+        for(value_type* v = minBuffer2[j]  + 1; v < minBuffer2[j] + bufferSize; ++v)
         {
           if(inv_cmp(*v, *(v - 1)))
           {
