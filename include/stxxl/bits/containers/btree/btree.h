@@ -218,6 +218,9 @@ namespace btree
 
         void create_empty_leaf()
         {
+            // verify the strict weak ordering
+            assert(!key_compare()(key_compare::max_value(), key_compare::max_value()));
+
             leaf_bid_type NewBid;
             leaf_type * NewLeaf = leaf_cache_.get_new_node(NewBid);
             assert(NewLeaf);

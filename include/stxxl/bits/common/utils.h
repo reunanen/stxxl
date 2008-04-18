@@ -350,6 +350,9 @@ bool is_sorted(_ForwardIter __first, _ForwardIter __last)
     if (__first == __last)
         return true;
 
+    // verify the strict weak ordering, '<' could be overloaded
+    assert(!(*__first < *__first));
+
     _ForwardIter __next = __first;
     for (++__next; __next != __last; __first = __next, ++__next) {
         if (*__next < *__first)
@@ -365,6 +368,9 @@ bool is_sorted(_ForwardIter __first, _ForwardIter __last,
 {
     if (__first == __last)
         return true;
+
+    // verify the strict weak ordering
+    assert(!__comp(*__first, *__first));
 
     _ForwardIter __next = __first;
     for (++__next; __next != __last; __first = __next, ++__next) {

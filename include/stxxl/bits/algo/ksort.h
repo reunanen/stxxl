@@ -790,7 +790,13 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
     typedef typename ExtIterator_::vector_type::value_type value_type;
     typedef typename ExtIterator_::block_type block_type;
 
-
+    {
+        // verify strict weak ordering of the sentinels
+        key_comparison<value_type, KeyExtractor_> keycmp(keyobj);
+        assert(!keycmp(keyobj.min_value(), keyobj.min_value()));
+        assert(keycmp(keyobj.min_value(), keyobj.max_value()));
+        assert(!keycmp(keyobj.max_value(), keyobj.max_value()));
+    }
 
     unsigned_type n = 0;
     block_manager * mng = block_manager::get_instance ();
