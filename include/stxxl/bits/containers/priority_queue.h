@@ -883,7 +883,7 @@ public:
             }
 
             // half degree as often as possible
-            while (to < (k / 2)) {
+            while (k > 1 && to <= (k / 2)) {
                 k /= 2;
                 logK--;
             }
@@ -1850,7 +1850,7 @@ public:
         }
 
         // half degree as often as possible
-        while (to < (k / 2)) {
+        while (k > 1 && to <= (k / 2)) {
             k /= 2;
             logK--;
         }
