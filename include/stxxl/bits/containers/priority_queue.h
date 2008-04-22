@@ -1227,12 +1227,18 @@ public:
             size_ -= length;
 
             // compact tree if it got considerably smaller
-            STXXL_VERBOSE3("ext_merger  compact? k=" << k << " #used=" << (std::min<unsigned_type>(arity, k) - free_segments.size())
-                           << " #free=" << free_segments.size() << " trigger=" << (3 * k / 5)
-                           << " triggered=" << (k > 1 && free_segments.size() >= (3 * k / 5)));
-            if (k > 1 && free_segments.size() >= (3 * k / 5)) {
-                // using k/2 would be worst case inefficient
-                compactTree();
+            {
+                const unsigned_type num_segments_used = std::min<unsigned_type>(arity, k) - free_segments.size();
+                const unsigned_type num_segments_trigger = k - (3 * k / 5);
+                // using k/2 would be worst case inefficient (for large k)
+                // for k \in {2, 4, 8} the trigger is k/2 which is good
+                // because we have special mergers for k \in {1, 2, 4}
+                STXXL_VERBOSE3("ext_merger  compact? k=" << k << " #used=" << num_segments_used
+                               << " <= #trigger=" << num_segments_trigger << " ==> "
+                               << ((k > 1 && num_segments_used <= num_segments_trigger) ? "yes" : "no ")
+                               << " #free=" << free_segments.size());
+                if (k > 1 && num_segments_used <= num_segments_trigger)
+                    compactTree();
             }
 
     #endif
@@ -2113,12 +2119,18 @@ public:
         size_ -= length;
 
         // compact tree if it got considerably smaller
-        STXXL_VERBOSE3("loser_tree  compact? k=" << k << " #used=" << (std::min<unsigned_type>(KNKMAX, k) - free_segments.size())
-                       << " #free=" << free_segments.size() << " trigger=" << (3 * k / 5)
-                       << " triggered=" << (k > 1 && free_segments.size() >= (3 * k / 5)));
-        if (k > 1 && free_segments.size() >= (3 * k / 5) ) {
-            // using k/2 would be worst case inefficient
-            compactTree();
+        {
+            const unsigned_type num_segments_used = k - free_segments.size();
+            const unsigned_type num_segments_trigger = k - (3 * k / 5);
+            // using k/2 would be worst case inefficient (for large k)
+            // for k \in {2, 4, 8} the trigger is k/2 which is good
+            // because we have special mergers for k \in {1, 2, 4}
+            STXXL_VERBOSE3("loser_tree  compact? k=" << k << " #used=" << num_segments_used
+                           << " <= #trigger=" << num_segments_trigger << " ==> "
+                           << ((k > 1 && num_segments_used <= num_segments_trigger) ? "yes" : "no ")
+                           << " #free=" << free_segments.size());
+            if (k > 1 && num_segments_used <= num_segments_trigger)
+                compactTree();
         }
         //std::copy(to,to + length,std::ostream_iterator<ValTp_>(std::cout, "\n"));
 
