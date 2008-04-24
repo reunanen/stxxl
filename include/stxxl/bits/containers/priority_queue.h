@@ -1188,7 +1188,10 @@ public:
                 break;
             case 2:
                 assert(k == 4);
-                merge4_iterator(states[0], states[1], states[2], states[3], begin, length, cmp);
+                if (is_segment_empty(3))
+                    merge3_iterator(states[0], states[1], states[2], begin, length, cmp);
+                else
+                    merge4_iterator(states[0], states[1], states[2], states[3], begin, length, cmp);
                 rebuildLoserTree();
                 if (is_segment_empty(0) && is_segment_allocated(0))
                     deallocate_segment(0);
@@ -1233,12 +1236,19 @@ public:
                 // using k/2 would be worst case inefficient (for large k)
                 // for k \in {2, 4, 8} the trigger is k/2 which is good
                 // because we have special mergers for k \in {1, 2, 4}
+                // there is also a special 3-way-merger, that will be
+                // triggered if k == 4 && is_segment_empty(3)
                 STXXL_VERBOSE3("ext_merger  compact? k=" << k << " #used=" << num_segments_used
                                << " <= #trigger=" << num_segments_trigger << " ==> "
                                << ((k > 1 && num_segments_used <= num_segments_trigger) ? "yes" : "no ")
+                               << " || "
+                               << ((k == 4 && !free_segments.empty() && !is_segment_empty(3)) ? "yes" : "no ")
                                << " #free=" << free_segments.size());
-                if (k > 1 && num_segments_used <= num_segments_trigger)
+                if (k > 1 && ((num_segments_used <= num_segments_trigger) ||
+                              (k == 4 && !free_segments.empty() && !is_segment_empty(3))))
+                {
                     compactTree();
+                }
             }
 
     #endif
@@ -2045,7 +2055,10 @@ public:
       current[3] = seqs[3].first;
       }
     #else
-            merge4_iterator(current[0], current[1], current[2], current[3], to, length, cmp);
+            if (is_segment_empty(3))
+                merge3_iterator(current[0], current[1], current[2], to, length, cmp);
+            else
+                merge4_iterator(current[0], current[1], current[2], current[3], to, length, cmp);
 
             rebuildLoserTree();
     #endif
@@ -2124,12 +2137,19 @@ public:
             // using k/2 would be worst case inefficient (for large k)
             // for k \in {2, 4, 8} the trigger is k/2 which is good
             // because we have special mergers for k \in {1, 2, 4}
+            // there is also a special 3-way-merger, that will be
+            // triggered if k == 4 && is_segment_empty(3)
             STXXL_VERBOSE3("loser_tree  compact? k=" << k << " #used=" << num_segments_used
                            << " <= #trigger=" << num_segments_trigger << " ==> "
                            << ((k > 1 && num_segments_used <= num_segments_trigger) ? "yes" : "no ")
+                           << " || "
+                           << ((k == 4 && !free_segments.empty() && !is_segment_empty(3)) ? "yes" : "no ")
                            << " #free=" << free_segments.size());
-            if (k > 1 && num_segments_used <= num_segments_trigger)
+            if (k > 1 && ((num_segments_used <= num_segments_trigger) ||
+                          (k == 4 && !free_segments.empty() && !is_segment_empty(3))))
+            {
                 compactTree();
+            }
         }
         //std::copy(to,to + length,std::ostream_iterator<ValTp_>(std::cout, "\n"));
 
