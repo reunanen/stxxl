@@ -1462,7 +1462,6 @@ public:
             std::swap(new_sequence.block, first_block);
             delete first_block;
             std::swap(new_sequence.bids, bidlist);
-            assert(!bidlist); // experimental
             if (bidlist) // the old list
             {
                 assert(bidlist->empty());
