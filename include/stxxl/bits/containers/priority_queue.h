@@ -34,6 +34,13 @@
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 1
 #endif
 
+#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#define STXXL_PQ_INTERNAL_LOSER_TREE 0 // no loser tree for the internal sequences
+#else
+#define STXXL_PQ_INTERNAL_LOSER_TREE 1
+#endif
+
+
 __STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup stlcontinternals
@@ -1542,11 +1549,13 @@ public:
         typedef value_type Element;
 
     private:
+#if STXXL_PQ_INTERNAL_LOSER_TREE
         struct Entry
         {
             value_type key; // Key of Loser element (winner for 0)
             unsigned_type index; // number of losing segment
         };
+#endif
 
         comparator_type cmp;
         // stack of free segment indices
@@ -1558,9 +1567,11 @@ public:
 
         Element sentinel; // target of free segment pointers
 
+#if STXXL_PQ_INTERNAL_LOSER_TREE
         // upper levels of loser trees
         // entry[0] contains the winner info
         Entry entry[KNKMAX];
+#endif
 
         // leaf information
         // note that Knuth uses indices k..k-1
@@ -1591,6 +1602,7 @@ public:
         bool is_segment_empty(unsigned_type slot);
         void multi_merge_k(Element * to, unsigned_type length);
 
+#if STXXL_PQ_INTERNAL_LOSER_TREE
         template <unsigned LogK>
         void multi_merge_f(Element * to, unsigned_type length)
         {
@@ -1653,6 +1665,7 @@ public:
             regEntry[0].index = winnerIndex;
             regEntry[0].key   = winnerKey;
         }
+#endif
 
     public:
         bool is_sentinel(const Element & a)
@@ -1677,7 +1690,9 @@ public:
             std::swap(logK, obj.logK);
             std::swap(k, obj.k);
             std::swap(sentinel, obj.sentinel);
+#if STXXL_PQ_INTERNAL_LOSER_TREE
             swap_1D_arrays(entry, obj.entry, KNKMAX);
+#endif
             swap_1D_arrays(current, obj.current, KNKMAX);
             swap_1D_arrays(current_end, obj.current_end, KNKMAX);
             swap_1D_arrays(segment, obj.segment, KNKMAX);
@@ -1721,7 +1736,9 @@ public:
         assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
         sentinel      = cmp.min_value();
         rebuildLoserTree();
+#if STXXL_PQ_INTERNAL_LOSER_TREE
         assert(current[entry[0].index] == &sentinel);
+#endif
     }
 
 
@@ -1729,13 +1746,16 @@ public:
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::rebuildLoserTree()
     {
+#if STXXL_PQ_INTERNAL_LOSER_TREE
         assert(LOG2<KNKMAX>::floor == LOG2<KNKMAX>::ceil); // KNKMAX needs to be a power of two
         unsigned_type winner = initWinner(1);
         entry[0].index = winner;
         entry[0].key   = *(current[winner]);
+#endif
     }
 
 
+#if STXXL_PQ_INTERNAL_LOSER_TREE
 // given any values in the leaves this
 // routing recomputes upper levels of the tree
 // from scratch in linear time
@@ -1814,6 +1834,7 @@ public:
             *mask >>= 1; // next level
         }
     }
+#endif
 
 
 // make the tree two times as wide
@@ -1931,12 +1952,14 @@ public:
             mem_cons_ += (sz + 1) * sizeof(value_type);
             size_ += sz;
 
+#if STXXL_PQ_INTERNAL_LOSER_TREE
             // propagate new information up the tree
             Element dummyKey;
             unsigned_type dummyIndex;
             unsigned_type dummyMask;
             update_on_insert((index + k) >> 1, *to, index,
                            &dummyKey, &dummyIndex, &dummyMask);
+#endif
         } else {
             // immediately deallocate
             // this is not only an optimization
@@ -2026,12 +2049,16 @@ public:
         switch (logK) {
         case 0:
             assert(k == 1);
+#if STXXL_PQ_INTERNAL_LOSER_TREE
             assert(entry[0].index == 0);
+#endif
             assert(free_segments.empty());
             //memcpy(to, current[0], length * sizeof(Element));
             std::copy(current[0], current[0] + length, to);
             current[0] += length;
+#if STXXL_PQ_INTERNAL_LOSER_TREE
             entry[0].key = **current;
+#endif
             if (is_segment_empty(0))
                 deallocate_segment(0);
 
@@ -2189,6 +2216,7 @@ public:
         return (is_sentinel(*(current[slot])) && (current[slot] != &sentinel));
     }
 
+#if STXXL_PQ_INTERNAL_LOSER_TREE
 // multi-merge for arbitrary K
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
     void loser_tree<ValTp_, Cmp_, KNKMAX>::
@@ -2238,6 +2266,7 @@ public:
         entry[0].index = winnerIndex;
         entry[0].key   = winnerKey;
     }
+#endif
 }
 
 /*
