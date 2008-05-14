@@ -1169,6 +1169,14 @@ public:
       }
     }
 
+            // compact tree if it got considerably smaller
+            {
+                const unsigned_type num_segments_used = std::min<unsigned_type>(arity, k) - free_segments.size();
+                const unsigned_type num_segments_trigger = k - (3 * k / 5);
+                if (k > 1 && num_segments_used <= num_segments_trigger)
+                    compactTree();
+            }
+
   #else //defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 
             //Hint first non-internal (actually second) block of each sequence.
