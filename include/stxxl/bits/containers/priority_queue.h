@@ -2955,22 +2955,11 @@ void priority_queue<Config_>::emptyInsertHeap()
     double start = stxxl_timestamp();
 #endif
 
-#if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
     insertHeap.sort_to(SortTo);
 
     SortTo = newSegment + N;
     insertHeap.clear();
     insertHeap.push(*SortTo);
-#else
-    const value_type * SortEnd = newSegment + N;
-    while (SortTo != SortEnd)
-    {
-        assert(!insertHeap.empty());
-        *SortTo = insertHeap.top();
-        insertHeap.pop();
-        ++SortTo;
-    }
-#endif
 
 #if STXXL_PARALLEL_PQ_STATS
     double stop = stxxl_timestamp();
