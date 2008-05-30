@@ -1,13 +1,13 @@
 /***************************************************************************
- *            p_queue.cpp
+ *            test_pqueue.cpp
  *
  *  Fri Jul  4 11:31:34 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
  ****************************************************************************/
 
-#include "stxxl.h"
 #include <limits>
+#include <stxxl/priority_queue>
 
 #define RECORD_SIZE 128
 

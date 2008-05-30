@@ -1,12 +1,13 @@
 /***************************************************************************
- *            write_vector.cpp
+ *            write_vector2.cpp
  *
  *  Fri Mar  3 12:26:05 2006
  *  Copyright  2006  Roman Dementiev
  *  Email
  ****************************************************************************/
 
-#include "stxxl.h"
+#include <stxxl/vector>
+#include "stxxl/bits/mng/buf_ostream.h"
 
 // efficiently writes data into an stxxl::vector with overlapping of I/O and
 // computation

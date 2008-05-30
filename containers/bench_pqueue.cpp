@@ -1,12 +1,12 @@
 /***************************************************************************
- *            p_queue.cpp
+ *            bench_pqueue.cpp
  *
  *  Fri Jul  4 11:31:34 2003
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
  ****************************************************************************/
 
-#include "stxxl.h"
+#include <stxxl/priority_queue>
 
 using namespace stxxl;
 
