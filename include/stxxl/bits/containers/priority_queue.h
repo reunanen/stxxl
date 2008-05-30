@@ -5,10 +5,13 @@
  *            priority_queue.h
  *
  *  Thu Jul  3 15:22:50 2003
+ *  Copyright  1999  Peter Sanders
+ *  sanders@mpi-sb.mpg.de
  *  Copyright  2003  Roman Dementiev
  *  dementiev@mpi-sb.mpg.de
  *  Copyright  2008  Johannes Singler
  *  singler@ira.uka.de
+ *  Copyright © 2007, 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  ****************************************************************************/
 
 #include "stxxl/bits/mng/mng.h"
@@ -16,7 +19,6 @@
 #include "stxxl/bits/mng/write_pool.h"
 #include "stxxl/bits/common/tmeta.h"
 
-#include <queue>
 #include <list>
 #include <iterator>
 #include <iomanip>
@@ -160,10 +162,6 @@ namespace priority_queue_local
         N = 0;
       }
     };
-
-
-
-
 
 
 #if STXXL_PARALLEL_PQ_STATS
@@ -556,7 +554,7 @@ public:
 
             ~sequence_state()
             {
-                STXXL_VERBOSE1("ext_merger sequence_state::~sequence_state()");
+                STXXL_VERBOSE2("ext_merger sequence_state::~sequence_state()");
                 if (bids != NULL)
                 {
                     block_manager * bm = block_manager::get_instance();
@@ -607,14 +605,14 @@ public:
                     assert(bids != NULL);
                     if (bids->empty()) // if there is no next block
                     {
-                        STXXL_VERBOSE1("ext_merger sequence_state operator++ it was the last block in the sequence ");
+                        STXXL_VERBOSE2("ext_merger sequence_state operator++ it was the last block in the sequence ");
                         delete bids;
                         bids = NULL;
                         make_inf();
                     }
                     else
                     {
-                        STXXL_VERBOSE1("ext_merger sequence_state operator++ there is another block ");
+                        STXXL_VERBOSE2("ext_merger sequence_state operator++ there is another block ");
                         bid_type bid = bids->front();
                         bids->pop_front();
                         if (!(bids->empty()))
@@ -627,7 +625,7 @@ public:
                             merger->p_pool->hint(next_bid, *(merger->w_pool));
                         }
                         merger->p_pool->read(block, bid)->wait();
-                        STXXL_VERBOSE1("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
+                        STXXL_VERBOSE2("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
                         block_manager::get_instance()->delete_block(bid);
                         current = 0;
                     }
@@ -638,7 +636,7 @@ public:
 
 
 #if STXXL_PQ_EXTERNAL_LOSER_TREE
-        //a pair consisting a value 
+        //a pair consisting a value
         struct Entry
         {
             value_type key; // Key of Loser element (winner for 0)
@@ -766,8 +764,8 @@ public:
         {
 #if STXXL_PQ_EXTERNAL_LOSER_TREE
             unsigned_type winner = initWinner(1);
-            entry[0].index  = winner;
-            entry[0].key    = *(states[winner]);
+            entry[0].index = winner;
+            entry[0].key   = *(states[winner]);
 #endif
         }
 
@@ -970,7 +968,7 @@ public:
           double start = stxxl_timestamp();
 #endif
 
-  #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
     typedef stxxl::int64 diff_type;
     typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
 
@@ -1177,7 +1175,7 @@ public:
                     compactTree();
             }
 
-  #else //defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#else // defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 
             //Hint first non-internal (actually second) block of each sequence.
             //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
@@ -1277,8 +1275,8 @@ public:
                     compactTree();
                 }
             }
+#endif
 
-    #endif
 #if STXXL_PARALLEL_PQ_STATS
             double stop = stxxl_timestamp();
 
@@ -2090,6 +2088,7 @@ public:
 
             if (is_segment_empty(1))
                 deallocate_segment(1);
+
             break;
         case 2:
             assert(k == 4);
@@ -2423,7 +2422,7 @@ protected:
     unsigned_type getSize2(unsigned_type i) const { return &(buffer2[i][N]) - minBuffer2[i]; }
 
 #if STXXL_PARALLEL_PQ_STATS
-    // histogram 
+    // histogram
     typedef std::map<int_type, std::pair<int_type, priority_queue_local::StatisticalValue<double> > > histogram_type;
     histogram_type histogram; //k, total_size, num_occurences
 #endif
@@ -2676,7 +2675,7 @@ unsigned_type priority_queue<Config_>::refillBuffer2(unsigned_type j)
 
     value_type * oldTarget;
     unsigned_type deleteSize;
-    size_type treeSize = (j < IntLevels)  ?  itree[j].size()  :  etree[ j - IntLevels].size();  //elements left in segments
+    size_type treeSize = (j < IntLevels) ? itree[j].size() : etree[ j - IntLevels].size();  //elements left in segments
     unsigned_type bufferSize = buffer2[j] + N - minBuffer2[j]; //elements left in target buffer
     if (treeSize + bufferSize >= size_type(N) )
     { // buffer will be filled completely
@@ -2739,6 +2738,8 @@ unsigned_type priority_queue<Config_>::refillBuffer2(unsigned_type j)
 template <class Config_>
 void priority_queue<Config_>::refillBuffer1()
 {
+    STXXL_VERBOSE2("priority_queue::refillBuffer1()");
+
     size_type totalSize = 0;
     unsigned_type sz;
     //activeLevels is <= 4
@@ -2802,7 +2803,7 @@ void priority_queue<Config_>::refillBuffer1()
               minBuffer2[1] = seqs[1].first;
             }
 #else
-      priority_queue_local::merge_iterator(
+        priority_queue_local::merge_iterator(
             minBuffer2[0],
             minBuffer2[1], minBuffer1, sz, cmp);
         break;
@@ -2821,7 +2822,7 @@ void priority_queue<Config_>::refillBuffer1()
               minBuffer2[2] = seqs[2].first;
             }
 #else
-      priority_queue_local::merge3_iterator(
+        priority_queue_local::merge3_iterator(
             minBuffer2[0],
             minBuffer2[1],
             minBuffer2[2], minBuffer1, sz, cmp);
@@ -2843,7 +2844,7 @@ void priority_queue<Config_>::refillBuffer1()
               minBuffer2[3] = seqs[3].first;
             }
 #else
-      priority_queue_local::merge4_iterator(
+        priority_queue_local::merge4_iterator(
             minBuffer2[0],
             minBuffer2[1],
             minBuffer2[2],
@@ -3077,7 +3078,7 @@ namespace priority_queue_local
         typedef dummy result;
     };
 
-    //E_ size of element in bytes
+    // E_ size of element in bytes
     template <unsigned_type E_, unsigned_type IntM_, unsigned_type MaxS_>
     struct find_settings
     {
@@ -3223,14 +3224,12 @@ __STXXL_END_NAMESPACE
 
 namespace std
 {
-  template <class Config_>
+    template <class Config_>
     void swap(stxxl::priority_queue<Config_> &a,
               stxxl::priority_queue<Config_> &b)
     {
         a.swap(b);
     }
-
-
 }
 
 #endif
