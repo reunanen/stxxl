@@ -282,6 +282,9 @@ LINK_STXXL	 = $(LINKER) $1 $(STXXL_LINKER_OPTIONS) -o $@
 ###################################################################
 
 
+STXXL_SPECIFIC		+= $(STXXL_EXTRA)
+WARNINGS		+= $(WARNINGS_EXTRA)
+
 ifeq ($(strip $(USE_ICPC)),yes)
 STXXL_CPPFLAGS_CXX	+= $(ICPC_CPPFLAGS)
 STXXL_LDLIBS_CXX	+= $(ICPC_LDFLAGS)
