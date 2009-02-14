@@ -1234,7 +1234,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                     return false;
                 }
             }
-            if (!is_sorted(
+            if (!stxxl::is_sorted(
 #if 1
                     ArrayOfSequencesIterator<
                         block_type,
@@ -1690,7 +1690,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                     fill_current_block();
 
 #ifdef STXXL_CHECK_ORDER_IN_SORTS
-                    assert(is_sorted(current_block->elem, current_block->elem + current_block->size, cmp));
+                    assert(stxxl::is_sorted(current_block->elem, current_block->elem + current_block->size, cmp));
                     assert(!cmp(current_block->elem[0], current_value));
 #endif
                     current_value = current_block->elem[0];
@@ -2157,7 +2157,7 @@ void sort(RandomAccessIterator begin,
 #ifdef BOOST_MSVC
     typedef typename streamify_traits<RandomAccessIterator>::stream_type InputType;
 #else
-    typedef typeof(stream::streamify(begin, end)) InputType;
+    typedef __typeof__(stream::streamify(begin, end)) InputType;
 #endif
     InputType Input(begin, end);
     typedef stream::sort<InputType, CmpType, BlockSize, AllocStr> sorter_type;

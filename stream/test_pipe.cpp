@@ -128,7 +128,7 @@ int main()
 #ifdef BOOST_MSVC
     typedef streamify_traits<input_array_type::iterator>::stream_type input_stream_type;
 #else
-    typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+    typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
 #endif
 
     input_stream_type input_stream = streamify(input.begin(), input.end());
@@ -138,7 +138,7 @@ int main()
 #ifdef BOOST_MSVC
     typedef stxxl::stream::generator2stream<counter_type> counter_stream_type;
 #else
-    typedef typeof(streamify(counter_type())) counter_stream_type;
+    typedef __typeof__(streamify(counter_type())) counter_stream_type;
 #endif
     counter_stream_type counter_stream = streamify(counter_type());
 
