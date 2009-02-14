@@ -9,7 +9,7 @@
 
 USE_BOOST	?= no	# set 'yes' to use Boost libraries or 'no' to not use Boost libraries
 USE_LINUX	?= yes	# set 'yes' if you run Linux, 'no' otherwise
-USE_PARALLEL_MODE	?= no	# will be overriden from main Makefile
+USE_PMODE	?= no	# will be overriden from main Makefile
 USE_ICPC	?= no	# will be overriden from main Makefile
 
 STXXL_ROOT	?= $(HOME)/work/stxxl
@@ -20,7 +20,7 @@ OPENMPFLAG	?= -openmp
 ICPC_PARALLEL_MODE_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
 endif
 
-ifeq ($(strip $(USE_PARALLEL_MODE)),yes)
+ifeq ($(strip $(USE_PMODE)),yes)
 COMPILER	?= g++-trunk
 OPENMPFLAG	?= -fopenmp
 ifeq ($(strip $(USE_ICPC)),yes)
@@ -103,7 +103,7 @@ endif
 
 #### PARALLEL_MODE OPTIONS ###############################################
 
-ifeq ($(strip $(USE_PARALLEL_MODE)),yes)
+ifeq ($(strip $(USE_PMODE)),yes)
 
 PARALLEL_MODE_CPPFLAGS          += $(OPENMPFLAG) -D_GLIBCXX_PARALLEL
 PARALLEL_MODE_LDFLAGS           += $(OPENMPFLAG)
@@ -216,7 +216,7 @@ STXXL_COMPILER_OPTIONS	+= $(STXXL_SPECIFIC)
 STXXL_COMPILER_OPTIONS	+= $(OPT) $(DEBUG) $(WARNINGS)
 STXXL_LINKER_OPTIONS	+= $(STXXL_LDLIBS)
 
-ifeq ($(strip $(USE_PARALLEL_MODE)),yes)
+ifeq ($(strip $(USE_PMODE)),yes)
 STXXL_COMPILER_OPTIONS	+= $(PARALLEL_MODE_CPPFLAGS)
 STXXL_LINKER_OPTIONS    += $(PARALLEL_MODE_LDFLAGS)
 endif

@@ -3,9 +3,9 @@
 
 usage:
 	@echo "Choose one of the goals:"
-	@echo "    library_g++ library_g++_parallel_mode library_icpc library_icpc_parallel_mode library_msvc"
-	@echo "    tests_g++   tests_g++_parallel_mode   tests_icpc   tests_icpc_parallel_mode   tests_msvc"
-	@echo "    clean_g++   clean_g++_parallel_mode   clean_icpc   clean_icpc_parallel_mode   clean_msvc"
+	@echo "    library_g++ library_g++_pmode library_icpc library_icpc_pmode library_msvc"
+	@echo "    tests_g++   tests_g++_pmode   tests_icpc   tests_icpc_pmode   tests_msvc"
+	@echo "    clean_g++   clean_g++_pmode   clean_icpc   clean_icpc_pmode   clean_msvc"
 	@echo "    doxy clean_doxy"
 
 settings_gnu:
@@ -17,32 +17,32 @@ settings_msvc:
 
 
 library_g++: settings_gnu
-	$(MAKE) -f Makefile.gnu library USE_PARALLEL_MODE=no
+	$(MAKE) -f Makefile.gnu library USE_PMODE=no
 
-library_g++_parallel_mode: settings_gnu
-	$(MAKE) -f Makefile.gnu library USE_PARALLEL_MODE=yes
+library_g++_pmode: settings_gnu
+	$(MAKE) -f Makefile.gnu library USE_PMODE=yes
 
 library_icpc: settings_gnu
-	$(MAKE) -f Makefile.gnu library USE_PARALLEL_MODE=no USE_ICPC=yes
+	$(MAKE) -f Makefile.gnu library USE_PMODE=no USE_ICPC=yes
 
-library_icpc_parallel_mode: settings_gnu
-	$(MAKE) -f Makefile.gnu library USE_PARALLEL_MODE=yes USE_ICPC=yes
+library_icpc_pmode: settings_gnu
+	$(MAKE) -f Makefile.gnu library USE_PMODE=yes USE_ICPC=yes
 
 library_msvc: settings_msvc
 	nmake /F Makefile.msvc library
 	
 
 tests_g++: settings_gnu
-	$(MAKE) -f Makefile.gnu tests USE_PARALLEL_MODE=no
+	$(MAKE) -f Makefile.gnu tests USE_PMODE=no
 
-tests_g++_parallel_mode: settings_gnu
-	$(MAKE) -f Makefile.gnu tests USE_PARALLEL_MODE=yes
+tests_g++_pmode: settings_gnu
+	$(MAKE) -f Makefile.gnu tests USE_PMODE=yes
 
 tests_icpc: settings_gnu
-	$(MAKE) -f Makefile.gnu tests USE_PARALLEL_MODE=no USE_ICPC=yes
+	$(MAKE) -f Makefile.gnu tests USE_PMODE=no USE_ICPC=yes
 
-tests_icpc_parallel_mode: settings_gnu
-	$(MAKE) -f Makefile.gnu tests USE_PARALLEL_MODE=yes USE_ICPC=yes
+tests_icpc_pmode: settings_gnu
+	$(MAKE) -f Makefile.gnu tests USE_PMODE=yes USE_ICPC=yes
 
 tests_msvc: settings_msvc
 	nmake /F Makefile.msvc tests
@@ -51,14 +51,14 @@ tests_msvc: settings_msvc
 clean_g++: settings_gnu
 	$(MAKE) -f Makefile.gnu clean USE_PARALLEL_MODE=no
 
-clean_g++_parallel_mode: settings_gnu
+clean_g++_pmode: settings_gnu
 	$(MAKE) -f Makefile.gnu clean USE_PARALLEL_MODE=yes
 
 clean_icpc: settings_gnu
-	$(MAKE) -f Makefile.gnu clean USE_PARALLEL_MODE=no USE_ICPC=yes
+	$(MAKE) -f Makefile.gnu clean USE_PMODE=no USE_ICPC=yes
 
-clean_icpc_parallel_mode: settings_gnu
-	$(MAKE) -f Makefile.gnu clean USE_PARALLEL_MODE=yes USE_ICPC=yes
+clean_icpc_pmode: settings_gnu
+	$(MAKE) -f Makefile.gnu clean USE_PMODE=yes USE_ICPC=yes
 
 clean_msvc: settings_msvc
 	nmake /F Makefile.msvc clean
