@@ -24,11 +24,17 @@
 #include <iomanip>
 #include <vector>
 
-#if defined(__MCSTL__) && (STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL)
+#if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#if defined(_GLIBCXX_PARALLEL)
+#include <parallel/multiway_merge.h>
+#define __STXXL_PQ_multiway_merge_sentinel __gnu_parallel::multiway_merge_sentinel
+#elif defined(__MCSTL__)
 #include <bits/mcstl_multiway_merge.h>
+#define __STXXL_PQ_multiway_merge_sentinel mcstl::multiway_merge_sentinel
+#endif
 #endif
 
-#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 0 // no loser tree for the external sequences
 #else
 #undef STXXL_PARALLEL_PQ_STATS
@@ -36,7 +42,7 @@
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 1
 #endif
 
-#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
 #define STXXL_PQ_INTERNAL_LOSER_TREE 0 // no loser tree for the internal sequences
 #else
 #define STXXL_PQ_INTERNAL_LOSER_TREE 1
@@ -968,7 +974,7 @@ public:
           double start = stxxl_timestamp();
 #endif
 
-#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
     typedef stxxl::int64 diff_type;
     typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
 
@@ -1078,7 +1084,7 @@ public:
 
       //main call
 
-      begin = mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false); //sequence iterators are progressed appropriately
+      begin = __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false); //sequence iterators are progressed appropriately
 
       rest -= output_size;
       size_ -= output_size;
@@ -1175,7 +1181,7 @@ public:
                     compactTree();
             }
 
-#else // defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#else // (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 
             //Hint first non-internal (actually second) block of each sequence.
             //This is mandatory to ensure proper synchronization between prefetch pool and write pool.
@@ -2049,7 +2055,7 @@ public:
         double start = stxxl_timestamp();
 #endif
 
-#if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
         priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
 #endif
         switch (logK) {
@@ -2071,11 +2077,11 @@ public:
             break;
         case 1:
             assert(k == 2);
-    #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+    #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
       {
       std::pair<Element*, Element*> seqs[2] = { std::make_pair(current[0], current_end[0]),
                             std::make_pair(current[1], current_end[1]) };
-      mcstl::multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length, false);
+      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length, false);
       current[0] = seqs[0].first;
       current[1] = seqs[1].first;
       }
@@ -2092,13 +2098,13 @@ public:
             break;
         case 2:
             assert(k == 4);
-    #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+    #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
       {
       std::pair<Element*, Element*> seqs[4] = { std::make_pair(current[0], current_end[0]),
                             std::make_pair(current[1], current_end[1]),
                             std::make_pair(current[2], current_end[2]),
                             std::make_pair(current[3], current_end[3]) };
-      mcstl::multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length, false);
+      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length, false);
       current[0] = seqs[0].first;
       current[1] = seqs[1].first;
       current[2] = seqs[2].first;
@@ -2125,7 +2131,7 @@ public:
                 deallocate_segment(3);
 
             break;
-  #if defined(__MCSTL__) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+  #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
     default:
     {
     std::vector<std::pair<Element*, Element*> > seqs;
@@ -2139,7 +2145,7 @@ public:
       }
     }
 
-    mcstl::multiway_merge_sentinel(seqs.begin(), seqs.end(), to, inv_cmp, length, false);
+    __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), to, inv_cmp, length, false);
 
     for(unsigned int i = 0; i < seqs.size(); ++i)
     {
@@ -2792,12 +2798,12 @@ void priority_queue<Config_>::refillBuffer1()
         minBuffer2[0] += sz;
         break;
     case 2:
-#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
               std::pair<value_type*, value_type*> seqs[2] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N) };
-              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2809,13 +2815,13 @@ void priority_queue<Config_>::refillBuffer1()
         break;
 #endif
     case 3:
-#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
               std::pair<value_type*, value_type*> seqs[2] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N) };
-              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2829,14 +2835,14 @@ void priority_queue<Config_>::refillBuffer1()
         break;
 #endif
     case 4:
-#if defined(MCSTL) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
               std::pair<value_type*, value_type*> seqs[2] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N),
                   std::make_pair(minBuffer2[3], buffer2[3] + N) };
-              begin = mcstl::multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;

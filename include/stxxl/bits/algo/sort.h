@@ -32,6 +32,12 @@
 #include "stxxl/bits/algo/losertree.h"
 #include "stxxl/bits/algo/inmemsort.h"
 
+#if defined(_GLIBCXX_PARALLEL)
+#define __STXXL_SORT_multiway_merge __gnu_parallel::multiway_merge
+#elif defined(__MCSTL__)
+#define __STXXL_SORT_multiway_merge mcstl::multiway_merge
+#endif
+
 
 //#define SORT_OPTIMAL_PREFETCHING
 //#define INTERLEAVED_ALLOC
@@ -464,13 +470,19 @@ namespace sort_local
 //If parallelism is activated, one can still fall back to the
 //native merge routine by setting stxxl::SETTINGS::native_merge= true, //otherwise, it is used anyway.
 
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
 
 // begin of STL-style merging
 
         //taks: merge
 
-        if (!stxxl::SETTINGS::native_merge && mcstl::HEURISTIC::num_threads >= 1)
+        if (!stxxl::SETTINGS::native_merge &&
+#if defined(_GLIBCXX_PARALLEL)
+            omp_get_max_threads() >= 1
+#elif defined(__MCSTL__)
+            mcstl::HEURISTIC::num_threads >= 1
+#endif
+        )
         {
             typedef stxxl::int64 diff_type;
             typedef std::pair < typename block_type::iterator, typename block_type::iterator > sequence;
@@ -534,7 +546,7 @@ namespace sort_local
 
                     STXXL_VERBOSE1("before merge" << output_size);
 
-                    mcstl::multiway_merge(seqs.begin(), seqs.end(), out_buffer->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
+                    __STXXL_SORT_multiway_merge(seqs.begin(), seqs.end(), out_buffer->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
 
                     STXXL_VERBOSE1("after merge");
 
@@ -625,7 +637,7 @@ namespace sort_local
 
 // end of native merging procedure
 
-#if defined (__MCSTL__) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
     }
 #endif
 

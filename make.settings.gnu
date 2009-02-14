@@ -11,6 +11,7 @@ TOPDIR	?= $(error TOPDIR not defined) # DO NOT CHANGE! This is set elsewhere.
 
 USE_BOOST	?= no	# set 'yes' to use Boost libraries or 'no' to not use Boost libraries
 USE_LINUX	?= yes	# set 'yes' if you run Linux, 'no' otherwise
+USE_PMODE	?= no	# will be overriden from main Makefile
 USE_MCSTL	?= no	# will be overriden from main Makefile
 USE_ICPC	?= no	# will be overriden from main Makefile
 
@@ -23,8 +24,17 @@ COMPILER	?= $(COMPILER_ICPC)
 WARNINGS	?= -Wall -w1 -openmp-report0 -vec-report0
 endif
 
+ifeq ($(strip $(USE_PMODE)),yes)
+COMPILER_GCC	?= g++-trunk -Wno-deprecated
+ifeq ($(strip $(USE_ICPC)),yes)
+LIBNAME		?= pmstxxl_icpc
+else
+LIBNAME		?= pmstxxl
+endif
+endif
+
 ifeq ($(strip $(USE_MCSTL)),yes)
-COMPILER_GCC	?= g++-4.2.3
+COMPILER_GCC	?= g++-4.2.4
 ifeq ($(strip $(USE_ICPC)),yes)
 LIBNAME		?= mcstxxl_icpc
 else
@@ -138,6 +148,25 @@ ICPC_CPPFLAGS	+= $(if $(ICPC_GCC),-gcc-name=$(strip $(ICPC_GCC)))
 ICPC_LDFLAGS	+= $(if $(ICPC_GCC),-gcc-name=$(strip $(ICPC_GCC)))
 
 STXXL_SPECIFIC	+= -include bits/intel_compatibility.h
+
+ICPC_PARALLEL_MODE_CPPFLAGS	?= -gcc-version=420 -cxxlib=$(FAKEGCC)
+
+endif
+
+##################################################################
+
+
+#### PARALLEL_MODE OPTIONS ###############################################
+
+ifeq ($(strip $(USE_PMODE)),yes)
+
+OPENMPFLAG	?= -fopenmp
+PARALLEL_MODE_CPPFLAGS          += $(OPENMPFLAG) -D_GLIBCXX_PARALLEL
+PARALLEL_MODE_LDFLAGS           += $(OPENMPFLAG)
+
+ifeq ($(strip $(USE_ICPC)),yes)
+PARALLEL_MODE_CPPFLAGS		+= $(ICPC_PARALLEL_MODE_CPPFLAGS)
+endif
 
 endif
 
@@ -273,6 +302,11 @@ STXXL_LINKER_OPTIONS	+= $(DEBUG)
 STXXL_LINKER_OPTIONS	+= $(STXXL_LDFLAGS)
 STXXL_LINKER_OPTIONS	+= $(STXXL_LDLIBS)
 
+ifeq ($(strip $(USE_PMODE)),yes)
+STXXL_COMPILER_OPTIONS	+= $(PARALLEL_MODE_CPPFLAGS)
+STXXL_LINKER_OPTIONS	+= $(PARALLEL_MODE_LDFLAGS)
+endif
+ 
 ifeq ($(strip $(USE_MCSTL)),yes)
 STXXL_COMPILER_OPTIONS	+= $(MCSTL_CPPFLAGS)
 STXXL_LINKER_OPTIONS	+= $(MCSTL_LDFLAGS)
