@@ -22,24 +22,17 @@ COMPILER_ICPC	?= icpc
 COMPILER	?= $(COMPILER_ICPC)
 #ICPC_GCC	?= gcc-x.y    # override the gcc/g++ used to find headers and libraries
 WARNINGS	?= -Wall -w1 -openmp-report0 -vec-report0
+LIBNAME_COMPILER_SUFFIX	?= _icpc
 endif
 
 ifeq ($(strip $(USE_PMODE)),yes)
 COMPILER_GCC	?= g++-trunk -Wno-deprecated
-ifeq ($(strip $(USE_ICPC)),yes)
-LIBNAME		?= pmstxxl_icpc
-else
-LIBNAME		?= pmstxxl
-endif
+LIBNAME		?= pmstxxl$(LIBNAME_COMPILER_SUFFIX)
 endif
 
 ifeq ($(strip $(USE_MCSTL)),yes)
 COMPILER_GCC	?= g++-4.2.4
-ifeq ($(strip $(USE_ICPC)),yes)
-LIBNAME		?= mcstxxl_icpc
-else
-LIBNAME		?= mcstxxl
-endif
+LIBNAME		?= mcstxxl$(LIBNAME_COMPILER_SUFFIX)
 # the root directory of your MCSTL installation
 MCSTL_ROOT	?= $(HOME)/work/mcstl
 endif
@@ -53,7 +46,7 @@ OPT		?= -O3 # compiler optimization level
 WARNINGS	?= -W -Wall
 DEBUG		?= # put here -g option to include the debug information into the binaries
 
-LIBNAME		?= stxxl
+LIBNAME		?= stxxl$(LIBNAME_COMPILER_SUFFIX)
 
 
 #### TROUBLESHOOTING
