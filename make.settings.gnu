@@ -112,8 +112,6 @@ ifeq ($(strip $(USE_ICPC)),yes)
 PARALLEL_MODE_CPPFLAGS		+= $(ICPC_PARALLEL_MODE_CPPFLAGS)
 endif
 
-PARALLEL_MODE_CPPFLAGS		+= $(OPENMPFLAG) -D_GBLICXX_PARALLEL
-
 endif
 
 ##################################################################
