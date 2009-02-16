@@ -12,10 +12,6 @@
 #include <list>
 #include <functional>
 
-#ifdef __MCSTL__
- #include <mcstl.h>
-#endif
-
 #include "stxxl/bits/mng/mng.h"
 #include "stxxl/bits/common/rand.h"
 #include "stxxl/bits/mng/adaptor.h"
@@ -31,12 +27,7 @@
 #include "stxxl/bits/algo/run_cursor.h"
 #include "stxxl/bits/algo/losertree.h"
 #include "stxxl/bits/algo/inmemsort.h"
-
-#if defined(_GLIBCXX_PARALLEL)
-#define __STXXL_SORT_multiway_merge __gnu_parallel::multiway_merge
-#elif defined(__MCSTL__)
-#define __STXXL_SORT_multiway_merge mcstl::multiway_merge
-#endif
+#include <stxxl/bits/parallel.h>
 
 
 //#define SORT_OPTIMAL_PREFETCHING
@@ -546,7 +537,8 @@ namespace sort_local
 
                     STXXL_VERBOSE1("before merge" << output_size);
 
-                    __STXXL_SORT_multiway_merge(seqs.begin(), seqs.end(), out_buffer->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
+                    stxxl::parallel::multiway_merge(seqs.begin(), seqs.end(), out_buffer->end() - rest, cmp, output_size);
+                    //sequence iterators are progressed appropriately
 
                     STXXL_VERBOSE1("after merge");
 

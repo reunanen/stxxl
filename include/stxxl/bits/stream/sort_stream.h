@@ -11,10 +11,6 @@
  *  singler@ira.uka.de
  ****************************************************************************/
 
-#ifdef __MCSTL__
- #include <mcstl.h>
-#endif
-
 #include "stxxl/bits/stream/stream.h"
 #include "stxxl/sort"
 
@@ -1438,7 +1434,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                     assert(less_equal_than_min_last > 0);
 
-                    __STXXL_SORT_multiway_merge((*seqs).begin(), (*seqs).end(), current_block->end() - rest, cmp, output_size, false);                         //sequence iterators are progressed appropriately
+                    stxxl::parallel::multiway_merge((*seqs).begin(), (*seqs).end(), current_block->end() - rest, cmp, output_size);
+                    //sequence iterators are progressed appropriately
 
                     rest -= output_size;
 

@@ -16,6 +16,7 @@
 #include "stxxl/bits/common/rand.h"
 #include "stxxl/bits/common/aligned_alloc.h"
 #include "stxxl/bits/common/debug.h"
+#include <stxxl/bits/parallel.h>
 
 #include <memory>
 #include <iostream>

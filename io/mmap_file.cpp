@@ -1,4 +1,5 @@
 #include "stxxl/bits/io/mmap_file.h"
+#include "stxxl/bits/parallel.h"
 
 #ifdef BOOST_MSVC
 // mmap call does not exist in Windows
