@@ -25,13 +25,12 @@
 #include <vector>
 
 #if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
-#if defined(_GLIBCXX_PARALLEL)
+#if defined(_GLIBCXX_PARALLEL) && ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40400)
 #include <parallel/multiway_merge.h>
-#if ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40400)
 #define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinels(__inpb, __inpe, __outb, __len, __cmp)
-#else
-#define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len)
-#endif
+#elif defined(_GLIBCXX_PARALLEL)
+#include <parallel/multiway_merge.h>
+#define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinels(__inpb, __inpe, __outb, __cmp, __len)
 #elif defined(__MCSTL__)
 #include <bits/mcstl_multiway_merge.h>
 #define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) mcstl::multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len, false)
