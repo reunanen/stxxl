@@ -27,10 +27,14 @@
 #if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 #if defined(_GLIBCXX_PARALLEL)
 #include <parallel/multiway_merge.h>
-#define __STXXL_PQ_multiway_merge_sentinel __gnu_parallel::multiway_merge_sentinel
+#if ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40400)
+#define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinels(__inpb, __inpe, __outb, __len, __cmp)
+#else
+#define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len)
+#endif
 #elif defined(__MCSTL__)
 #include <bits/mcstl_multiway_merge.h>
-#define __STXXL_PQ_multiway_merge_sentinel mcstl::multiway_merge_sentinel
+#define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) mcstl::multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len, false)
 #endif
 #endif
 
@@ -1084,7 +1088,7 @@ public:
 
       //main call
 
-      begin = __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size, false); //sequence iterators are progressed appropriately
+      begin = __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size); //sequence iterators are progressed appropriately
 
       rest -= output_size;
       size_ -= output_size;
@@ -2081,7 +2085,7 @@ public:
       {
       std::pair<Element*, Element*> seqs[2] = { std::make_pair(current[0], current_end[0]),
                             std::make_pair(current[1], current_end[1]) };
-      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length, false);
+      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, to, inv_cmp, length);
       current[0] = seqs[0].first;
       current[1] = seqs[1].first;
       }
@@ -2104,7 +2108,7 @@ public:
                             std::make_pair(current[1], current_end[1]),
                             std::make_pair(current[2], current_end[2]),
                             std::make_pair(current[3], current_end[3]) };
-      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length, false);
+      __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, to, inv_cmp, length);
       current[0] = seqs[0].first;
       current[1] = seqs[1].first;
       current[2] = seqs[2].first;
@@ -2145,7 +2149,7 @@ public:
       }
     }
 
-    __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), to, inv_cmp, length, false);
+    __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), to, inv_cmp, length);
 
     for(unsigned int i = 0; i < seqs.size(); ++i)
     {
@@ -2803,7 +2807,7 @@ void priority_queue<Config_>::refillBuffer1()
               std::pair<value_type*, value_type*> seqs[2] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2821,7 +2825,7 @@ void priority_queue<Config_>::refillBuffer1()
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2842,7 +2846,7 @@ void priority_queue<Config_>::refillBuffer1()
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N),
                   std::make_pair(minBuffer2[3], buffer2[3] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz, false); //sequence iterators are progressed appropriately
+              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
