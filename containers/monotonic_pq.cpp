@@ -9,16 +9,6 @@
 
 #include <iomanip>
 
-#if GOOGLE_PROFILER
-#include <google/profiler.h>
-#endif
-
-#define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL 1
-#define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL 1
-#define STXXL_PARALLEL_PQ_STATS 0
-
-//#define _GLIBCXX_ASSERTIONS 0
-
 #define TINY_PQ 0
 #define MANUAL_PQ 1
 
@@ -30,10 +20,6 @@
 //#define MCSTL_MERGESORT 0
 //#define MCSTL_QUICKSORT 1
 #endif
-
-#define STXXL_CHECK_ORDER_IN_SORTS 0
-#define STXXL_VERBOSE_LEVEL -1
-#define MCSTL_VERBOSE_LEVEL 0
 
 #include <stxxl/priority_queue>
 #include <stxxl/timer>
@@ -288,10 +274,6 @@ int main ( int argc, char* argv[] )
 
   const unsigned long long modulo = 0x10000000;
 
-#if GOOGLE_PROFILER
-  ProfilerStart("extpq_profile");
-#endif
-
 #if SIDE_PQ
   std::priority_queue<my_type, std::vector<my_type>, my_cmp> side_pq;
 #endif
@@ -396,10 +378,6 @@ int main ( int argc, char* argv[] )
 	STXXL_MSG ( "Last element " << i << " popped" );
 	Timer.stop();
 
-#if GOOGLE_PROFILER
-  ProfilerStop();
-#endif
-  
 	if ( sum_input != sum_output )
 		STXXL_MSG ( "WRONG sum! " << sum_input << " - " << sum_output << " = " << (sum_output - sum_input) << " / " << (sum_input - sum_output))
 
