@@ -1385,14 +1385,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
 // begin of STL-style merging
 
-            //taks: merge
+            //task: merge
 
             if (!stxxl::SETTINGS::native_merge && omp_get_max_threads() >= 1)
             {
- #ifdef STXXL_CHECK_ORDER_IN_SORTS
-                value_type last_elem;
- #endif
-
                 diff_type rest = block_type::size;  //elements still to merge for this output block
 
                 do              //while rest > 0 and still elements available
