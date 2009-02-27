@@ -2784,9 +2784,7 @@ void priority_queue<Config_>::refillBuffer1()
         size_ = 0;
     }
 
-#if STXXL_CHECK_ORDER_IN_SORTS
-      priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
-#endif
+    priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
 
     // now call simplified refill routines
     // which can make the assumption that
@@ -2806,7 +2804,7 @@ void priority_queue<Config_>::refillBuffer1()
               std::pair<value_type*, value_type*> seqs[2] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
+              __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2820,11 +2818,11 @@ void priority_queue<Config_>::refillBuffer1()
     case 3:
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
-              std::pair<value_type*, value_type*> seqs[2] =
+              std::pair<value_type*, value_type*> seqs[3] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
+              __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 3, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
@@ -2840,12 +2838,12 @@ void priority_queue<Config_>::refillBuffer1()
     case 4:
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
             {
-              std::pair<value_type*, value_type*> seqs[2] =
+              std::pair<value_type*, value_type*> seqs[4] =
                 { std::make_pair(minBuffer2[0], buffer2[0] + N),
                   std::make_pair(minBuffer2[1], buffer2[1] + N),
                   std::make_pair(minBuffer2[2], buffer2[2] + N),
                   std::make_pair(minBuffer2[3], buffer2[3] + N) };
-              begin = __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
+              __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, minBuffer1, inv_cmp, sz); //sequence iterators are progressed appropriately
 
               minBuffer2[0] = seqs[0].first;
               minBuffer2[1] = seqs[1].first;
