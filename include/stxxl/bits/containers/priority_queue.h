@@ -40,8 +40,8 @@
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 0 // no loser tree for the external sequences
 #else
-#undef STXXL_PARALLEL_PQ_STATS
-#define STXXL_PARALLEL_PQ_STATS 0
+/*#undef STXXL_PARALLEL_PQ_STATS
+#define STXXL_PARALLEL_PQ_STATS 0*/
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 1
 #endif
 
@@ -650,7 +650,7 @@ public:
             value_type key; // key of loser element (winner for 0)
             unsigned_type index; // the number of the losing segment
         };
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
 
         size_type size_; // total number of elements stored
         unsigned_type logK; // log of current tree size
@@ -666,7 +666,7 @@ public:
         // upper levels of loser trees
         // entry[0] contains the winner info
         Entry entry[KNKMAX];
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
 
         // leaf information
         // note that Knuth uses indices k..k-1
@@ -764,7 +764,7 @@ public:
             rebuildLoserTree();
 #if STXXL_PQ_EXTERNAL_LOSER_TREE
             assert(is_sentinel(*states[entry[0].index]));
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
         }
 
         // rebuild loser tree information from the values in current
@@ -774,7 +774,7 @@ public:
             unsigned_type winner = initWinner(1);
             entry[0].index = winner;
             entry[0].key   = *(states[winner]);
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
         }
 
 
@@ -854,7 +854,7 @@ public:
                 *mask >>= 1; // next level
             }
         }
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
 
         // make the tree two times as wide
         void doubleK()
@@ -1402,7 +1402,7 @@ public:
             regEntry[0].index = winnerIndex;
             regEntry[0].key   = winnerKey;
         }
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
 
     public:
         bool spaceIsAvailable() const // for new segment
@@ -1482,7 +1482,7 @@ public:
                 unsigned_type dummyMask;
                 update_on_insert((free_slot + k) >> 1, *(states[free_slot]), free_slot,
                                &dummyKey, &dummyIndex, &dummyMask);
-#endif
+#endif //STXXL_PQ_EXTERNAL_LOSER_TREE
             } else {
                 // deallocate memory ?
                 STXXL_VERBOSE1("Merged segment with zero size.");
@@ -1569,7 +1569,7 @@ public:
             value_type key; // Key of Loser element (winner for 0)
             unsigned_type index; // number of losing segment
         };
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
 
         comparator_type cmp;
         // stack of free segment indices
@@ -1585,7 +1585,7 @@ public:
         // upper levels of loser trees
         // entry[0] contains the winner info
         Entry entry[KNKMAX];
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
 
         // leaf information
         // note that Knuth uses indices k..k-1
@@ -1679,7 +1679,7 @@ public:
             regEntry[0].index = winnerIndex;
             regEntry[0].key   = winnerKey;
         }
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
 
     public:
         bool is_sentinel(const Element & a)
@@ -1706,7 +1706,7 @@ public:
             std::swap(sentinel, obj.sentinel);
 #if STXXL_PQ_INTERNAL_LOSER_TREE
             swap_1D_arrays(entry, obj.entry, KNKMAX);
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
             swap_1D_arrays(current, obj.current, KNKMAX);
             swap_1D_arrays(current_end, obj.current_end, KNKMAX);
             swap_1D_arrays(segment, obj.segment, KNKMAX);
@@ -1752,7 +1752,7 @@ public:
         rebuildLoserTree();
 #if STXXL_PQ_INTERNAL_LOSER_TREE
         assert(current[entry[0].index] == &sentinel);
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
     }
 
 
@@ -1765,7 +1765,7 @@ public:
         unsigned_type winner = initWinner(1);
         entry[0].index = winner;
         entry[0].key   = *(current[winner]);
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
     }
 
 
@@ -1848,7 +1848,7 @@ public:
             *mask >>= 1; // next level
         }
     }
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
 
 
 // make the tree two times as wide
@@ -1973,7 +1973,7 @@ public:
             unsigned_type dummyMask;
             update_on_insert((index + k) >> 1, *to, index,
                            &dummyKey, &dummyIndex, &dummyMask);
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
         } else {
             // immediately deallocate
             // this is not only an optimization
@@ -2065,18 +2065,19 @@ public:
             assert(k == 1);
 #if STXXL_PQ_INTERNAL_LOSER_TREE
             assert(entry[0].index == 0);
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
             assert(free_segments.empty());
             //memcpy(to, current[0], length * sizeof(Element));
             std::copy(current[0], current[0] + length, to);
             current[0] += length;
 #if STXXL_PQ_INTERNAL_LOSER_TREE
             entry[0].key = **current;
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
             if (is_segment_empty(0))
                 deallocate_segment(0);
 
             break;
+#if !((defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL)
         case 1:
             assert(k == 2);
     #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
@@ -2135,6 +2136,7 @@ public:
                 deallocate_segment(3);
 
             break;
+#endif //skip variants
   #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
     default:
     {
@@ -2284,7 +2286,7 @@ public:
         entry[0].index = winnerIndex;
         entry[0].key   = winnerKey;
     }
-#endif
+#endif //STXXL_PQ_INTERNAL_LOSER_TREE
 }
 
 /*
