@@ -24,7 +24,7 @@
 #include <iomanip>
 #include <vector>
 
-#if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL_DELETE || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
+#if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_DELETE_BUFFER || STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 #if defined(_GLIBCXX_PARALLEL) && ((__GNUC__ * 10000 + __GNUC_MINOR__ * 100) >= 40400)
 #include <parallel/multiway_merge.h>
 #define __STXXL_PQ_multiway_merge_sentinel(__inpb, __inpe, __outb, __cmp, __len) __gnu_parallel::multiway_merge_sentinels(__inpb, __inpe, __outb, __len, __cmp)
@@ -40,8 +40,6 @@
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 0 // no loser tree for the external sequences
 #else
-/*#undef STXXL_PARALLEL_PQ_STATS
-#define STXXL_PARALLEL_PQ_STATS 0*/
 #define STXXL_PQ_EXTERNAL_LOSER_TREE 1
 #endif
 
@@ -376,7 +374,7 @@ priority_queue<Config_>::priority_queue(prefetch_pool < block_type > &p_pool_, w
     num_active_groups(0), size_(0),
     deallocate_pools(false)
 {
-    STXXL_VERBOSE2("priority_queue::priority_queue()");
+    STXXL_VERBOSE2("priority_queue::priority_queue()")
     assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
 
     ext_mergers = new ext_merger_type[num_ext_groups];
@@ -403,7 +401,7 @@ priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type 
     num_active_groups(0), size_(0),
     deallocate_pools(true)
 {
-    STXXL_VERBOSE2("priority_queue::priority_queue()");
+    STXXL_VERBOSE2("priority_queue::priority_queue()")
     assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
 
     ext_mergers = new ext_merger_type[num_ext_groups];
@@ -424,7 +422,7 @@ priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type 
 template <class Config_>
 priority_queue<Config_>::~priority_queue()
 {
-    STXXL_VERBOSE2("priority_queue::~priority_queue()");
+    STXXL_VERBOSE2("priority_queue::~priority_queue()")
     if (deallocate_pools)
     {
         delete & p_pool;
@@ -440,7 +438,7 @@ priority_queue<Config_>::~priority_queue()
 template <class Config_>
 unsigned_type priority_queue<Config_>::refill_group_buffer(unsigned_type group)
 {
-    STXXL_VERBOSE2("priority_queue::refill_group_buffer(" << group << ")");
+    STXXL_VERBOSE2("priority_queue::refill_group_buffer(" << group << ")")
 
     value_type * target;
     unsigned_type length;
@@ -480,7 +478,7 @@ unsigned_type priority_queue<Config_>::refill_group_buffer(unsigned_type group)
     priority_queue_local::invert_order<typename Config::comparator_type, value_type, value_type> inv_cmp(cmp);
     if(!stxxl::is_sorted(group_buffer_current_mins[group], group_buffers[group] + N, inv_cmp))
     {
-        STXXL_VERBOSE2("length: " << length << " left_elements: " << left_elements);
+        STXXL_VERBOSE2("length: " << length << " left_elements: " << left_elements)
         for(value_type* v = group_buffer_current_mins[group]  + 1; v < group_buffer_current_mins[group] + left_elements; ++v)
         {
             if(inv_cmp(*v, *(v - 1)))
@@ -499,7 +497,7 @@ unsigned_type priority_queue<Config_>::refill_group_buffer(unsigned_type group)
 template <class Config_>
 void priority_queue<Config_>::refill_delete_buffer()
 {
-    STXXL_VERBOSE2("priority_queue::refill_delete_buffer()");
+    STXXL_VERBOSE2("priority_queue::refill_delete_buffer()")
 
     size_type total_group_size = 0;
     //num_active_groups is <= 4
@@ -537,7 +535,7 @@ void priority_queue<Config_>::refill_delete_buffer()
     // which can make the assumption that
     // they find all they are asked in the buffers
     delete_buffer_current_min = delete_buffer_end - length;
-    STXXL_VERBOSE2("Active groups = " << num_active_groups);
+    STXXL_VERBOSE2("Active groups = " << num_active_groups)
     switch (num_active_groups)
     {
     case 0:
@@ -547,7 +545,7 @@ void priority_queue<Config_>::refill_delete_buffer()
         group_buffer_current_mins[0] += length;
         break;
     case 2:
-#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL_DELETE
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_DELETE_BUFFER
         {
             std::pair<value_type*, value_type*> seqs[2] =
             { std::make_pair(group_buffer_current_mins[0], group_buffers[0] + N),
@@ -564,7 +562,7 @@ void priority_queue<Config_>::refill_delete_buffer()
 #endif
         break;
     case 3:
-#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL_DELETE
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_DELETE_BUFFER
         {
             std::pair<value_type*, value_type*> seqs[3] =
             { std::make_pair(group_buffer_current_mins[0], group_buffers[0] + N),
@@ -584,7 +582,7 @@ void priority_queue<Config_>::refill_delete_buffer()
 #endif
         break;
     case 4:
-#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL_DELETE
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_DELETE_BUFFER
         {
             std::pair<value_type*, value_type*> seqs[4] =
             { std::make_pair(group_buffer_current_mins[0], group_buffers[0] + N),
@@ -635,21 +633,21 @@ void priority_queue<Config_>::refill_delete_buffer()
 template <class Config_>
 unsigned_type priority_queue<Config_>::make_space_available(unsigned_type level)
 {
-    STXXL_VERBOSE2("priority_queue::make_space_available(" << level << ")");
+    STXXL_VERBOSE2("priority_queue::make_space_available(" << level << ")")
     unsigned_type finalLevel;
     assert(level < total_num_groups);
     assert(level <= num_active_groups);
 
     if (level == num_active_groups)
     {
-        STXXL_VERBOSE1("new group, now " << num_active_groups << " active groups in total")
         ++num_active_groups;
+        STXXL_VERBOSE2("new group, now " << num_active_groups << " active groups in total")
     }
 
 
     const bool spaceIsAvailable_ =
-        (level < num_int_groups) ? int_mergers[level].spaceIsAvailable()
-        : ((level == total_num_groups - 1) ? true : (ext_mergers[level - num_int_groups].spaceIsAvailable()));
+        (level < num_int_groups) ? int_mergers[level].is_space_available()
+        : ((level == total_num_groups - 1) ? true : (ext_mergers[level - num_int_groups].is_space_available()));
 
     if (spaceIsAvailable_)
     {
@@ -676,13 +674,13 @@ unsigned_type priority_queue<Config_>::make_space_available(unsigned_type level)
             if (level == num_int_groups - 1) // from internal to external tree
             {
                 const unsigned_type segmentSize = int_mergers[num_int_groups - 1].size();
-                STXXL_VERBOSE2("Inserting segment into first level external: " << level << " " << segmentSize);
+                STXXL_VERBOSE2("Inserting segment into first level external: " << level << " " << segmentSize)
                 ext_mergers[0].insert_segment(int_mergers[num_int_groups - 1], segmentSize);
             }
             else // from external to external tree
             {
                 const size_type segmentSize = ext_mergers[level - num_int_groups].size();
-                STXXL_VERBOSE2("Inserting segment into second level external: " << level << " " << segmentSize);
+                STXXL_VERBOSE2("Inserting segment into second level external: " << level << " " << segmentSize)
                 ext_mergers[level - num_int_groups + 1].insert_segment(ext_mergers[level - num_int_groups], segmentSize);
             }
         }
@@ -695,7 +693,7 @@ unsigned_type priority_queue<Config_>::make_space_available(unsigned_type level)
 template <class Config_>
 void priority_queue<Config_>::empty_insert_heap()
 {
-    STXXL_VERBOSE2("priority_queue::empty_insert_heap()");
+    STXXL_VERBOSE2("priority_queue::empty_insert_heap()")
     assert(insert_heap.size() == (N + 1));
 
     const value_type sup = get_supremum();
@@ -708,23 +706,11 @@ void priority_queue<Config_>::empty_insert_heap()
     //insert_heap.sortTo(newSegment);
     value_type * SortTo = newSegment;
 
-#if STXXL_PARALLEL_PQ_STATS
-    ++(histogram[log2(N)].first);
-
-    double start = stxxl_timestamp();
-#endif
-
     insert_heap.sort_to(SortTo);
 
     SortTo = newSegment + N;
     insert_heap.clear();
     insert_heap.push(*SortTo);
-
-#if STXXL_PARALLEL_PQ_STATS
-    double stop = stxxl_timestamp();
-
-    (histogram[log2(N)].second) += (stop - start);
-#endif
 
     assert(insert_heap.size() == 1);
 

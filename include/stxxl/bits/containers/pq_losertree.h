@@ -28,9 +28,9 @@ namespace priority_queue_local
 //////////////////////////////////////////////////////////////////////
 // The data structure from Knuth, "Sorting and Searching", Section 5.4.1
 /**
-    *!  \brief  Loser tree from Knuth, "Sorting and Searching", Section 5.4.1
-    *!  \param  KNKMAX  maximum arity of loser tree, has target be a power of two
-    */
+ *!  \brief  Loser tree from Knuth, "Sorting and Searching", Section 5.4.1
+ *!  \param  KNKMAX  maximum arity of loser tree, has to be a power of two
+ */
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 class loser_tree : private noncopyable
 {
@@ -50,7 +50,7 @@ private:
 
     comparator_type cmp;
     // stack of free segment indices
-    internal_bounded_stack<unsigned_type, KNKMAX> free_segments;
+    internal_bounded_stack<unsigned_type, KNKMAX> free_slots;
 
     unsigned_type size_; // total number of elements stored
     unsigned_type logK; // log of current tree size
@@ -67,20 +67,12 @@ private:
     // leaf information
     // note that Knuth uses indices k..k-1
     // while we use 0..k-1
-    Element * current[KNKMAX]; // pointer target current element
-    Element * current_end[KNKMAX]; // pointer target end of block for current element
+    Element * current[KNKMAX]; // pointer to current element
+    Element * current_end[KNKMAX]; // pointer to end of block for current element
     Element * segment[KNKMAX]; // start of Segments
-    unsigned_type segment_size[KNKMAX]; // just target count the internal memory consumption
+    unsigned_type segment_size[KNKMAX]; // just to count the internal memory consumption, in bytes
 
     unsigned_type mem_cons_;
-
-#if STXXL_PARALLEL_PQ_STATS
-    //histogram data
-    unsigned_type num_segments;
-    typedef std::map<int_type, std::pair<int_type, StatisticalValue<double> > > subhistogram_type;
-    typedef std::map<int_type, subhistogram_type> histogram_type;
-    histogram_type histogram; //k, total_size, num_occurences
-#endif
 
     // private member functions
     unsigned_type initWinner(unsigned_type root);
@@ -99,7 +91,7 @@ private:
     {
         //Entry *currentPos;
         //Element currentKey;
-        //int currentIndex; // leaf pointed target by current entry
+        //int currentIndex; // leaf pointed to by current entry
         Element * done = target + length;
         Entry * regEntry   = entry;
         Element * * regStates = current;
@@ -176,7 +168,7 @@ public:
     void swap(loser_tree & obj)
     {
         std::swap(cmp, obj.cmp);
-        std::swap(free_segments, obj.free_segments);
+        std::swap(free_slots, obj.free_slots);
         std::swap(size_, obj.size_);
         std::swap(logK, obj.logK);
         std::swap(k, obj.k);
@@ -199,9 +191,9 @@ public:
 
     unsigned_type mem_cons() const { return mem_cons_; }
 
-    bool spaceIsAvailable() const // for new segment
+    bool is_space_available() const // for new segment
     {
-        return k < KNKMAX || !free_segments.empty();
+        return (k < KNKMAX) || !free_slots.empty();
     }
 
     void insert_segment(Element * target, unsigned_type length); // insert segment beginning at target
@@ -212,8 +204,8 @@ public:
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 loser_tree<ValTp_, Cmp_, KNKMAX>::loser_tree() : size_(0), logK(0), k(1), mem_cons_(0)
 {
-    free_segments.push(0);
-    segment[0] = 0;
+    free_slots.push(0);
+    segment[0] = NULL;
     current[0] = &sentinel;
     current_end[0] = &sentinel;
     // entry and sentinel are initialized by init
@@ -238,7 +230,7 @@ template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::rebuildLoserTree()
 {
 #if STXXL_PQ_INTERNAL_LOSER_TREE
-    assert(LOG2<KNKMAX>::floor == LOG2<KNKMAX>::ceil); // KNKMAX needs target be a power of two
+    assert(LOG2<KNKMAX>::floor == LOG2<KNKMAX>::ceil); // KNKMAX needs to be a power of two
     unsigned_type winner = initWinner(1);
     entry[0].index = winner;
     entry[0].key   = *(current[winner]);
@@ -262,7 +254,7 @@ unsigned_type loser_tree<ValTp_, Cmp_, KNKMAX>::initWinner(unsigned_type root)
         unsigned_type right = initWinner(2 * root + 1);
         Element lk    = *(current[left ]);
         Element rk    = *(current[right]);
-        if (!(cmp(lk, rk))) { // right subtree looses
+        if (!(cmp(lk, rk))) { // right subtree loses
             entry[root].index = right;
             entry[root].key   = rk;
             return left;
@@ -275,10 +267,10 @@ unsigned_type loser_tree<ValTp_, Cmp_, KNKMAX>::initWinner(unsigned_type root)
 }
 
 
-// first go up the tree all the way target the root
+// first go up the tree all the way to the root
 // hand down old winner for the respective subtree
 // based on new value, and old winner and loser
-// update each node on the path target the root top down.
+// update each node on the path to the root top down.
 // This is implemented recursively
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::update_on_insert(
@@ -307,7 +299,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::update_on_insert(
                 if (cmp(*winnerKey, newKey) ) { // old winner loses here
                     entry[node].key   = *winnerKey;
                     entry[node].index = *winnerIndex;
-                } else { // new entry looses here
+                } else { // new entry loses here
                     entry[node].key   = newKey;
                     entry[node].index = newIndex;
                 }
@@ -315,9 +307,9 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::update_on_insert(
             *winnerKey   = loserKey;
             *winnerIndex = loserIndex;
         }
-        // note that nothing needs target be done if
+        // note that nothing needs to be done if
         // the winner came from the same subtree
-        // a) newKey <= winnerKey => even more reason for the other tree target loose
+        // a) newKey <= winnerKey => even more reason for the other tree to lose
         // b) newKey >  winnerKey => the old winner will beat the new
         //                           entry further down the tree
         // also the same old winner is handed down the tree
@@ -332,10 +324,10 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::update_on_insert(
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::doubleK()
 {
-    STXXL_VERBOSE3("loser_tree::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_segments.size());
+    STXXL_VERBOSE2("loser_tree::doubleK (before) k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_slots.size());
     assert(k > 0);
     assert(k < KNKMAX);
-    assert(free_segments.empty()); // stack was free (probably not needed)
+    assert(free_slots.empty()); // stack was free (probably not needed)
 
     // make all new entries free
     // and push them on the free stack
@@ -344,15 +336,15 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::doubleK()
         current[i] = &sentinel;
         current_end[i] = &sentinel;
         segment[i] = NULL;
-        free_segments.push(i);
+        free_slots.push(i);
     }
 
     // double the size
     k *= 2;
     logK++;
 
-    STXXL_VERBOSE3("loser_tree::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_segments.size());
-    assert(!free_segments.empty());
+    STXXL_VERBOSE2("loser_tree::doubleK (after)  k=" << k << " logK=" << logK << " KNKMAX=" << KNKMAX << " #free=" << free_slots.size());
+    assert(!free_slots.empty());
 
     // recompute loser tree information
     rebuildLoserTree();
@@ -363,50 +355,52 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::doubleK()
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::compactTree()
 {
-    STXXL_VERBOSE3("loser_tree::compactTree (before) k=" << k << " logK=" << logK << " #free=" << free_segments.size());
+    STXXL_VERBOSE2("loser_tree::compactTree (before) k=" << k << " logK=" << logK << " #free=" << free_slots.size());
     assert(logK > 0);
 
-    // compact all nonempty segments target the left
-    unsigned_type from = 0;
-    unsigned_type target   = 0;
-    for ( ;  from < k;  from++)
+    // compact all nonempty segments to the left
+    unsigned_type pos = 0;
+    unsigned_type last_empty = 0;
+    for ( ;  pos < k;  pos++)
     {
-        if (not_sentinel(*(current[from])))
+        if (not_sentinel(*(current[pos])))
         {
-            segment_size[target] = segment_size[from];
-            current[target] = current[from];
-            current_end[target] = current_end[from];
-            segment[target] = segment[from];
-            target++;
+            segment_size[last_empty] = segment_size[pos];
+            current[last_empty] = current[pos];
+            current_end[last_empty] = current_end[pos];
+            segment[last_empty] = segment[pos];
+            last_empty++;
         }/*
             else
             {
-            if(segment[from])
+            if(segment[pos])
             {
-            STXXL_VERBOSE2("loser_tree::compactTree() deleting segment "<<from<<
-                                    " address: "<<segment[from]<<" size: "<<segment_size[from]);
-            delete [] segment[from];
-            segment[from] = 0;
-            mem_cons_ -= segment_size[from];
+            STXXL_VERBOSE2("loser_tree::compactTree() deleting segment "<<pos<<
+                                    " address: "<<segment[pos]<<" size: "<<segment_size[pos]);
+            delete [] segment[pos];
+            segment[pos] = 0;
+            mem_cons_ -= segment_size[pos];
             }
             }*/
     }
 
     // half degree as often as possible
-    while (k > 1 && target <= (k / 2)) {
+    while ((k > 1) && ((k/2) >= last_empty))
+    {
         k /= 2;
         logK--;
     }
 
     // overwrite garbage and compact the stack of free segment indices
-    free_segments.clear(); // none free
-    for ( ;  target < k;  target++) {
-        current[target] = &sentinel;
-        current_end[target] = &sentinel;
-        free_segments.push(target);
+    free_slots.clear(); // none free
+    for ( ; last_empty < k; last_empty++)
+    {
+        current[last_empty] = &sentinel;
+        current_end[last_empty] = &sentinel;
+        free_slots.push(last_empty);
     }
 
-    STXXL_VERBOSE3("loser_tree::compactTree (after)  k=" << k << " logK=" << logK << " #free=" << free_segments.size());
+    STXXL_VERBOSE2("loser_tree::compactTree (after)  k=" << k << " logK=" << logK << " #free=" << free_slots.size());
 
     // recompute loser tree information
     rebuildLoserTree();
@@ -414,7 +408,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::compactTree()
 
 
 // insert segment beginning at target
-// require: spaceIsAvailable() == 1
+// require: is_space_available() == 1
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::insert_segment(Element * target, unsigned_type length)
 {
@@ -428,12 +422,13 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::insert_segment(Element * target, unsigned
         assert( is_sentinel(target[length]));
 
         // get a free slot
-        if (free_segments.empty()) { // tree is too small
+        if (free_slots.empty())
+        { // tree is too small
             doubleK();
         }
-        assert(!free_segments.empty());
-        unsigned_type index = free_segments.top();
-        free_segments.pop();
+        assert(!free_slots.empty());
+        unsigned_type index = free_slots.top();
+        free_slots.pop();
 
 
         // link new segment
@@ -454,7 +449,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::insert_segment(Element * target, unsigned
     } else {
         // immediately deallocate
         // this is not only an optimization
-        // but also needed target keep free segments from
+        // but also needed to keep free segments from
         // clogging up the tree
         delete [] target;
     }
@@ -474,31 +469,18 @@ loser_tree<ValTp_, Cmp_, KNKMAX>::~loser_tree()
             mem_cons_ -= segment_size[i];
         }
     }
-    // check whether we did not loose memory
+    // check whether we have not lost any memory
     assert(mem_cons_ == 0);
-
-#if STXXL_PARALLEL_PQ_STATS
-    for(typename histogram_type::const_iterator h = histogram.begin(); h != histogram.end(); ++h)
-    {
-        STXXL_VERBOSE0("k = " << h->first);
-        const subhistogram_type& subhistogram = h->second;
-        for(typename subhistogram_type::const_iterator sh = subhistogram.begin(); sh != subhistogram.end(); ++sh)
-        {
-        STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(10) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
-        }
-    }
-#endif
-
 }
 
 // free an empty segment .
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 void loser_tree<ValTp_, Cmp_, KNKMAX>::deallocate_segment(unsigned_type slot)
 {
-    // reroute current pointer target some empty sentinel segment
+    // reroute current pointer to some empty sentinel segment
     // with a sentinel key
     STXXL_VERBOSE2("loser_tree::deallocate_segment() deleting segment " <<
-                    slot << " address: " << segment[slot] << " size: " << segment_size[slot]);
+                    slot << " address: " << segment[slot] << " size: " << (segment_size[slot] / sizeof(value_type)) - 1);
     current[slot] = &sentinel;
     current_end[slot] = &sentinel;
 
@@ -508,11 +490,11 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::deallocate_segment(unsigned_type slot)
     mem_cons_ -= segment_size[slot];
 
     // push on the stack of free segment indices
-    free_segments.push(slot);
+    free_slots.push(slot);
 }
 
 
-// delete the length smallest elements and write them target "target"
+// delete the length smallest elements and write them to target
 // empty segments are deallocated
 // require:
 // - there are at least length elements
@@ -528,11 +510,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
     assert(k > 0);
     assert(length <= size_);
 
-    //This is the place target make statistics about internal multi_merge calls.
-
-#if STXXL_PARALLEL_PQ_STATS
-    double start = stxxl_timestamp();
-#endif
+    //This is the place to make statistics about internal multi_merge calls.
 
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
     priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
@@ -543,9 +521,9 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
 #if STXXL_PQ_INTERNAL_LOSER_TREE
         assert(entry[0].index == 0);
 #endif //STXXL_PQ_INTERNAL_LOSER_TREE
-        assert(free_segments.empty());
-        //memcpy(target, current[0], length * sizeof(Element));
-        std::copy(current[0], current[0] + length, target);
+        assert(free_slots.empty());
+        memcpy(target, current[0], length * sizeof(Element));
+        //std::copy(current[0], current[0] + length, target);
         current[0] += length;
 #if STXXL_PQ_INTERNAL_LOSER_TREE
         entry[0].key = **current;
@@ -560,7 +538,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
         {
             std::pair<Element*, Element*> seqs[2] =
                                 { std::make_pair(current[0], current_end[0]),
-                                std::make_pair(current[1], current_end[1]) };
+                                  std::make_pair(current[1], current_end[1]) };
             __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, target, inv_cmp, length);
             current[0] = seqs[0].first;
             current[1] = seqs[1].first;
@@ -579,18 +557,18 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
     case 2:
         assert(k == 4);
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-    {
-    std::pair<Element*, Element*> seqs[4] =
-                        { std::make_pair(current[0], current_end[0]),
-                        std::make_pair(current[1], current_end[1]),
-                        std::make_pair(current[2], current_end[2]),
-                        std::make_pair(current[3], current_end[3]) };
-    __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, target, inv_cmp, length);
-    current[0] = seqs[0].first;
-    current[1] = seqs[1].first;
-    current[2] = seqs[2].first;
-    current[3] = seqs[3].first;
-    }
+        {
+            std::pair<Element*, Element*> seqs[4] =
+                                { std::make_pair(current[0], current_end[0]),
+                                  std::make_pair(current[1], current_end[1]),
+                                  std::make_pair(current[2], current_end[2]),
+                                  std::make_pair(current[3], current_end[3]) };
+            __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 4, target, inv_cmp, length);
+            current[0] = seqs[0].first;
+            current[1] = seqs[1].first;
+            current[2] = seqs[2].first;
+            current[3] = seqs[3].first;
+        }
 #else
         if (is_segment_empty(3))
             merge3_iterator(current[0], current[1], current[2], target, length, cmp);
@@ -612,38 +590,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
             deallocate_segment(3);
 
         break;
-#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-    default:
-        {
-        std::vector<std::pair<Element*, Element*> > seqs;
-        std::vector<int_type> orig_seq_index;
-        for(unsigned int i = 0; i < k; ++i)
-        {
-            if(current[i] != current_end[i] && !is_sentinel(*current[i]))
-            {
-            seqs.push_back(std::make_pair(current[i], current_end[i]));
-            orig_seq_index.push_back(i);
-            }
-        }
-
-        __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), target, inv_cmp, length);
-
-        for(unsigned int i = 0; i < seqs.size(); ++i)
-        {
-            int_type seg = orig_seq_index[i];
-            current[seg] = seqs[i].first;
-        }
-
-        for(unsigned int i = 0; i < k; ++i)
-        if (is_segment_empty(i))
-        {
-            STXXL_VERBOSE1("deallocated " << seg);
-            deallocate_segment(i);
-        }
-break;
-}
-
-#else
+#if !((defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL)
     case  3: multi_merge_f < 3 > (target, length);
         break;
     case  4: multi_merge_f < 4 > (target, length);
@@ -660,9 +607,40 @@ break;
         break;
     case 10: multi_merge_f < 10 > (target, length);
         break;
-    default: multi_merge_k(target, length);
-        break;
 #endif
+    default:
+#if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+        {
+            std::vector<std::pair<Element*, Element*> > seqs;
+            std::vector<int_type> orig_seq_index;
+            for(unsigned int i = 0; i < k; ++i)
+            {
+                if(current[i] != current_end[i] && !is_sentinel(*current[i]))
+                {
+                    seqs.push_back(std::make_pair(current[i], current_end[i]));
+                    orig_seq_index.push_back(i);
+                }
+            }
+
+            __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), target, inv_cmp, length);
+
+            for(unsigned int i = 0; i < seqs.size(); ++i)
+            {
+                int_type seg = orig_seq_index[i];
+                current[seg] = seqs[i].first;
+            }
+
+            for(unsigned int i = 0; i < k; ++i)
+                if (is_segment_empty(i))
+                {
+                    STXXL_VERBOSE1("deallocated " << seg);
+                    deallocate_segment(i);
+                }
+        }
+#else
+        multi_merge_k(target, length);
+#endif
+        break;
     }
 
 
@@ -671,7 +649,7 @@ break;
 
     // compact tree if it got considerably smaller
     {
-        const unsigned_type num_segments_used = k - free_segments.size();
+        const unsigned_type num_segments_used = k - free_slots.size();
         const unsigned_type num_segments_trigger = k - (3 * k / 5);
         // using k/2 would be worst case inefficient (for large k)
         // for k \in {2, 4, 8} the trigger is k/2 which is good
@@ -682,30 +660,19 @@ break;
                         << " <= #trigger=" << num_segments_trigger << " ==> "
                         << ((k > 1 && num_segments_used <= num_segments_trigger) ? "yes" : "no ")
                         << " || "
-                        << ((k == 4 && !free_segments.empty() && !is_segment_empty(3)) ? "yes" : "no ")
-                        << " #free=" << free_segments.size());
+                        << ((k == 4 && !free_slots.empty() && !is_segment_empty(3)) ? "yes" : "no ")
+                        << " #free=" << free_slots.size());
         if (k > 1 && ((num_segments_used <= num_segments_trigger) ||
-                        (k == 4 && !free_segments.empty() && !is_segment_empty(3))))
+                        (k == 4 && !free_slots.empty() && !is_segment_empty(3))))
         {
             compactTree();
         }
     }
     //std::copy(target,target + length,std::ostream_iterator<ValTp_>(std::cout, "\n"));
-
-#if STXXL_PARALLEL_PQ_STATS
-    double stop = stxxl_timestamp();
-
-    if(length > 1)
-    {
-        ++(histogram[k][log2(length - 1) + 1].first);
-        (histogram[k][log2(length - 1) + 1].second += (stop - start));
-    }
-#endif
-
 }
 
 
-// is this segment empty and does not point target sentinel yet?
+// is this segment empty and does not point to sentinel yet?
 template <class ValTp_, class Cmp_, unsigned KNKMAX>
 inline bool loser_tree<ValTp_, Cmp_, KNKMAX>::is_segment_empty(unsigned_type slot)
 {
@@ -720,7 +687,7 @@ multi_merge_k(Element * target, unsigned_type length)
 {
     Entry * currentPos;
     Element currentKey;
-    unsigned_type currentIndex; // leaf pointed target by current entry
+    unsigned_type currentIndex; // leaf pointed to by current entry
     unsigned_type kReg = k;
     Element * done = target + length;
     unsigned_type winnerIndex = entry[0].index;

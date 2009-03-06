@@ -3,20 +3,18 @@
 *
 *  Copyright  2003  Roman Dementiev
 *  dementiev@mpi-sb.mpg.de
-*  Copyright  2007  Johannes Singler
+*  Copyright  2007, 2009  Johannes Singler
 *  singler@ira.uka.de
 ****************************************************************************/
 
 #include <iomanip>
 
-#define STXXL_PARALLEL_PQ_STATS 0
-#define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL 0
-#undef STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
+#define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL 1
 #define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL 1
-#define STXXL_PQ_EXTERNAL_LOSER_TREE 0
+#define STXXL_PARALLEL_PQ_MULTIWAY_MERGE_DELETE_BUFFER 1
 
 #define TINY_PQ 0
-#define MANUAL_PQ 1
+#define MANUAL_PQ 0
 
 #define SIDE_PQ 1
 
@@ -149,9 +147,6 @@ int main ( int argc, char* argv[] )
 #endif
 #if STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
         << " STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL"
-#endif
-#if STXXL_PARALLEL_PQ_STATS
-        << " STXXL_PARALLEL_PQ_STATS"
 #endif
     );
 #endif

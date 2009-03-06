@@ -202,14 +202,6 @@ protected:
 
     sentinel_block_type sentinel_block;
 
-#if STXXL_PARALLEL_PQ_STATS
-    //histogram data
-    unsigned_type num_segments;
-    typedef std::map<unsigned_type, std::pair<unsigned_type, StatisticalValue<double> > > subhistogram_type;
-    typedef std::map<unsigned_type, subhistogram_type> histogram_type;
-    histogram_type histogram; //k, total_size, num_occurences
-#endif
-
 public:
     ext_merger() :
         size_(0), logK(0), k(1), p_pool(0), w_pool(0)
@@ -233,18 +225,6 @@ public:
         {
             delete states[i].block;
         }
-
-#if STXXL_PARALLEL_PQ_STATS
-        for(typename histogram_type::const_iterator h = histogram.begin(); h != histogram.end(); ++h)
-        {
-            STXXL_VERBOSE0("k = " << h->first);
-            const subhistogram_type& subhistogram = h->second;
-            for(typename subhistogram_type::const_iterator sh = subhistogram.begin(); sh != subhistogram.end(); ++sh)
-            {
-            STXXL_VERBOSE0("   log tl <= " << std::setw(2) << sh->first << " " << std::setw(10) << (1 << sh->first) << ": " << std::setw(10) << sh->second.first << " total " << std::setw(12) << ((1 << sh->first) * sh->second.first) << " elements;  time " << sh->second.second);
-            }
-        }
-#endif
     }
 
     void set_pools(prefetch_pool < block_type > * p_pool_,
@@ -259,10 +239,6 @@ private:
     {
         STXXL_VERBOSE2("ext_merger::init()");
         assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
-
-#if STXXL_PARALLEL_PQ_STATS
-        num_segments = 0;
-#endif
 
         for (unsigned_type i = 0; i < block_type::size; ++i)
             sentinel_block[i] = cmp.min_value();
@@ -495,10 +471,6 @@ public:
         assert(length <= size_);
 
         //This is the place target make statistics about external multi_merge calls.
-
-#if STXXL_PARALLEL_PQ_STATS
-        double start = stxxl_timestamp();
-#endif
 
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
 typedef stxxl::int64 diff_type;
@@ -808,16 +780,6 @@ for(unsigned_type i = 0; i < seqs.size(); ++i)
             }
         }
 #endif
-
-#if STXXL_PARALLEL_PQ_STATS
-        double stop = stxxl_timestamp();
-
-        if(length > 1)
-        {
-            ++(histogram[seqs.size()][log2(length - 1) + 1].first);
-            (histogram[seqs.size()][log2(length - 1) + 1].second) += (stop - start);
-        }
-#endif
     }
 
 private:
@@ -929,14 +891,14 @@ if (1 << LogK >= 1 << L) { \
 #endif //STXXL_PQ_EXTERNAL_LOSER_TREE
 
 public:
-    bool spaceIsAvailable() const // for new segment
+    bool is_space_available() const // for new segment
     {
         return k < arity || !free_segments.empty();
     }
 
 
     // insert segment beginning at target
-    // require: spaceIsAvailable() == 1
+    // require: is_space_available() == 1
     template <class Merger>
     void insert_segment(Merger & another_merger, size_type segment_size)
     {
@@ -1025,9 +987,6 @@ protected:
                         unsigned_type first_size, unsigned_type slot)
     {
         STXXL_VERBOSE1("ext_merger::insert_segment(bidlist,...) " << this << " " << bidlist->size() << " " << slot);
-#if STXXL_PARALLEL_PQ_STATS
-        ++num_segments;
-#endif
         assert(!is_segment_allocated(slot));
         assert(first_size > 0);
 
@@ -1049,9 +1008,6 @@ protected:
     void deallocate_segment(unsigned_type slot)
     {
         STXXL_VERBOSE1("ext_merger::deallocate_segment() deleting segment " << slot << " allocated=" << int(is_segment_allocated(slot)));
-#if STXXL_PARALLEL_PQ_STATS
-        --num_segments;
-#endif
         assert(is_segment_allocated(slot));
         states[slot].allocated = false;
         states[slot].make_inf();
