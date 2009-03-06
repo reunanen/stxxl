@@ -76,7 +76,7 @@ while true ; do
 			shift 2
 			;;
 		--with-werror)
-			STXXL_WERROR=-Werror
+			#STXXL_WERROR=-Werror
 			shift
 			;;
 		--with-boost)
