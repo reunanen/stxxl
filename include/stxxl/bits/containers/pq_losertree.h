@@ -554,18 +554,17 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
             deallocate_segment(0);
 
         break;
-#if !((defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL)
     case 1:
         assert(k == 2);
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-    {
-    std::pair<Element*, Element*> seqs[2] =
-                        { std::make_pair(current[0], current_end[0]),
-                        std::make_pair(current[1], current_end[1]) };
-    __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, target, inv_cmp, length);
-    current[0] = seqs[0].first;
-    current[1] = seqs[1].first;
-    }
+        {
+            std::pair<Element*, Element*> seqs[2] =
+                                { std::make_pair(current[0], current_end[0]),
+                                std::make_pair(current[1], current_end[1]) };
+            __STXXL_PQ_multiway_merge_sentinel(seqs, seqs + 2, target, inv_cmp, length);
+            current[0] = seqs[0].first;
+            current[1] = seqs[1].first;
+        }
 #else
         merge_iterator(current[0], current[1], target, length, cmp);
         rebuildLoserTree();
@@ -613,34 +612,34 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
             deallocate_segment(3);
 
         break;
-#endif //skip variants
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_INTERNAL
-default:
-{
-std::vector<std::pair<Element*, Element*> > seqs;
-std::vector<int_type> orig_seq_index;
-for(unsigned int i = 0; i < k; ++i)
-{
-    if(current[i] != current_end[i] && !is_sentinel(*current[i]))
-    {
-    seqs.push_back(std::make_pair(current[i], current_end[i]));
-    orig_seq_index.push_back(i);
-    }
-}
+    default:
+        {
+        std::vector<std::pair<Element*, Element*> > seqs;
+        std::vector<int_type> orig_seq_index;
+        for(unsigned int i = 0; i < k; ++i)
+        {
+            if(current[i] != current_end[i] && !is_sentinel(*current[i]))
+            {
+            seqs.push_back(std::make_pair(current[i], current_end[i]));
+            orig_seq_index.push_back(i);
+            }
+        }
 
-__STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), target, inv_cmp, length);
+        __STXXL_PQ_multiway_merge_sentinel(seqs.begin(), seqs.end(), target, inv_cmp, length);
 
-for(unsigned int i = 0; i < seqs.size(); ++i)
-{
-    int_type seg = orig_seq_index[i];
-    current[seg] = seqs[i].first;
-}
-for(unsigned int i = 0; i < k; ++i)
-    if (is_segment_empty(i))
-    {
-    STXXL_VERBOSE1("deallocated " << seg);
-    deallocate_segment(i);
-    }
+        for(unsigned int i = 0; i < seqs.size(); ++i)
+        {
+            int_type seg = orig_seq_index[i];
+            current[seg] = seqs[i].first;
+        }
+
+        for(unsigned int i = 0; i < k; ++i)
+        if (is_segment_empty(i))
+        {
+            STXXL_VERBOSE1("deallocated " << seg);
+            deallocate_segment(i);
+        }
 break;
 }
 
