@@ -891,8 +891,6 @@ namespace priority_queue_local
     };
 }
 
-//! \}
-
 //! \addtogroup stlcont
 //! \{
 
