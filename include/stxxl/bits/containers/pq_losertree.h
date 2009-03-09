@@ -633,7 +633,7 @@ void loser_tree<ValTp_, Cmp_, KNKMAX>::multi_merge(Element * target, unsigned_ty
             for(unsigned int i = 0; i < k; ++i)
                 if (is_segment_empty(i))
                 {
-                    STXXL_VERBOSE1("deallocated " << seg);
+                    STXXL_VERBOSE3("deallocated " << i);
                     deallocate_segment(i);
                 }
         }
