@@ -9,6 +9,8 @@
  *  dementiev@mpi-sb.mpg.de
  ****************************************************************************/
 
+#include <stxxl/bits/namespace.h>
+
 #ifdef STXXL_BOOST_THREADS
 
 // stxxl::mutex is not needed since boost:mutex exists
