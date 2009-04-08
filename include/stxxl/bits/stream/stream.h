@@ -84,7 +84,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        iterator2stream &  operator ++()
+        iterator2stream & operator ++ ()
         {
             assert(end_ != current_);
             ++current_;
@@ -125,21 +125,22 @@ namespace stream
     class vector_iterator2stream
     {
         InputIterator_ current_, end_;
-        typedef buf_istream < typename InputIterator_::block_type,
-        typename InputIterator_::bids_container_iterator > buf_istream_type;
+        typedef buf_istream<typename InputIterator_::block_type,
+                            typename InputIterator_::bids_container_iterator> buf_istream_type;
 
         mutable std::auto_ptr<buf_istream_type> in;
 
         void delete_stream()
         {
-            in.reset();	//delete object
+            in.reset(); //delete object
         }
+
     public:
         typedef vector_iterator2stream<InputIterator_> Self_;
 
         //! \brief Standard stream typedef
         typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
-        typedef const value_type* const_iterator;
+        typedef const value_type * const_iterator;
 
         vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0) :
             current_(begin), end_(end), in(NULL)
@@ -156,7 +157,7 @@ namespace stream
 
                 // skip the beginning of the block
                 for ( ; cur != begin; ++cur)
-                    ++ (*in);
+                    ++(*in);
             }
         }
 
@@ -181,11 +182,11 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        Self_ &  operator ++()
+        Self_ & operator ++ ()
         {
             assert(end_ != current_);
             ++current_;
-            ++ (*in);
+            ++(*in);
 
             return *this;
         }
@@ -197,7 +198,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        vector_iterator2stream& operator +=(unsigned_type length)
+        vector_iterator2stream & operator += (unsigned_type length)
         {
             assert(0 < length && length <= batch_length());
             current_ += length;
@@ -216,10 +217,10 @@ namespace stream
             return in->batch_begin();
         }
 
-        value_type& operator[](unsigned_type index)
+        value_type & operator [] (unsigned_type index)
         {
-          assert(current_ + index < end_);
-          return (*in)[index];
+            assert(current_ + index < end_);
+            return (*in)[index];
         }
 
         virtual ~vector_iterator2stream()
@@ -236,24 +237,24 @@ namespace stream
     //! which equals to (2 * number_of_disks)
     //! \return an instance of a stream object
 
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     streamify(
-        stxxl::vector_iterator < Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_ > begin,
+        stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
         stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
         unsigned_type nbuffers = 0)
     {
         STXXL_VERBOSE1("streamify for vector_iterator range is called");
         return vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+                         (begin, end, nbuffers);
     }
 
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     struct streamify_traits<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     {
-        typedef vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >  stream_type;
+        typedef vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> > stream_type;
     };
 
     //! \brief Input external \c stxxl::vector const iterator range to stream converter
@@ -264,24 +265,24 @@ namespace stream
     //! which equals to (2 * number_of_disks)
     //! \return an instance of a stream object
 
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     streamify(
-        stxxl::const_vector_iterator < Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_ > begin,
+        stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
         stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
         unsigned_type nbuffers = 0)
     {
         STXXL_VERBOSE1("streamify for const_vector_iterator range is called");
         return vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+                         (begin, end, nbuffers);
     }
 
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     struct streamify_traits<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     {
-        typedef vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >  stream_type;
+        typedef vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> > stream_type;
     };
 
 
@@ -294,10 +295,11 @@ namespace stream
     template <class InputIterator_>
     class vector_iterator2stream_sr
     {
-        vector_iterator2stream<InputIterator_> *vec_it_stream;
-        iterator2stream<InputIterator_> *it_stream;
+        vector_iterator2stream<InputIterator_> * vec_it_stream;
+        iterator2stream<InputIterator_> * it_stream;
 
         typedef typename InputIterator_::block_type block_type;
+
     public:
         typedef vector_iterator2stream_sr<InputIterator_> Self_;
 
@@ -306,7 +308,7 @@ namespace stream
 
         vector_iterator2stream_sr(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0)
         {
-            if (end - begin < block_type::size )
+            if (end - begin < block_type::size)
             {
                 STXXL_VERBOSE1("vector_iterator2stream_sr::vector_iterator2stream_sr: Choosing iterator2stream<InputIterator_>");
                 it_stream = new iterator2stream<InputIterator_>(begin, end);
@@ -332,7 +334,7 @@ namespace stream
         //! \brief Standard stream method
         const value_type & operator * () const
         {
-            if (it_stream)	//PERFORMANCE: Frequent run-time decision
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return **it_stream;
 
             return **vec_it_stream;
@@ -340,20 +342,20 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            if (it_stream)	//PERFORMANCE: Frequent run-time decision
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return &(**it_stream);
 
             return &(**vec_it_stream);
         }
 
         //! \brief Standard stream method
-        Self_ &  operator ++()
+        Self_ & operator ++ ()
         {
-            if (it_stream)	//PERFORMANCE: Frequent run-time decision
-                ++ (*it_stream);
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
+                ++(*it_stream);
 
             else
-                ++ (*vec_it_stream);
+                ++(*vec_it_stream);
 
 
             return *this;
@@ -362,14 +364,14 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-            if (it_stream)	//PERFORMANCE: Frequent run-time decision
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return it_stream->empty();
 
             return vec_it_stream->empty();
         }
         virtual ~vector_iterator2stream_sr()
         {
-            if (it_stream)	//PERFORMANCE: Frequent run-time decision
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 delete it_stream;
 
             else
@@ -378,31 +380,31 @@ namespace stream
     };
 
     //! \brief Version of  \c streamify. Switches from \c vector_iterator2stream to \c iterator2stream for small ranges.
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     vector_iterator2stream_sr<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     streamify_sr(
-        stxxl::vector_iterator < Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_ > begin,
+        stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
         stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
         unsigned_type nbuffers = 0)
     {
         STXXL_VERBOSE1("streamify_sr for vector_iterator range is called");
         return vector_iterator2stream_sr<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+                         (begin, end, nbuffers);
     }
 
     //! \brief Version of  \c streamify. Switches from \c vector_iterator2stream to \c iterator2stream for small ranges.
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
     vector_iterator2stream_sr<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
     streamify_sr(
-        stxxl::const_vector_iterator < Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_ > begin,
+        stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
         stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
         unsigned_type nbuffers = 0)
     {
         STXXL_VERBOSE1("streamify_sr for const_vector_iterator range is called");
         return vector_iterator2stream_sr<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+                         (begin, end, nbuffers);
     }
 
     //! \brief Stores consecutively stream content to an output iterator
@@ -499,7 +501,7 @@ namespace stream
             in += length;
         }
         return outbegin;
-     }
+    }
 
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
@@ -513,17 +515,17 @@ namespace stream
     //! \pre Output range is large enough to hold the all elements in the input stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
                 unsigned_type nbuffers = 0)
     {
-        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>  ExtIterator;
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
-        typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE
         in.start();
@@ -550,9 +552,9 @@ namespace stream
 
         assert(outbegin.block_offset() == 0);
 
-        while (!in.empty() && outend != outbegin )
+        while (!in.empty() && outend != outbegin)
         {
-            if (outbegin.block_offset() == 0 )
+            if (outbegin.block_offset() == 0)
                 outbegin.touch();
 
             *outstream = *in;
@@ -586,24 +588,24 @@ namespace stream
     //! \pre Output range is large enough to hold the all elements in the input stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize_batch(StreamAlgorithm_ & in,
-                stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
-                stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
-                unsigned_type nbuffers = 0)
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+                      unsigned_type nbuffers = 0)
     {
-        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>  ExtIterator;
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
-        typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE
         STXXL_VERBOSE0("materialize_batch starts.")
         in.start();
 #endif
 
-	ExtIterator outcurrent = outbegin;
+        ExtIterator outcurrent = outbegin;
 
         while (outcurrent.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -630,19 +632,19 @@ namespace stream
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outend != outcurrent)
         {
-          if (outcurrent.block_offset() == 0)
-            outcurrent.touch();
+            if (outcurrent.block_offset() == 0)
+                outcurrent.touch();
 
-          length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
+            length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
-          for(typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
-          {
-            *outstream = *i;
-            ++outstream;
-          }
-          outcurrent += length;
-          in += length;
-          //STXXL_VERBOSE0("materialized " << (outcurrent - outbegin))
+            for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+            {
+                *outstream = *i;
+                ++outstream;
+            }
+            outcurrent += length;
+            in += length;
+            //STXXL_VERBOSE0("materialized " << (outcurrent - outbegin))
         }
 
         ConstExtIterator const_out = outcurrent;
@@ -667,16 +669,16 @@ namespace stream
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
                 unsigned_type nbuffers = 0)
     {
-        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>  ExtIterator;
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
-        typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
         // on the I/O complexity of "materialize":
         // crossing block boundary causes O(1) I/Os
@@ -706,11 +708,11 @@ namespace stream
         // create buffered write stream for blocks
         buf_ostream_type outstream(out.bid(), nbuffers);
 
-        assert( out.block_offset() == 0 );
+        assert(out.block_offset() == 0);
 
         while (!in.empty())
         {
-            if (out.block_offset() == 0 )
+            if (out.block_offset() == 0)
                 out.touch();
             // tells the vector that the block was modified
             *outstream = *in;
@@ -723,7 +725,7 @@ namespace stream
 
         while (const_out.block_offset())
         {
-            *outstream = *const_out;      // might cause I/Os for loading the page that
+            *outstream = *const_out;             // might cause I/Os for loading the page that
             ++const_out;                         // contains data beyond out
             ++outstream;
         }
@@ -731,7 +733,6 @@ namespace stream
 
         return out;
     }
-
 
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator
@@ -742,16 +743,16 @@ namespace stream
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
-    template < typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_ >
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize_batch(StreamAlgorithm_ & in,
-                stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
-                unsigned_type nbuffers = 0)
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
+                      unsigned_type nbuffers = 0)
     {
-        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>  ExtIterator;
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
-        typedef buf_ostream < typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator > buf_ostream_type;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
         // on the I/O complexity of "materialize":
         // crossing block boundary causes O(1) I/Os
@@ -782,27 +783,26 @@ namespace stream
         // create buffered write stream for blocks
         buf_ostream_type outstream(out.bid(), nbuffers);
 
-        assert( out.block_offset() == 0 );
+        assert(out.block_offset() == 0);
 
         unsigned_type length;
         while ((length = in.batch_length()) > 0)
         {
-          if (out.block_offset() == 0)
-            out.touch();
-          length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
-          ;
-          for(typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
-          {
-            *outstream = *i;
-            ++outstream;
-          }
-          in += length;
-          out += length;
+            if (out.block_offset() == 0)
+                out.touch();
+            length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
+            for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+            {
+                *outstream = *i;
+                ++outstream;
+            }
+            in += length;
+            out += length;
         }
 
         while (!in.empty())
         {
-            if (out.block_offset() == 0 )
+            if (out.block_offset() == 0)
                 out.touch();
             // tells the vector that the block was modified
             *outstream = *in;
@@ -815,7 +815,7 @@ namespace stream
 
         while (const_out.block_offset())
         {
-            *outstream = *const_out;      // might cause I/Os for loading the page that
+            *outstream = *const_out;             // might cause I/Os for loading the page that
             ++const_out;                         // contains data beyond out
             ++outstream;
         }
@@ -831,7 +831,7 @@ namespace stream
     unsigned_type pull(StreamAlgorithm_ & in, unsigned_type num_elements)
     {
         unsigned_type i;
-        for(i = 0; i < num_elements && !in.empty(); ++i)
+        for (i = 0; i < num_elements && !in.empty(); ++i)
         {
             *in;
             ++in;
@@ -848,18 +848,16 @@ namespace stream
     {
         unsigned_type i, length;
         typename StreamAlgorithm_::value_type dummy;
-        for(i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
+        for (i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
         {
             length = std::min(length, num_elements - i);
-            for(typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
+            for (typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
                 dummy = *j;
             in += length;
             i += length;
         }
         return i;
     }
-
-
 
 
     //! \brief A model of stream that outputs data from an adaptable generator functor
@@ -873,6 +871,7 @@ namespace stream
         typedef T value_type;
         typedef generator2stream & iterator;
         typedef const generator2stream & const_iterator;
+
     private:
         Generator_ gen_;
         value_type current_;
@@ -902,7 +901,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        generator2stream &  operator ++()
+        generator2stream & operator ++ ()
         {
             current_ = gen_();
             return *this;
@@ -924,7 +923,7 @@ namespace stream
         return generator2stream<Generator_>(gen_);
     }
 
-    struct Stopper {};
+    struct Stopper { };
 
     //! \brief Processes (up to) 6 input streams using given operation functor
     //!
@@ -943,24 +942,25 @@ namespace stream
               class Input4_ = Stopper,
               class Input5_ = Stopper,
               class Input6_ = Stopper
-    >
+              >
     class transform
     {
         Operation_ op;
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
-        Input5_ &i5;
-        Input6_ &i6;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
+        Input5_ & i5;
+        Input6_ & i6;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_,
                   Input5_ & i5_, Input5_ & i6_) :
@@ -979,7 +979,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1014,41 +1014,41 @@ namespace stream
 
     private:
         Input1_Iterator_ i1;
-        Operation_& op;
+        Operation_ & op;
         mutable value_type current;
 
     public:
-        transforming_iterator(Operation_& op, const Input1_Iterator_& i1) : i1(i1), op(op) { }
+        transforming_iterator(Operation_ & op, const Input1_Iterator_ & i1) : i1(i1), op(op) { }
 
-        const value_type& operator*() const	//RETURN BY VALUE
+        const value_type & operator * () const  //RETURN BY VALUE
         {
             current = op(*i1);
             return current;
         }
 
-        const value_type* operator->() const
+        const value_type * operator -> () const
         {
-            return &(operator*());
+            return &(operator * ());
         }
 
-        transforming_iterator& operator++()
+        transforming_iterator & operator ++ ()
         {
             ++i1;
 
             return *this;
         }
 
-        transforming_iterator operator+(unsigned_type addend) const
+        transforming_iterator operator + (unsigned_type addend) const
         {
             return transforming_iterator(op, i1 + addend);
         }
 
-        unsigned_type operator-(const transforming_iterator& subtrahend) const
+        unsigned_type operator - (const transforming_iterator & subtrahend) const
         {
             return i1 - subtrahend.i1;
         }
 
-        bool operator!=(const transforming_iterator& ti) const
+        bool operator != (const transforming_iterator & ti) const
         {
             return ti.i1 != i1;
         }
@@ -1062,11 +1062,11 @@ namespace stream
     //! adaptable functor that takes 1 parameter)
     //! - \c Input1_ type of the input
     //! \remark This is a specialization of \c transform .
-    template <class Operation_, class Input1_ >
+    template <class Operation_, class Input1_>
     class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper>
     {
-        Operation_& op;
-        Input1_ &i1;
+        Operation_ & op;
+        Input1_ & i1;
 
     public:
         //! \brief Standard stream typedef
@@ -1074,9 +1074,8 @@ namespace stream
         typedef transforming_iterator<Operation_, typename Input1_::const_iterator> const_iterator;
 
     public:
-
         //! \brief Construction
-        transform(Operation_& o, Input1_ & i1_) : op(o), i1(i1_) { }
+        transform(Operation_ & o, Input1_ & i1_) : op(o), i1(i1_) { }
 
         //! \brief Standard stream method
         void start()
@@ -1094,11 +1093,11 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            return &(operator*());
+            return &(operator * ());
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
 
@@ -1109,7 +1108,7 @@ namespace stream
         bool empty() const
         {
             bool is_empty = i1.empty();
-            if(is_empty)
+            if (is_empty)
             {
                 STXXL_VERBOSE0("transform " << this << " stops pushing.")
                 op.stop_push();
@@ -1121,7 +1120,7 @@ namespace stream
         unsigned_type batch_length() const
         {
             unsigned_type batch_length = i1.batch_length();
-            if(batch_length == 0)
+            if (batch_length == 0)
             {
                 STXXL_VERBOSE0("transform " << this << " stops pushing.")
                 op.stop_push();
@@ -1136,13 +1135,13 @@ namespace stream
         }
 
         //! \brief Batched stream method
-        const value_type& operator[](unsigned_type index) const
+        const value_type & operator [] (unsigned_type index) const
         {
             return op(i1[index]);
         }
 
         //! \brief Batched stream method
-        transform &  operator +=(unsigned_type length)
+        transform & operator += (unsigned_type length)
         {
             assert(length > 0);
 
@@ -1152,10 +1151,11 @@ namespace stream
         }
     };
 
-    template<class Output_>
+    template <class Output_>
     class Pusher
     {
-        Output_& output;
+        Output_ & output;
+
     public:
         typedef typename Output_::value_type value_type;
 
@@ -1165,11 +1165,10 @@ namespace stream
             output.start_push();
         }
 
-        Pusher(Output_& output) : output(output)
-        {
-        }
+        Pusher(Output_ & output) : output(output)
+        { }
 
-        const value_type& operator()(const value_type& val)
+        const value_type & operator () (const value_type & val)
         {
             output.push(val);
             return val;
@@ -1182,17 +1181,16 @@ namespace stream
         }
     };
 
-    template<class Input_, class Output_>
+    template <class Input_, class Output_>
     class pusher : public transform<Pusher<Output_>, Input_>
     {
         Pusher<Output_> p;
 
     public:
-        pusher(Input_& input, Output_& output) : 
-        	transform<Pusher<Output_>, Input_>(p, input),
-        	p(output)
-        {
-        }
+        pusher(Input_ & input, Output_ & output) :
+            transform<Pusher<Output_>, Input_>(p, input),
+            p(output)
+        { }
     };
 
 
@@ -1206,20 +1204,21 @@ namespace stream
     //! \remark This is a specialization of \c transform .
     template <class Operation_, class Input1_,
               class Input2_
-    >
+              >
     class transform<Operation_, Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
     {
         Operation_ op;
-        Input1_ &i1;
-        Input2_ &i2;
+        Input1_ & i1;
+        Input2_ & i2;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         transform(Operation_ o, Input1_ & i1_, Input2_ & i2_) : op(o), i1(i1_), i2(i2_),
                                                                 current(op(*i1, *i2)) { }
@@ -1236,7 +1235,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1267,21 +1266,22 @@ namespace stream
     template <class Operation_, class Input1_,
               class Input2_,
               class Input3_
-    >
+              >
     class transform<Operation_, Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
     {
         Operation_ op;
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_) :
             op(o), i1(i1_), i2(i2_), i3(i3_),
@@ -1299,7 +1299,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1333,22 +1333,23 @@ namespace stream
               class Input2_,
               class Input3_,
               class Input4_
-    >
+              >
     class transform<Operation_, Input1_, Input2_, Input3_, Input4_, Stopper, Stopper>
     {
         Operation_ op;
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_) :
             op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_),
@@ -1366,7 +1367,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1403,23 +1404,24 @@ namespace stream
               class Input3_,
               class Input4_,
               class Input5_
-    >
+              >
     class transform<Operation_, Input1_, Input2_, Input3_, Input4_, Input5_, Stopper>
     {
         Operation_ op;
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
-        Input5_ &i5;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
+        Input5_ & i5;
+
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         transform(Operation_ o, Input1_ & i1_, Input2_ & i2_, Input3_ & i3_, Input4_ & i4_,
                   Input5_ & i5_) :
@@ -1438,7 +1440,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        transform &  operator ++()
+        transform & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1461,10 +1463,10 @@ namespace stream
 
 
     //! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
-    template<class Output_>
-    void* call_stop_push(void* param)
+    template <class Output_>
+    void * call_stop_push(void * param)
     {
-        static_cast<Output_*>(param)->stop_push();
+        static_cast<Output_ *>(param)->stop_push();
         return NULL;
     }
 
@@ -1480,8 +1482,8 @@ namespace stream
         typedef typename Output_::value_type value_type;
 
     protected:
-        Output_** outputs;
-        Output_* current_output;
+        Output_ ** outputs;
+        Output_ * current_output;
         int num_outputs;
         value_type current;
         int pos;
@@ -1490,7 +1492,7 @@ namespace stream
         void next()
         {
             ++pos;
-            if(pos == num_outputs)
+            if (pos == num_outputs)
                 pos = 0;
             current_output = outputs[pos];
             //STXXL_VERBOSE0("distribute next " << pos)
@@ -1498,14 +1500,14 @@ namespace stream
 
     public:
         //! \brief Construction
-        basic_distribute(/*Input_ input, */Output_** outputs, int num_outputs) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs)
+        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs)
         {
-          empty_count = 0;
-          pos = 0;
+            empty_count = 0;
+            pos = 0;
 
 #if !STXXL_START_PIPELINE
-          pos = -1;
-          next();
+            pos = -1;
+            next();
 #endif
         }
 
@@ -1513,7 +1515,7 @@ namespace stream
         void start_push()
         {
             STXXL_VERBOSE0("distribute " << this << " starts push.")
-            for(int i = 0; i < num_outputs; ++i)
+            for (int i = 0; i < num_outputs; ++i)
                 outputs[i]->start_push();
 #if STXXL_START_PIPELINE
             pos = -1;
@@ -1525,12 +1527,12 @@ namespace stream
         void stop_push() const
         {
             STXXL_VERBOSE0("distribute " << this << " stops push.")
-            pthread_t* threads = new pthread_t[num_outputs];
-            for(int i = 0; i < num_outputs; ++i)
+            pthread_t * threads = new pthread_t[num_outputs];
+            for (int i = 0; i < num_outputs; ++i)
                 pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]);
 
-            void* return_code;
-            for(int i = 0; i < num_outputs; ++i)
+            void * return_code;
+            for (int i = 0; i < num_outputs; ++i)
                 pthread_join(threads[i], &return_code);
 
             delete[] threads;
@@ -1550,29 +1552,28 @@ namespace stream
         using base::next;
 
     public:
-        distribute(Output_** outputs, int num_outputs) : base(outputs, num_outputs)
+        distribute(Output_ ** outputs, int num_outputs) : base(outputs, num_outputs)
+        { }
+
+        //! \brief Standard stream method.
+        void push(const value_type & val)
         {
+            current_output->push(val);
+            next();
         }
 
-	//! \brief Standard stream method.
-	void push(const value_type& val)
-	{
-		current_output->push(val);
-		next();
-	}
-	
-	//! \brief Batched stream method.
-	unsigned_type push_batch_length() const
-	{
-		return current_output->push_batch_length();
-	}
-	
-	//! \brief Batched stream method.
-	void push_batch(const value_type* batch_begin, const value_type* batch_end)
-	{
-		current_output->push_batch(batch_begin, batch_end);
-		next();
-	}
+        //! \brief Batched stream method.
+        unsigned_type push_batch_length() const
+        {
+            return current_output->push_batch_length();
+        }
+
+        //! \brief Batched stream method.
+        void push_batch(const value_type * batch_begin, const value_type * batch_end)
+        {
+            current_output->push_batch(batch_begin, batch_end);
+            next();
+        }
     };
 
     //! \brief Push data to different outputs, in a round-robin fashion.
@@ -1591,42 +1592,42 @@ namespace stream
     public:
         typedef typename base::value_type value_type;
 
-        deterministic_distribute(Output_** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(outputs, num_outputs)
+        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(outputs, num_outputs)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
         }
 
- 	//! \brief Standard stream method.
-	void push(const value_type& val)
-	{
-		current_output->push(val);
-		--elements_left;
-		if(elements_left == 0)
-		{
-		    next();
-		    elements_left = elements_per_chunk;
-		}
-	}
-	
-	//! \brief Batched stream method.
-	unsigned_type push_batch_length() const
-	{
-		return std::min(elements_left, current_output->push_batch_length());
-	}
-	
-	//! \brief Batched stream method.
-	void push_batch(const value_type* batch_begin, const value_type* batch_end)
-	{
-		current_output->push_batch(batch_begin, batch_end);
-		elements_left -= (batch_end - batch_begin);
-		if(elements_left == 0)
-		{
-		    next();
-		    elements_left = elements_per_chunk;
-		}
-	}
-   };
+        //! \brief Standard stream method.
+        void push(const value_type & val)
+        {
+            current_output->push(val);
+            --elements_left;
+            if (elements_left == 0)
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+        }
+
+        //! \brief Batched stream method.
+        unsigned_type push_batch_length() const
+        {
+            return std::min(elements_left, current_output->push_batch_length());
+        }
+
+        //! \brief Batched stream method.
+        void push_batch(const value_type * batch_begin, const value_type * batch_end)
+        {
+            current_output->push_batch(batch_begin, batch_end);
+            elements_left -= (batch_end - batch_begin);
+            if (elements_left == 0)
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+        }
+    };
 
     //! \brief Fetch data from different inputs, in a round-robin fashion.
     //!
@@ -1641,9 +1642,9 @@ namespace stream
         typedef typename Input_::const_iterator const_iterator;
 
     protected:
-        Input_** inputs;
-        Input_* current_input;
-        bool* already_empty;
+        Input_ ** inputs;
+        Input_ * current_input;
+        bool * already_empty;
         int num_inputs;
         value_type current;
         int pos;
@@ -1651,55 +1652,55 @@ namespace stream
 
         void next()
         {
-          do
-          {
-            ++pos;
-            if(pos == num_inputs)
-              pos = 0;
-            current_input = inputs[pos];
-
-            if(current_input->empty())
+            do
             {
-              if(!already_empty[pos])
-              {
-                already_empty[pos] = true;
-                ++empty_count;
-                if(empty_count >= num_inputs)
-                  break;	//empty() == true
-              }
-            }
-            else
-              break;
-          } while(true);
-          //STXXL_VERBOSE0("next " << pos)
+                ++pos;
+                if (pos == num_inputs)
+                    pos = 0;
+                current_input = inputs[pos];
+
+                if (current_input->empty())
+                {
+                    if (!already_empty[pos])
+                    {
+                        already_empty[pos] = true;
+                        ++empty_count;
+                        if (empty_count >= num_inputs)
+                            break; //empty() == true
+                    }
+                }
+                else
+                    break;
+            } while (true);
+            //STXXL_VERBOSE0("next " << pos)
         }
 
     public:
         //! \brief Construction
-        basic_round_robin(Input_** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
+        basic_round_robin(Input_ ** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
         {
-          empty_count = 0;
-          pos = 0;
-          already_empty = new bool[num_inputs];
-          for(int i = 0; i < num_inputs; ++i)
-            already_empty[i] = false;
+            empty_count = 0;
+            pos = 0;
+            already_empty = new bool[num_inputs];
+            for (int i = 0; i < num_inputs; ++i)
+                already_empty[i] = false;
 
 #if !STXXL_START_PIPELINE
-          pos = -1;
-          next();
+            pos = -1;
+            next();
 #endif
         }
 
         ~basic_round_robin()
         {
-          delete[] already_empty;
+            delete[] already_empty;
         }
 
         //! \brief Standard stream method
         void start()
         {
             STXXL_VERBOSE0("basic_round_robin " << this << " starts.")
-            for(int i = 0; i < num_inputs; ++i)
+            for (int i = 0; i < num_inputs; ++i)
                 inputs[i]->start();
 #if STXXL_START_PIPELINE
             pos = -1;
@@ -1721,17 +1722,17 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            return &(operator*());
+            return &(operator * ());
         }
 
         const_iterator batch_begin() const
         {
-          return current_input->batch_begin();
+            return current_input->batch_begin();
         }
 
-        const value_type& operator[](unsigned_type index) const
+        const value_type & operator [] (unsigned_type index) const
         {
-          return (*current_input)[index];
+            return (*current_input)[index];
         }
     };
 
@@ -1748,26 +1749,25 @@ namespace stream
 
     public:
         //! \brief Construction
-        round_robin(Input_** inputs, int num_inputs) : base(inputs, num_inputs)
-        {
-        }
+        round_robin(Input_ ** inputs, int num_inputs) : base(inputs, num_inputs)
+        { }
 
         unsigned_type batch_length() const
         {
-          return current_input->batch_length();
+            return current_input->batch_length();
         }
 
         //! \brief Standard stream method
-        round_robin& operator ++()
+        round_robin & operator ++ ()
         {
-          ++(*current_input);
-          next();
+            ++(*current_input);
+            next();
 
-          return *this;
+            return *this;
         }
 
         //! \brief Standard stream method
-        round_robin& operator +=(unsigned_type length)
+        round_robin & operator += (unsigned_type length)
         {
             assert(length > 0);
 
@@ -1793,24 +1793,24 @@ namespace stream
 
     public:
         //! \brief Construction
-        deterministic_round_robin(Input_** inputs, int num_inputs, unsigned_type elements_per_chunk) : base(inputs, num_inputs)
+        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk) : base(inputs, num_inputs)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
         }
 
         //! \brief Standard stream method
-        deterministic_round_robin& operator ++()
+        deterministic_round_robin & operator ++ ()
         {
-          ++(*current_input);
-          --elements_left;
-          if(elements_left == 0 || current_input->empty())
-          {
-              next();
-              elements_left = elements_per_chunk;
-          }
+            ++(*current_input);
+            --elements_left;
+            if (elements_left == 0 || current_input->empty())
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
 
-          return *this;
+            return *this;
         }
 
         unsigned_type batch_length() const
@@ -1819,14 +1819,14 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        deterministic_round_robin& operator +=(unsigned_type length)
+        deterministic_round_robin & operator += (unsigned_type length)
         {
             assert(length > 0);
 
             (*current_input) += length;
             elements_left -= length;
 
-            if(elements_left == 0 || current_input->batch_length() == 0)
+            if (elements_left == 0 || current_input->batch_length() == 0)
             {
                 next();
                 elements_left = elements_per_chunk;
@@ -1845,37 +1845,37 @@ namespace stream
     //! - \c Input4_ type of the 4th input
     //! - \c Input5_ type of the 5th input
     //! - \c Input6_ type of the 6th input
-    template < class Input1_,
+    template <class Input1_,
               class Input2_,
               class Input3_ = Stopper,
               class Input4_ = Stopper,
               class Input5_ = Stopper,
               class Input6_ = Stopper
-    >
+              >
     class make_tuple
     {
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
-        Input5_ &i5;
-        Input6_ &i6;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
+        Input5_ & i5;
+        Input6_ & i6;
 
     public:
         //! \brief Standard stream typedef
-        typedef typename stxxl::tuple <
-        typename Input1_::value_type,
-        typename Input2_::value_type,
-        typename Input3_::value_type,
-        typename Input4_::value_type,
-        typename Input5_::value_type,
-        typename Input6_::value_type
-        > value_type;
+        typedef typename stxxl::tuple<
+            typename Input1_::value_type,
+            typename Input2_::value_type,
+            typename Input3_::value_type,
+            typename Input4_::value_type,
+            typename Input5_::value_type,
+            typename Input6_::value_type
+            > value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         make_tuple(
             Input1_ & i1_,
@@ -1884,7 +1884,7 @@ namespace stream
             Input4_ & i4_,
             Input5_ & i5_,
             Input6_ & i6_
-        ) :
+            ) :
             i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_),
             current(value_type(*i1, *i2, *i3, *i4, *i5, *i6)) { }
 
@@ -1900,7 +1900,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        make_tuple &  operator ++()
+        make_tuple & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -1926,50 +1926,50 @@ namespace stream
 
     template <class Input1_Iterator_, class Input2_Iterator_>
     class make_tuple_iterator : std::iterator<
-    		std::random_access_iterator_tag, 
-    		tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> 
-    	>
+                                    std::random_access_iterator_tag,
+                                    tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type>
+                                    >
     {
     public:
         typedef tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> value_type;
-        
+
     private:
         Input1_Iterator_ i1;
         Input2_Iterator_ i2;
         mutable value_type current;
 
     public:
-	make_tuple_iterator(const Input1_Iterator_& i1, const Input2_Iterator_& i2) : i1(i1), i2(i2) { }
-	
-	const value_type& operator*() const	//RETURN BY VALUE
-	{
-	    current = value_type(*i1, *i2);
-	    return current;
-	}
-	
-        const value_type* operator->() const
+        make_tuple_iterator(const Input1_Iterator_ & i1, const Input2_Iterator_ & i2) : i1(i1), i2(i2) { }
+
+        const value_type & operator * () const  //RETURN BY VALUE
         {
-            return &(operator*());
+            current = value_type(*i1, *i2);
+            return current;
         }
 
-	make_tuple_iterator& operator++()
-	{
-	    ++i1;
-	    ++i2;
-	
-	    return *this;
-	}
-	
-	make_tuple_iterator operator+(unsigned_type addend) const
-	{
-	    return make_tuple_iterator(i1 + addend, i2 + addend);
-	}
+        const value_type * operator -> () const
+        {
+            return &(operator * ());
+        }
 
-	bool operator!=(const make_tuple_iterator& mti) const
-	{
-	    return mti.i1 != i1 || mti.i2 != i2;
-	}
-};
+        make_tuple_iterator & operator ++ ()
+        {
+            ++i1;
+            ++i2;
+
+            return *this;
+        }
+
+        make_tuple_iterator operator + (unsigned_type addend) const
+        {
+            return make_tuple_iterator(i1 + addend, i2 + addend);
+        }
+
+        bool operator != (const make_tuple_iterator & mti) const
+        {
+            return mti.i1 != i1 || mti.i2 != i2;
+        }
+    };
 
 
     //! \brief Creates stream of 2-tuples (pairs) from 2 input streams
@@ -1978,22 +1978,22 @@ namespace stream
     //! - \c Input1_ type of the 1st input
     //! - \c Input2_ type of the 2nd input
     //! \remark A specialization of \c make_tuple .
-    template < class Input1_,
+    template <class Input1_,
               class Input2_
-    >
+              >
     class make_tuple<Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
     {
     public:
         //! \brief Standard stream typedef
-        typedef typename stxxl::tuple <
-        typename Input1_::value_type,
-        typename Input2_::value_type
-        > value_type;
+        typedef typename stxxl::tuple<
+            typename Input1_::value_type,
+            typename Input2_::value_type
+            > value_type;
         typedef make_tuple_iterator<typename Input1_::const_iterator, typename Input2_::const_iterator> const_iterator;
 
     private:
-        Input1_ &i1;
-        Input2_ &i2;
+        Input1_ & i1;
+        Input2_ & i2;
         mutable value_type current;
 
     public:
@@ -2001,27 +2001,26 @@ namespace stream
         make_tuple(
             Input1_ & i1_,
             Input2_ & i2_
-        ) :
+            ) :
             i1(i1_), i2(i2_)
+        { }
+
+        //! \brief Standard stream method
+        void start()
         {
+            STXXL_VERBOSE0("make_tuple " << this << " starts.")
+            i1.start();
+            i2.start();
         }
 
         //! \brief Standard stream method
-	void start()
-	{
-            STXXL_VERBOSE0("make_tuple " << this << " starts.")
-	    i1.start();
-	    i2.start();
-	}
-	
-        //! \brief Standard stream method
-	void start_push()
-	{
+        void start_push()
+        {
             //do nothing
-	}
-	
+        }
+
         //! \brief Standard stream method
-        const value_type& operator * () const	//RETURN BY VALUE
+        const value_type & operator * () const  //RETURN BY VALUE
         {
             current = value_type(*i1, *i2);
             return current;
@@ -2029,11 +2028,11 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            return &(operator*());
+            return &(operator * ());
         }
 
         //! \brief Standard stream method
-        make_tuple &  operator ++()
+        make_tuple & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -2054,7 +2053,7 @@ namespace stream
         }
 
         //! \brief Batched stream method.
-        make_tuple& operator += (unsigned_type size)
+        make_tuple & operator += (unsigned_type size)
         {
             i1 += size;
             i2 += size;
@@ -2065,13 +2064,13 @@ namespace stream
         //! \brief Batched stream method.
         const_iterator batch_begin()
         {
-                return const_iterator(i1.batch_begin(), i2.batch_begin());
+            return const_iterator(i1.batch_begin(), i2.batch_begin());
         }
 
         //! \brief Batched stream method.
-        value_type operator[](unsigned_type index) const
+        value_type operator [] (unsigned_type index) const
         {
-                return value_type(i1[index], i2[index]);
+            return value_type(i1[index], i2[index]);
         }
     };
 
@@ -2082,34 +2081,34 @@ namespace stream
     //! - \c Input2_ type of the 2nd input
     //! - \c Input3_ type of the 3rd input
     //! \remark A specialization of \c make_tuple .
-    template < class Input1_,
+    template <class Input1_,
               class Input2_,
               class Input3_
-    >
+              >
     class make_tuple<Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
     {
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
 
     public:
         //! \brief Standard stream typedef
-        typedef typename stxxl::tuple <
-        typename Input1_::value_type,
-        typename Input2_::value_type,
-        typename Input3_::value_type
-        > value_type;
+        typedef typename stxxl::tuple<
+            typename Input1_::value_type,
+            typename Input2_::value_type,
+            typename Input3_::value_type
+            > value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         make_tuple(
             Input1_ & i1_,
             Input2_ & i2_,
             Input3_ & i3_
-        ) :
+            ) :
             i1(i1_), i2(i2_), i3(i3_),
             current(value_type(*i1, *i2, *i3)) { }
 
@@ -2125,7 +2124,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        make_tuple &  operator ++()
+        make_tuple & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -2153,38 +2152,38 @@ namespace stream
     //! - \c Input3_ type of the 3rd input
     //! - \c Input4_ type of the 4th input
     //! \remark A specialization of \c make_tuple .
-    template < class Input1_,
+    template <class Input1_,
               class Input2_,
               class Input3_,
               class Input4_
-    >
+              >
     class make_tuple<Input1_, Input2_, Input3_, Input4_, Stopper, Stopper>
     {
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
 
     public:
         //! \brief Standard stream typedef
-        typedef typename stxxl::tuple <
-        typename Input1_::value_type,
-        typename Input2_::value_type,
-        typename Input3_::value_type,
-        typename Input4_::value_type
-        > value_type;
+        typedef typename stxxl::tuple<
+            typename Input1_::value_type,
+            typename Input2_::value_type,
+            typename Input3_::value_type,
+            typename Input4_::value_type
+            > value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         make_tuple(
             Input1_ & i1_,
             Input2_ & i2_,
             Input3_ & i3_,
             Input4_ & i4_
-        ) :
+            ) :
             i1(i1_), i2(i2_), i3(i3_), i4(i4_),
             current(value_type(*i1, *i2, *i3, *i4)) { }
 
@@ -2200,7 +2199,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        make_tuple &  operator ++()
+        make_tuple & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -2232,34 +2231,34 @@ namespace stream
     //! - \c Input5_ type of the 5th input
     //! \remark A specialization of \c make_tuple .
     template <
-              class Input1_,
-              class Input2_,
-              class Input3_,
-              class Input4_,
-              class Input5_
-    >
+        class Input1_,
+        class Input2_,
+        class Input3_,
+        class Input4_,
+        class Input5_
+        >
     class make_tuple<Input1_, Input2_, Input3_, Input4_, Input5_, Stopper>
     {
-        Input1_ &i1;
-        Input2_ &i2;
-        Input3_ &i3;
-        Input4_ &i4;
-        Input5_ &i5;
+        Input1_ & i1;
+        Input2_ & i2;
+        Input3_ & i3;
+        Input4_ & i4;
+        Input5_ & i5;
 
     public:
         //! \brief Standard stream typedef
-        typedef typename stxxl::tuple <
-        typename Input1_::value_type,
-        typename Input2_::value_type,
-        typename Input3_::value_type,
-        typename Input4_::value_type,
-        typename Input5_::value_type
-        > value_type;
+        typedef typename stxxl::tuple<
+            typename Input1_::value_type,
+            typename Input2_::value_type,
+            typename Input3_::value_type,
+            typename Input4_::value_type,
+            typename Input5_::value_type
+            > value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
         make_tuple(
             Input1_ & i1_,
@@ -2267,7 +2266,7 @@ namespace stream
             Input3_ & i3_,
             Input4_ & i4_,
             Input5_ & i5_
-        ) :
+            ) :
             i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_),
             current(value_type(*i1, *i2, *i3, *i4, *i5)) { }
 
@@ -2283,7 +2282,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        make_tuple &  operator ++()
+        make_tuple & operator ++ ()
         {
             ++i1;
             ++i2;
@@ -2318,22 +2317,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 1 >
+    class choose<Input_, 1>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::first_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).first) { }
 
@@ -2349,7 +2348,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2374,22 +2373,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 2 >
+    class choose<Input_, 2>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::second_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).second) { }
 
@@ -2405,7 +2404,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2430,22 +2429,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 3 >
+    class choose<Input_, 3>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::third_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).third) { }
 
@@ -2461,7 +2460,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2486,22 +2485,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 4 >
+    class choose<Input_, 4>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::fourth_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).fourth) { }
 
@@ -2517,7 +2516,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2542,22 +2541,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 5 >
+    class choose<Input_, 5>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::fifth_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).fifth) { }
 
@@ -2573,7 +2572,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2598,22 +2597,22 @@ namespace stream
     //!
     //! \remark Tuple stream is a stream which \c value_type is \c stxxl::tuple .
     template <class Input_>
-    class choose < Input_, 6 >
+    class choose<Input_, 6>
     {
-        Input_ &in;
+        Input_ & in;
 
         typedef typename Input_::value_type tuple_type;
-    public:
 
+    public:
         //! \brief Standard stream typedef
         typedef typename tuple_type::sixth_type value_type;
 
     private:
         value_type current;
-    public:
 
+    public:
         //! \brief Construction
-        choose( Input_ & in_) :
+        choose(Input_ & in_) :
             in(in_),
             current((*in_).sixth) { }
 
@@ -2629,7 +2628,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        choose &  operator ++()
+        choose & operator ++ ()
         {
             ++in;
 
@@ -2654,9 +2653,10 @@ namespace stream
     template <class Input, class BinaryPredicate = Stopper>
     class unique
     {
-        Input &input;
+        Input & input;
         BinaryPredicate binary_pred;
         typename Input::value_type current;
+
     public:
         typedef typename Input::value_type value_type;
         unique(Input & input_, BinaryPredicate binary_pred_) : input(input_), binary_pred(binary_pred_)
@@ -2670,11 +2670,11 @@ namespace stream
         {
             value_type old_value = current;
             ++input;
-            while (!input.empty() && (binary_pred(current = *input, old_value)) )
+            while (!input.empty() && (binary_pred(current = *input, old_value)))
                 ++input;
         }
         //! \brief Standard stream method
-        const value_type& operator * () const
+        const value_type & operator * () const
         {
             return current;
         }
@@ -2695,8 +2695,9 @@ namespace stream
     template <class Input>
     class unique<Input, Stopper>
     {
-        Input &input;
+        Input & input;
         typename Input::value_type current;
+
     public:
         typedef typename Input::value_type value_type;
         unique(Input & input_) : input(input_)
@@ -2713,7 +2714,7 @@ namespace stream
                 ++input;
         }
         //! \brief Standard stream method
-        value_type& operator * () const
+        value_type & operator * () const
         {
             return current;
         }

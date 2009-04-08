@@ -58,10 +58,10 @@ namespace stream
             block_manager * bm = block_manager::get_instance();
             for (unsigned_type i = 0; i < runs.size(); ++i)
                 bm->delete_blocks(
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size >
-                        (runs[i].begin()),
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size >
-                        (runs[i].end()) );
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>
+                                  (runs[i].begin()),
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>
+                                  (runs[i].end()));
 
             runs.clear();
         }
@@ -75,15 +75,16 @@ namespace stream
     //! - \c BlockSize_ size of blocks used to store the runs (in bytes)
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
-              class Input_,
-              class Cmp_,
-              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+        class Input_,
+        class Cmp_,
+        unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type),
+        class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class basic_runs_creator : private noncopyable
     {
     protected:
-        Input_ &input;
+        Input_ & input;
         Cmp_ cmp;
+
     public:
         typedef Cmp_ cmp_type;
         typedef typename Input_::value_type value_type;
@@ -91,11 +92,12 @@ namespace stream
         typedef typed_block<BlockSize_, value_type> block_type;
         typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
+
     private:
         typedef typename sorted_runs_type::run_type run_type;
         sorted_runs_type result_; // stores the result (sorted runs)
-        unsigned_type m_; // memory for internal use in blocks
-        bool result_computed; // true iff result is already computed (used in 'result' method)
+        unsigned_type m_;         // memory for internal use in blocks
+        bool result_computed;     // true iff result is already computed (used in 'result' method)
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         pthread_t waiter_and_fetcher;
@@ -114,22 +116,22 @@ namespace stream
                         block_type,
                         value_type,
                         block_type::size>
-                      (run, 0),
+                                (run, 0),
                     ArrayOfSequencesIterator<
                         block_type,
                         value_type,
                         block_type::size>
-                      (run, elements),
+                                (run, elements),
 #else
-                    TwoToOneDimArrayRowAdaptor <
-                                                block_type,
-                                                value_type,
-                                                block_type::size > (run, 0 ),
                     TwoToOneDimArrayRowAdaptor<
-                                               block_type,
-                                               value_type,
-                                               block_type::size > (run,
-                                                                   elements ),
+                        block_type,
+                        value_type,
+                        block_type::size>(run, 0),
+                    TwoToOneDimArrayRowAdaptor<
+                        block_type,
+                        value_type,
+                        block_type::size>(run,
+                                          elements),
 #endif
                     cmp);
 
@@ -151,7 +153,7 @@ namespace stream
         //! \brief Wait for the other thread to join.
         void join_waiting_and_fetching()
         {
-            void* res;
+            void * res;
             terminate_requested = true;
             pthread_cond_signal(&cond);
             pthread_join(waiter_and_fetcher, &res);
@@ -161,8 +163,8 @@ namespace stream
         //!  Waits for ...
         struct WaitFetchJob
         {
-            request_ptr* write_reqs;
-            block_type* Blocks;
+            request_ptr * write_reqs;
+            block_type * Blocks;
             blocked_index<block_type::size> begin;
             unsigned_type wait_run_size;
             unsigned_type read_run_size;
@@ -179,12 +181,12 @@ namespace stream
         //! \brief Routine of the second thread.
         void async_wait_and_fetch()
         {
-            while(true)
+            while (true)
             {
                 pthread_mutex_lock(&mutex);
-                while(work_done && !terminate_requested)    //work_done is true in the beginning
-                    pthread_cond_wait(&cond, &mutex);   //wait for other thread
-                if(terminate_requested)
+                while (work_done && !terminate_requested)   //work_done is true in the beginning
+                    pthread_cond_wait(&cond, &mutex);       //wait for other thread
+                if (terminate_requested)
                 {
                     pthread_mutex_unlock(&mutex);
                     return;
@@ -201,16 +203,16 @@ namespace stream
                     //in the mean time, next write request will advance
                     wait_fetch_job.end =
                         fetch(wait_fetch_job.Blocks,
-                              wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
+                              wait_fetch_job.end, wait_fetch_job.end + block_type::size);
                 }
 
                 //fetch rest
-                for (; i < wait_fetch_job.read_run_size; ++i)
+                for ( ; i < wait_fetch_job.read_run_size; ++i)
                 {
                     wait_fetch_job.end =
                         fetch(wait_fetch_job.Blocks,
-                              wait_fetch_job.end, wait_fetch_job.end +  block_type::size);
-                        // what happens if out of data? function will return immediately
+                              wait_fetch_job.end, wait_fetch_job.end + block_type::size);
+                    // what happens if out of data? function will return immediately
                 }
 
                 pthread_mutex_lock(&mutex);
@@ -223,7 +225,7 @@ namespace stream
         //the following two functions form a asynchronous fetch()
 
         //! \brief Write current request into job structure and advance.
-        void start_write_read(request_ptr* write_reqs, block_type* Blocks, unsigned_type wait_run_size, unsigned_type read_run_size)
+        void start_write_read(request_ptr * write_reqs, block_type * Blocks, unsigned_type wait_run_size, unsigned_type read_run_size)
         {
             wait_fetch_job.write_reqs = write_reqs;
             wait_fetch_job.Blocks = Blocks;
@@ -241,7 +243,7 @@ namespace stream
         blocked_index<block_type::size> wait_write_read()
         {
             pthread_mutex_lock(&mutex);
-            while(!work_done)
+            while (!work_done)
                 pthread_cond_wait(&cond, &mutex);   //wait for other thread
             pthread_mutex_unlock(&mutex);
 
@@ -262,7 +264,7 @@ namespace stream
 #endif
             assert(m_ > 0);
             assert(el_in_run > 0);
-            assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
             assert(c(c.min_value(), c.max_value()));    //consistency of comparator
         }
 
@@ -295,7 +297,6 @@ namespace stream
             }
             return result_;
         }
-
     };
 
     //! \brief Finish the results, i. e. create all runs.
@@ -322,15 +323,15 @@ namespace stream
         //read first block
         while (!input.empty() && blocks1_length != block_type::size)
         {
-             result_.small_.push_back(*input);
-             ++input;
-             ++blocks1_length;
+            result_.small_.push_back(*input);
+            ++input;
+            ++blocks1_length;
         }
 
 
         block_type * Blocks1;
 
-        if ( blocks1_length == block_type::size && !input.empty() )
+        if (blocks1_length == block_type::size && !input.empty())
         {      // enlarge/reallocate Blocks1 array
             Blocks1 = new block_type[m2 * 2];
             std::copy(result_.small_.begin(), result_.small_.end(), Blocks1[0].begin());
@@ -351,10 +352,10 @@ namespace stream
         blocks1_length = fetch(Blocks1, blocks1_length, el_in_run); //fetch rest, first block already in place
         bool already_empty_after_1_block = input.empty();
 
-        block_type * Blocks2 = Blocks1 + m2;    //second half
+        block_type * Blocks2 = Blocks1 + m2;                        //second half
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        start_write_read(NULL, Blocks2, 0, m2); //no write, just read
+        start_write_read(NULL, Blocks2, 0, m2);                     //no write, just read
 #endif
 
         // sort first run
@@ -366,7 +367,7 @@ namespace stream
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.small_.resize(blocks1_length);
             std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
-            delete [] Blocks1;
+            delete[] Blocks1;
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
 #endif
@@ -383,11 +384,11 @@ namespace stream
 
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
-                       trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                       trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-        );
+                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                       );
 
-        disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
+        disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
 
         // fill the rest of the last block with max values
@@ -421,8 +422,8 @@ namespace stream
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
-            delete [] write_reqs;
-            delete [] Blocks1;
+            delete[] write_reqs;
+            delete[] Blocks1;
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
 #endif
@@ -439,23 +440,23 @@ namespace stream
         result_.elements += blocks2_length;
 
         if (already_empty_after_2_blocks)
-        {   //optimization if whole set fits into both halves
+        {                                        //optimization if whole set fits into both halves
             // (re)sort internally and return
             sort_run(Blocks1, result_.elements); // sort first an second run together
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-            wait_write_read();  //for Blocks1
+            wait_write_read();                   //for Blocks1
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
-            bm->delete_blocks(trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                              trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end()) );
+            bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                              trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
 
             cur_run_size = div_and_round_up(result_.elements, block_type::size);
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-            );
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                           );
 
             // fill the rest of the last block with max values
             for (blocked_index<block_type::size> rest = result_.elements; rest != 2 * el_in_run; ++rest)
@@ -486,10 +487,10 @@ namespace stream
             wait_all(write_reqs, write_reqs + m2);
             wait_all(write_reqs1, write_reqs1 + cur_run_size - m2);
 
-            delete [] write_reqs;
-            delete [] write_reqs1;
+            delete[] write_reqs;
+            delete[] write_reqs1;
 
-            delete [] Blocks1;
+            delete[] Blocks1;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             join_waiting_and_fetching();
@@ -504,9 +505,9 @@ namespace stream
         cur_run_size = div_and_round_up(blocks2_length, block_type::size); // in blocks, XXX
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
-                       trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                       trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-        );
+                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                       );
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         blocks1_length = wait_write_read();
@@ -540,12 +541,12 @@ namespace stream
             cur_run_size = div_and_round_up(blocks1_length, block_type::size); // in blocks
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-            );
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                           );
 
             // fill the rest of the last block with max values (occurs only on the last run)
-            for (blocked_index<block_type::size> rest = blocks1_length ; rest != el_in_run; ++rest)
+            for (blocked_index<block_type::size> rest = blocks1_length; rest != el_in_run; ++rest)
                 Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
@@ -578,9 +579,9 @@ namespace stream
 #else
         wait_all(write_reqs, write_reqs + cur_run_size);
 #endif
-        delete [] write_reqs;
-        delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
-        
+        delete[] write_reqs;
+        delete[] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
+
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         join_waiting_and_fetching();
 #endif
@@ -588,29 +589,29 @@ namespace stream
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 //! \brief Helper function to call basic_pull_stage::async_pull() in a thread.
-template <
-              class Input_,
-              class Cmp_,
-              unsigned BlockSize_,
-              class AllocStr_>
-void* call_async_wait_and_fetch(void* param)
-{
-    static_cast<basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>*>(param)->async_wait_and_fetch();
-    return NULL;
-}
+    template <
+        class Input_,
+        class Cmp_,
+        unsigned BlockSize_,
+        class AllocStr_>
+    void * call_async_wait_and_fetch(void * param)
+    {
+        static_cast<basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> *>(param)->async_wait_and_fetch();
+        return NULL;
+    }
 
 //! \brief Start pulling data asynchronously.
-template <
-              class Input_,
-              class Cmp_,
-              unsigned BlockSize_,
-              class AllocStr_>
-void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetching()
-{
-       work_done = true; //so far, nothing to do
-       terminate_requested = false;
-       pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
-}
+    template <
+        class Input_,
+        class Cmp_,
+        unsigned BlockSize_,
+        class AllocStr_>
+    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetching()
+    {
+        work_done = true; //so far, nothing to do
+        terminate_requested = false;
+        pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
+    }
 #endif
 
     //! \brief Forms sorted runs of data from a stream
@@ -621,30 +622,31 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
-              class Input_,
-              class Cmp_,
-              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+        class Input_,
+        class Cmp_,
+        unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type),
+        class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class runs_creator : public basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>
     {
     private:
-      typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+        typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+
     public:
-      typedef typename base::block_type block_type;
+        typedef typename base::block_type block_type;
+
     private:
+        using base::input;
 
-      using base::input;
-
-      virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
-      {
-        while (!input.empty() && pos != limit)
+        virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
         {
-            Blocks[pos.get_block()][pos.get_offset()] = *input;
-            ++input;
-            ++pos;
+            while (!input.empty() && pos != limit)
+            {
+                Blocks[pos.get_block()][pos.get_offset()] = *input;
+                ++input;
+                ++pos;
+            }
+            return pos;
         }
-        return pos;
-      }
 
     public:
         //! \brief Creates the object
@@ -657,7 +659,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             base::start_waiting_and_fetching(); //start second thread
 #endif
         }
-
     };
 
     //! \brief Forms sorted runs of data from a stream
@@ -668,41 +669,41 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
-              class Input_,
-              class Cmp_,
-              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
+        class Input_,
+        class Cmp_,
+        unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type),
+        class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class runs_creator_batch : public basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>
     {
     private:
-      typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
-      typedef typename base::block_type block_type;
+        typedef basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> base;
+        typedef typename base::block_type block_type;
 
-      using base::input;
+        using base::input;
 
-      virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
-      {
-        unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
-        while(((length = input.batch_length()) > 0) && pos != limit)
+        virtual blocked_index<block_type::size> fetch(block_type * Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
         {
-          length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
-          typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
-          for(typename Input_::const_iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
-          {
-            *bi = *i;
-            ++bi;
-          }
-          input += length;
-          pos += length;
-          pos_in_block += length;
-          if(pos_in_block == block_type::size)
-          {
-            ++block_no;
-            pos_in_block = 0;
-          }
+            unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
+            while (((length = input.batch_length()) > 0) && pos != limit)
+            {
+                length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
+                typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
+                for (typename Input_::const_iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
+                {
+                    *bi = *i;
+                    ++bi;
+                }
+                input += length;
+                pos += length;
+                pos_in_block += length;
+                if (pos_in_block == block_type::size)
+                {
+                    ++block_no;
+                    pos_in_block = 0;
+                }
+            }
+            return pos;
         }
-        return pos;
-      }
 
     public:
         //! \brief Creates the object
@@ -715,7 +716,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             base::start_waiting_and_fetching(); //start second thread
 #endif
         }
-
     };
 
 
@@ -744,18 +744,19 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
-              class ValueType_,
-              class Cmp_,
-              unsigned BlockSize_,
-              class AllocStr_>
+        class ValueType_,
+        class Cmp_,
+        unsigned BlockSize_,
+        class AllocStr_>
     class runs_creator<
-                       use_push<ValueType_>,
-                       Cmp_,
-                       BlockSize_,
-                       AllocStr_>
-		       : private noncopyable
+        use_push<ValueType_>,
+        Cmp_,
+        BlockSize_,
+        AllocStr_>
+        : private noncopyable
     {
         Cmp_ cmp;
+
     public:
         typedef Cmp_ cmp_type;
         typedef ValueType_ value_type;
@@ -764,12 +765,13 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
         typedef sorted_runs_type result_type;
+
     private:
         typedef typename sorted_runs_type::run_type run_type;
         sorted_runs_type result_; // stores the result (sorted runs)
-        unsigned_type m_; // memory for internal use in blocks
+        unsigned_type m_;         // memory for internal use in blocks
 
-        bool output_requested; // true after the result() method was called for the first time
+        bool output_requested;    // true after the result() method was called for the first time
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
@@ -779,10 +781,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         request_ptr * write_reqs;
         run_type run;
 
-    //! \brief Mutex variable, to mutual exclude the other thread.
-    pthread_mutex_t mutex;
-    //! \brief Condition variable, to wait for the other thread.
-    pthread_cond_t cond;
+        //! \brief Mutex variable, to mutual exclude the other thread.
+        pthread_mutex_t mutex;
+        //! \brief Condition variable, to wait for the other thread.
+        pthread_cond_t cond;
         volatile bool result_ready;
 
         void sort_run(block_type * run, unsigned_type elements)
@@ -794,22 +796,22 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                         block_type,
                         value_type,
                         block_type::size>
-                      (run, 0),
+                                (run, 0),
                     ArrayOfSequencesIterator<
                         block_type,
                         value_type,
                         block_type::size>
-                      (run, elements),
+                                (run, elements),
 #else
-                    TwoToOneDimArrayRowAdaptor <
-                                                block_type,
-                                                value_type,
-                                                block_type::size > (run, 0 ),
                     TwoToOneDimArrayRowAdaptor<
-                                               block_type,
-                                               value_type,
-                                               block_type::size > (run,
-                                                                   elements ),
+                        block_type,
+                        value_type,
+                        block_type::size>(run, 0),
+                    TwoToOneDimArrayRowAdaptor<
+                        block_type,
+                        value_type,
+                        block_type::size>(run,
+                                          elements),
 #endif
                     cmp);
 
@@ -838,11 +840,11 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-            );
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                           );
 
-            disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
             result_.runs_sizes.push_back(cur_el_reg);
 
@@ -868,11 +870,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
         void cleanup()
         {
-            delete [] write_reqs;
-            delete [] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
+            delete[] write_reqs;
+            delete[] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
             write_reqs = NULL;
             Blocks1 = Blocks2 = NULL;
         }
+
     public:
         //! \brief Creates the object
         //! \param c comparator object
@@ -889,7 +892,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         {
             assert(m_ > 0);
             assert(m2 > 0);
-            assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
             pthread_mutex_init(&mutex, 0);
             pthread_cond_init(&cond, 0);
         }
@@ -937,18 +940,18 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.begin()),
-                           trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (run.end())
-            );
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
+                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
+                           );
 
-            disk_queues::get_instance ()->set_priority_op(disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
             result_.runs_sizes.push_back(el_in_run);
 
             for (unsigned_type i = 0; i < cur_run_size; ++i)
             {
                 run[i].value = Blocks1[i][0];
-                if ( write_reqs[i].get() )
+                if (write_reqs[i].get())
                     write_reqs[i]->wait();
 
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
@@ -964,13 +967,13 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         unsigned_type push_batch_length()
         {
-          return el_in_run - cur_el + 1;
+            return el_in_run - cur_el + 1;
         }
 
         //! \brief Adds new element to the sorter
         //! \param batch_begin Begin of range to be added.
         //! \param batch_end End of range to be added.
-        template<class Iterator>
+        template <class Iterator>
         void push_batch(Iterator batch_begin, Iterator batch_end)
         {
             assert(output_requested == false);
@@ -978,23 +981,23 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             --batch_end;    //save last element
             unsigned_type block_no = cur_el.get_block(), pos_in_block = cur_el.get_offset();
-            while(batch_begin < batch_end)
+            while (batch_begin < batch_end)
             {
-              unsigned_type length = std::min<unsigned_type>(batch_end - batch_begin, block_type::size - pos_in_block);
-              typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
-              for(Iterator end = batch_begin + length; batch_begin != end; ++batch_begin)
-              {
-                *bi = *batch_begin;
-                ++bi;
-              }
-              cur_el += length;
-              pos_in_block += length;
-              assert(pos_in_block <= block_type::size);
-              if(pos_in_block == block_type::size)
-              {
-                ++block_no;
-                pos_in_block = 0;
-              }
+                unsigned_type length = std::min<unsigned_type>(batch_end - batch_begin, block_type::size - pos_in_block);
+                typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
+                for (Iterator end = batch_begin + length; batch_begin != end; ++batch_begin)
+                {
+                    *bi = *batch_begin;
+                    ++bi;
+                }
+                cur_el += length;
+                pos_in_block += length;
+                assert(pos_in_block <= block_type::size);
+                if (pos_in_block == block_type::size)
+                {
+                    ++block_no;
+                    pos_in_block = 0;
+                }
             }
             assert(batch_begin == batch_end);
             push(*batch_end);
@@ -1026,13 +1029,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         const sorted_runs_type & result()
         {
             pthread_mutex_lock(&mutex);
-            while(!result_ready)
+            while (!result_ready)
                 pthread_cond_wait(&cond, &mutex);
             pthread_mutex_unlock(&mutex);
             return result_;
         }
     };
-
 
 
     //! \brief Input strategy for \c runs_creator class
@@ -1059,16 +1061,16 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     template <
-              class ValueType_,
-              class Cmp_,
-              unsigned BlockSize_,
-              class AllocStr_>
+        class ValueType_,
+        class Cmp_,
+        unsigned BlockSize_,
+        class AllocStr_>
     class runs_creator<
-                       from_sorted_sequences<ValueType_>,
-                       Cmp_,
-                       BlockSize_,
-                       AllocStr_>
-		       : private noncopyable
+        from_sorted_sequences<ValueType_>,
+        Cmp_,
+        BlockSize_,
+        AllocStr_>
+        : private noncopyable
     {
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
@@ -1081,11 +1083,12 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef Cmp_ cmp_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
         typedef sorted_runs_type result_type;
+
     private:
         typedef typename sorted_runs_type::run_type run_type;
         sorted_runs_type result_; // stores the result (sorted runs)
-        unsigned_type m_; // memory for internal use in blocks
-        buffered_writer<block_type>  writer;
+        unsigned_type m_;         // memory for internal use in blocks
+        buffered_writer<block_type> writer;
         block_type * cur_block;
         unsigned_type offset;
         unsigned_type iblock;
@@ -1107,14 +1110,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             irun(0)
         {
             assert(m_ > 0);
-            assert (2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
         }
 
         //! \brief Adds new element to the current run
         //! \param val value to be added to the current run
         void push(const value_type & val)
         {
-            assert(offset < block_type::size );
+            assert(offset < block_type::size);
 
             (*cur_block)[offset] = val;
             ++offset;
@@ -1123,16 +1126,16 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             {
                 // write current block
 
-                block_manager * bm = block_manager::get_instance ();
+                block_manager * bm = block_manager::get_instance();
                 // allocate space for the block
                 result_.runs.resize(irun + 1);
-                result_.runs[irun].resize( iblock + 1 );
+                result_.runs[irun].resize(iblock + 1);
                 bm->new_blocks(
-                    offset_allocator < alloc_strategy_type > (iblock, alloc_strategy),
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (result_.runs[irun].begin()
-                                                                                                  + iblock),
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (result_.runs[irun].end())
-                );
+                    offset_allocator<alloc_strategy_type>(iblock, alloc_strategy),
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(result_.runs[irun].begin()
+                                                                                              + iblock),
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(result_.runs[irun].end())
+                    );
 
                 result_.runs[irun][iblock].value = (*cur_block)[0];         // init trigger
                 cur_block = writer.write(cur_block, result_.runs[irun][iblock].bid);
@@ -1163,16 +1166,16 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 }
                 offset = 0;
 
-                block_manager *  bm = block_manager::get_instance ();
+                block_manager * bm = block_manager::get_instance();
                 // allocate space for the block
                 result_.runs.resize(irun + 1);
-                result_.runs[irun].resize( iblock + 1 );
+                result_.runs[irun].resize(iblock + 1);
                 bm->new_blocks(
-                    offset_allocator < alloc_strategy_type > (iblock, alloc_strategy),
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (result_.runs[irun].begin()
-                                                                                                  + iblock),
-                    trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (result_.runs[irun].end())
-                );
+                    offset_allocator<alloc_strategy_type>(iblock, alloc_strategy),
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(result_.runs[irun].begin()
+                                                                                              + iblock),
+                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(result_.runs[irun].end())
+                    );
 
                 result_.runs[irun][iblock].value = (*cur_block)[0];         // init trigger
                 cur_block = writer.write(cur_block, result_.runs[irun][iblock].bid);
@@ -1195,7 +1198,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             return result_;
         }
     };
-
 
 
     //! \brief Checker for the sorted runs object created by the \c runs_creator .
@@ -1236,41 +1238,40 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                         block_type,
                         typename block_type::value_type,
                         block_type::size>
-                      (blocks, 0),
+                                (blocks, 0),
                     ArrayOfSequencesIterator<
                         block_type,
                         typename block_type::value_type,
                         block_type::size>
-                      (blocks, sruns.runs_sizes[irun]),
+                                (blocks, sruns.runs_sizes[irun]),
 #else
-                    TwoToOneDimArrayRowAdaptor <
-                                                block_type,
-                                                value_type,
-                                                block_type::size > (blocks, 0 ),
                     TwoToOneDimArrayRowAdaptor<
-                                               block_type,
-                                               value_type,
-                                               block_type::size > (blocks,
-                                                                   //nblocks*block_type::size
-                                                                   //(irun<nruns-1)?(nblocks*block_type::size): (sruns.elements%(nblocks*block_type::size))
-                                                                   sruns.runs_sizes[irun]
-                    ),
+                        block_type,
+                        value_type,
+                        block_type::size>(blocks, 0),
+                    TwoToOneDimArrayRowAdaptor<
+                        block_type,
+                        value_type,
+                        block_type::size>(blocks,
+                                          //nblocks*block_type::size
+                                          //(irun<nruns-1)?(nblocks*block_type::size): (sruns.elements%(nblocks*block_type::size))
+                                          sruns.runs_sizes[irun]
+                                          ),
 #endif
-                    cmp) )
+                    cmp))
             {
                 STXXL_ERRMSG("check_sorted_runs  wrong order in the run");
                 return false;
             }
 
-            delete [] reqs;
-            delete [] blocks;
+            delete[] reqs;
+            delete[] blocks;
         }
 
         STXXL_MSG("Checking runs finished successfully");
 
         return true;
     }
-
 
 
     //! \brief Merges sorted runs
@@ -1280,9 +1281,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c Cmp_ type of comparison object used for merging
     //! - \c AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
-    template <  class RunsType_,
+    template <class RunsType_,
               class Cmp_,
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class basic_runs_merger : private noncopyable
     {
     protected:
@@ -1293,17 +1294,16 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef typename sorted_runs_type::run_type run_type;
         typedef typename sorted_runs_type::block_type block_type;
         typedef typename block_type::bid_type bid_type;
-        typedef block_prefetcher < block_type, typename run_type::iterator > prefetcher_type;
+        typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
         typedef sort_local::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
         typedef loser_tree<run_cursor_type, run_cursor2_cmp_type, block_type::size> loser_tree_type;
 
         typedef stxxl::int64 diff_type;
-        typedef std::pair < typename block_type::iterator, typename block_type::iterator > sequence;
+        typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
         typedef typename std::vector<sequence>::size_type seqs_size_type;
-        std::vector<sequence>* seqs;
-        std::vector<block_type *>* buffers;
-
+        std::vector<sequence> * seqs;
+        std::vector<block_type *> * buffers;
 
 
         sorted_runs_type sruns;
@@ -1331,7 +1331,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 delete seqs;
                 delete buffers;
                 delete prefetcher;
-                delete [] prefetch_seq;
+                delete[] prefetch_seq;
                 prefetcher = NULL;
             }
             // free blocks in runs , (or the user should do it?)
@@ -1352,14 +1352,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 #elif defined(__MCSTL__)
                 mcstl::HEURISTIC::num_threads >= 1
 #endif
-            )
+                )
             {
                 seqs = new std::vector<sequence>(nruns);
-                buffers = new std::vector<block_type *> (nruns);
+                buffers = new std::vector<block_type *>(nruns);
 
-                for (unsigned_type i = 0; i < nruns; ++i)            //initialize sequences
+                for (unsigned_type i = 0; i < nruns; ++i)                                              //initialize sequences
                 {
-                    (*buffers)[i] = prefetcher->pull_block();           //get first block of each run
+                    (*buffers)[i] = prefetcher->pull_block();                                          //get first block of each run
                     (*seqs)[i] = std::make_pair((*buffers)[i]->begin(), (*buffers)[i]->end());         //this memory location stays the same, only the data is exchanged
                 }
 
@@ -1375,7 +1375,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
 // end of native merging procedure
 #if (defined(_GLIBCXX_PARALLEL) || defined(__MCSTL__)) && defined (STXXL_PARALLEL_MULTIWAY_MERGE)
-            }
+        }
 #endif
         }
 
@@ -1389,9 +1389,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             if (!stxxl::SETTINGS::native_merge && omp_get_max_threads() >= 1)
             {
-                diff_type rest = block_type::size;  //elements still to merge for this output block
+                diff_type rest = block_type::size;                      //elements still to merge for this output block
 
-                do              //while rest > 0 and still elements available
+                do                                                      //while rest > 0 and still elements available
                 {
                     value_type * min_last_element = NULL;               //no element found yet
                     diff_type total_size = 0;
@@ -1437,7 +1437,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                     for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
-                        if ((*seqs)[i].first == (*seqs)[i].second)                            //run empty
+                        if ((*seqs)[i].first == (*seqs)[i].second)                                            //run empty
                         {
                             if (prefetcher->block_consumed((*buffers)[i]))
                             {
@@ -1467,7 +1467,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 }
 
 
-
  #endif
 
 
@@ -1490,7 +1489,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     public:
         //! \brief Standard stream typedef
         typedef typename sorted_runs_type::value_type value_type;
-        typedef const value_type* const_iterator;
+        typedef const value_type * const_iterator;
 
         //! \brief Creates a runs merger object
         //! \param r input sorted runs object
@@ -1533,7 +1532,6 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 return;
 
 
-
             if (!sruns.small_.empty()) // we have a small input < B,
             // that is kept in the main memory
             {
@@ -1553,7 +1551,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             current_block = new block_type;
 
-            disk_queues::get_instance ()->set_priority_op (disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
             nruns = sruns.runs.size();
 
@@ -1588,21 +1586,21 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             prefetch_seq = new int_type[prefetch_seq_size];
 
-            typename run_type::iterator copy_start = consume_seq.begin ();
+            typename run_type::iterator copy_start = consume_seq.begin();
             for (i = 0; i < nruns; ++i)
             {
                 copy_start = std::copy(
-                    sruns.runs[i].begin (),
-                    sruns.runs[i].end (),
-                    copy_start      );
+                    sruns.runs[i].begin(),
+                    sruns.runs[i].end(),
+                    copy_start);
             }
 
-            std::stable_sort(consume_seq.begin (), consume_seq.end (),
+            std::stable_sort(consume_seq.begin(), consume_seq.end(),
                              sort_local::trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp));
 
-            int_type disks_number = config::get_instance ()->disks_number ();
+            int_type disks_number = config::get_instance()->disks_number();
 
-            const int_type n_prefetch_buffers = STXXL_MAX( 2 * disks_number, (int_type(m_) - int_type(nruns)) );
+            const int_type n_prefetch_buffers = STXXL_MAX(2 * disks_number, (int_type(m_) - int_type(nruns)));
 
 
 #ifdef SORT_OPTIMAL_PREFETCHING
@@ -1613,7 +1611,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 consume_seq,
                 prefetch_seq,
                 n_opt_prefetch_buffers,
-                disks_number );
+                disks_number);
 #else
             for (i = 0; i < prefetch_seq_size; ++i)
                 prefetch_seq[i] = i;
@@ -1664,7 +1662,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
         //! \brief Standard stream method
-        basic_runs_merger & operator ++() // preincrement operator
+        basic_runs_merger & operator ++ () // preincrement operator
         {
             assert(!empty());
 
@@ -1673,8 +1671,8 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             if (buffer_pos != block_type::size)
             {
 //              printf("single %lld\n", block_type::size - buffer_pos);
-              current_value = current_block->elem[buffer_pos];
-              ++buffer_pos;
+                current_value = current_block->elem[buffer_pos];
+                ++buffer_pos;
             }
             else
             {
@@ -1709,7 +1707,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-          return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
+            return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
         }
 
         //! \brief Batched stream method.
@@ -1719,26 +1717,26 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         }
 
         //! \brief Batched stream method.
-        const value_type& operator[](unsigned_type index)
+        const value_type & operator [] (unsigned_type index)
         {
             assert(index < batch_length());
             return *(current_block->elem + buffer_pos - 1 + index);
         }
 
         //! \brief Batched stream method.
-        basic_runs_merger& operator += (unsigned_type length)
+        basic_runs_merger & operator += (unsigned_type length)
         {
-          assert(length > 0);
+            assert(length > 0);
 
-          elements_remaining -= (length - 1);
-          buffer_pos += (length - 1);
+            elements_remaining -= (length - 1);
+            buffer_pos += (length - 1);
 
-          assert(elements_remaining > 0);
-          assert(buffer_pos <= block_type::size);
+            assert(elements_remaining > 0);
+            assert(buffer_pos <= block_type::size);
 
-          operator++();
+            operator ++ ();
 
-          return *this;
+            return *this;
         }
 
         //! \brief Destructor
@@ -1753,6 +1751,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             // free blocks in runs , (or the user should do it?)
             sruns.deallocate_blocks();
         }
+
     private:
         // cache for the current value
         value_type current_value;
@@ -1763,7 +1762,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     void basic_runs_merger<RunsType_, Cmp_, AllocStr_>::merge_recursively()
     {
         block_manager * bm = block_manager::get_instance();
-        unsigned_type ndisks = config::get_instance ()->disks_number ();
+        unsigned_type ndisks = config::get_instance()->disks_number();
         unsigned_type nwrite_buffers = 2 * ndisks;
 
         unsigned_type nruns = sruns.runs.size();
@@ -1808,9 +1807,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
             // allocate blocks for the new runs
             for (unsigned_type i = 0; i < new_runs.runs.size(); ++i)
-                bm->new_blocks( alloc_strategy(),
-                                trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (new_runs.runs[i].begin()),
-                                trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (new_runs.runs[i].end()) );
+                bm->new_blocks(alloc_strategy(),
+                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].begin()),
+                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].end()));
 
 
             // merge all
@@ -1829,10 +1828,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
                 std::copy(sruns.runs.begin() + nruns - runs_left,
                           sruns.runs.begin() + nruns - runs_left + runs2merge,
-                          cur_runs.runs.begin() );
+                          cur_runs.runs.begin());
                 std::copy(sruns.runs_sizes.begin() + nruns - runs_left,
                           sruns.runs_sizes.begin() + nruns - runs_left + runs2merge,
-                          cur_runs.runs_sizes.begin() );
+                          cur_runs.runs_sizes.begin());
 
                 runs_left -= runs2merge;
                 /*
@@ -1847,10 +1846,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 {
                     basic_runs_merger<RunsType_, Cmp_, AllocStr_> merger(cur_runs, cmp, m_ * block_type::raw_size);
 
-                    { // make sure everything is being destroyed in right time
-                        buf_ostream < block_type, typename run_type::iterator > out(
+                    {   // make sure everything is being destroyed in right time
+                        buf_ostream<block_type, typename run_type::iterator> out(
                             new_runs.runs[cur_out_run].begin(),
-                            nwrite_buffers );
+                            nwrite_buffers);
 
                         blocked_index<block_type::size> cnt = 0;
                         const unsigned_type cnt_max = cur_runs.elements;
@@ -1858,7 +1857,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                         while (cnt != cnt_max)
                         {
                             *out = *merger;
-                            if ( (cnt.get_offset()) == 0)  // have to write the trigger value
+                            if ((cnt.get_offset()) == 0)   // have to write the trigger value
                                 new_runs.runs[cur_out_run][cnt.get_block()].value = *merger;
 
 
@@ -1879,10 +1878,10 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
                 else
                 {
                     bm->delete_blocks(
-                        trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (
+                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
                             new_runs.runs.back().begin()),
-                        trigger_entry_iterator < typename run_type::iterator, block_type::raw_size > (
-                            new_runs.runs.back().end()) );
+                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
+                            new_runs.runs.back().end()));
 
                     assert(cur_runs.runs.size() == 1);
 
@@ -1909,9 +1908,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c Cmp_ type of comparison object used for merging
     //! - \c AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
-    template <  class RunsType_,
+    template <class RunsType_,
               class Cmp_,
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class runs_merger : public basic_runs_merger<RunsType_, Cmp_, AllocStr_>
     {
     private:
@@ -1920,14 +1919,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef typename base::value_cmp value_cmp;
         typedef typename base::block_type block_type;
 
-        const sorted_runs_type& sruns;
+        const sorted_runs_type & sruns;
 
     public:
         //! \brief Creates a runs merger object
         //! \param r input sorted runs object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        runs_merger(const sorted_runs_type& r, value_cmp c, unsigned_type memory_to_use) :
+        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use) :
             base(c, memory_to_use),
             sruns(r)
         {
@@ -1952,9 +1951,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c Cmp_ type of comparison object used for merging
     //! - \c AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
-    template <  class RunsCreator_,
+    template <class RunsCreator_,
               class Cmp_,
-              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY >
+              class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY>
     class startable_runs_merger : public basic_runs_merger<typename RunsCreator_::sorted_runs_type, Cmp_, AllocStr_>
     {
     private:
@@ -1962,14 +1961,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         typedef typename base::value_cmp value_cmp;
         typedef typename base::block_type block_type;
 
-        RunsCreator_& rc;
+        RunsCreator_ & rc;
 
     public:
         //! \brief Creates a runs merger object
         //! \param rc Runs creator.
         //! \param c Comparison object.
         //! \param memory_to_use Amount of memory available for the merger in bytes.
-        startable_runs_merger(RunsCreator_& rc, value_cmp c, unsigned_type memory_to_use) :
+        startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use) :
             base(c, memory_to_use),
             rc(rc)
         {
@@ -1995,9 +1994,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c BlockSize_ size of blocks used to store the runs
     //! - \c AllocStr_ functor that defines allocation strategy for the runs
     //! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
-    template <  class Input_,
+    template <class Input_,
               class Cmp_,
-              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE (typename Input_::value_type),
+              unsigned BlockSize_ = STXXL_DEFAULT_BLOCK_SIZE(typename Input_::value_type),
               class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY,
               class runs_creator_type = runs_creator<Input_, Cmp_, BlockSize_, AllocStr_> >
     class sort : public noncopyable
@@ -2007,9 +2006,9 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 
         runs_creator_type creator;
         runs_merger_type merger;
-        Cmp_& c;
+        Cmp_ & c;
         unsigned_type memory_to_use_m;
-        Input_& input;
+        Input_ & input;
 
     public:
         //! \brief Standard stream typedef
@@ -2028,8 +2027,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             c(c),
             memory_to_use_m(memory_to_use),
             input(in)
-        {
-        }
+        { }
 
         //! \brief Creates the object
         //! \param in input stream
@@ -2041,8 +2039,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
             merger(creator, c, memory_to_use_m),
             c(c),
             memory_to_use_m(memory_to_use_m)
-        {
-        }
+        { }
 
         //! \brief Standard stream method
         void start()
@@ -2067,11 +2064,11 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         const value_type * operator -> () const
         {
             assert(!empty());
-            return merger.operator->();
+            return merger.operator -> ();
         }
 
         //! \brief Standard stream method
-        sort & operator ++()
+        sort & operator ++ ()
         {
             ++merger;
             return *this;
@@ -2081,25 +2078,26 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-          return merger.batch_length();
+            return merger.batch_length();
         }
 
         //! \brief Batched stream method.
         const_iterator batch_begin()
-        {       return merger.batch_begin();
+        {
+            return merger.batch_begin();
         }
 
         //! \brief Batched stream method.
-        const value_type& operator[](unsigned_type index)
+        const value_type & operator [] (unsigned_type index)
         {
-                return merger[index];
+            return merger[index];
         }
 
         //! \brief Batched stream method.
-        sort& operator += (unsigned_type size)
+        sort & operator += (unsigned_type size)
         {
-                merger += size;
-                return *this;
+            merger += size;
+            return *this;
         }
     };
 
@@ -2109,13 +2107,14 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
     //! - \c ValueType_ type of values ins sorted runs
     //! - \c BlockSize_ size of blocks where sorted runs stored
     template <
-              class ValueType_,
-              unsigned BlockSize_>
+        class ValueType_,
+        unsigned BlockSize_>
     class compute_sorted_runs_type
     {
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
         typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
+
     public:
         typedef sorted_runs<value_type, trigger_entry_type> result;
     };
@@ -2136,7 +2135,7 @@ void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_
 //!
 //! The \c BlockSize template parameter defines the block size to use (in bytes)
 //! \warning Slower than External Iterator Sort
-template <      unsigned BlockSize,
+template <unsigned BlockSize,
           class RandomAccessIterator,
           class CmpType,
           class AllocStr>
