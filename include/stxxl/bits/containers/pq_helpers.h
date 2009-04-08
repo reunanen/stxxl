@@ -30,8 +30,8 @@ namespace priority_queue_local
  * - Provides access target underlying heap, so (parallel) sorting in place is possible.
  * - Can be cleared "at once", without reallocation.
  */
-    template<typename _Tp, typename _Sequence = std::vector<_Tp>,
-             typename _Compare  = std::less<typename _Sequence::value_type> >
+    template <typename _Tp, typename _Sequence = std::vector<_Tp>,
+              typename _Compare = std::less<typename _Sequence::value_type> >
     class internal_priority_queue
     {
         // concept requirements
@@ -56,7 +56,7 @@ namespace priority_queue_local
         explicit
         internal_priority_queue(size_type capacity)
             : heap(capacity), current_size(0)
-        {  }
+        { }
 
         /**
          *  Returns true if the %queue is empty.
@@ -135,7 +135,7 @@ namespace priority_queue_local
 /**
  * @brief Inverts the order of a comparison functor by swapping its arguments.
  */
-    template<class Predicate, typename first_argument_type, typename second_argument_type>
+    template <class Predicate, typename first_argument_type, typename second_argument_type>
     class invert_order
     {
     protected:
@@ -145,7 +145,7 @@ namespace priority_queue_local
         explicit
         invert_order(const Predicate & _pred) : pred(_pred) { }
 
-        bool operator()(const first_argument_type & x, const second_argument_type & y) const
+        bool operator () (const first_argument_type & x, const second_argument_type & y) const
         {
             return pred(y, x);
         }

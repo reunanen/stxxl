@@ -108,9 +108,9 @@ namespace priority_queue_local
     *target = *source ## a; \
     ++target; \
     ++source ## a; \
-    if (cmp(*source ## b, *source ## a )) \
+    if (cmp(*source ## b, *source ## a)) \
         goto s ## a ## b ## c;\
-    if (cmp(*source ## c, *source ## a )) \
+    if (cmp(*source ## c, *source ## a)) \
         goto s ## b ## a ## c;\
     goto s ## b ## c ## a;
 
@@ -141,10 +141,10 @@ namespace priority_queue_local
         InputIterator & source3,
         OutputIterator target, unsigned_type length, Cmp_ cmp)
     {
-        OutputIterator done    = target + length;
+        OutputIterator done = target + length;
 
 #define StartMerge4(a, b, c, d) \
-    if ( (!cmp(*source ## a, *source ## b )) && (!cmp(*source ## b, *source ## c )) && (!cmp(*source ## c, *source ## d )) ) \
+    if ((!cmp(*source ## a, *source ## b)) && (!cmp(*source ## b, *source ## c)) && (!cmp(*source ## c, *source ## d))) \
         goto s ## a ## b ## c ## d;
 
         // b>a c>b d>c
@@ -191,7 +191,7 @@ namespace priority_queue_local
     ++source ## a; \
     if (cmp(*source ## c, *source ## a)) \
     { \
-        if (cmp(*source ## b, *source ## a )) \
+        if (cmp(*source ## b, *source ## a)) \
             goto s ## a ## b ## c ## d;\
         else \
             goto s ## b ## a ## c ## d;\

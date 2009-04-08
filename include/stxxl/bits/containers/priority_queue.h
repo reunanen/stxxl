@@ -69,13 +69,13 @@ __STXXL_BEGIN_NAMESPACE
 template <
     class Tp_,
     class Cmp_,
-    unsigned BufferSize1_ = 32,       // equalize procedure call overheads etc.
-    unsigned N_ = 512,       // length of group 1 sequences
-    unsigned IntKMAX_ = 64,       // maximal arity for internal mergers
-    unsigned IntLevels_ = 4,       // number of internal groups
+    unsigned BufferSize1_ = 32,                    // equalize procedure call overheads etc.
+    unsigned N_ = 512,                             // length of group 1 sequences
+    unsigned IntKMAX_ = 64,                        // maximal arity for internal mergers
+    unsigned IntLevels_ = 4,                       // number of internal groups
     unsigned BlockSize_ = (2 * 1024 * 1024),       // external block size
-    unsigned ExtKMAX_ = 64,       // maximal arity for external mergers
-    unsigned ExtLevels_ = 2,       // number of external groups
+    unsigned ExtKMAX_ = 64,                        // maximal arity for external mergers
+    unsigned ExtLevels_ = 2,                       // number of external groups
     class AllocStr_ = STXXL_DEFAULT_ALLOC_STRATEGY
     >
 struct priority_queue_config
@@ -100,18 +100,18 @@ __STXXL_END_NAMESPACE
 
 namespace std
 {
-    template <  class BlockType_,
-                class Cmp_,
-                unsigned Arity_,
-                class AllocStr_ >
-    void swap(stxxl::priority_queue_local::ext_merger < BlockType_, Cmp_, Arity_, AllocStr_ > & a,
-              stxxl::priority_queue_local::ext_merger<BlockType_, Cmp_, Arity_, AllocStr_> & b )
+    template <class BlockType_,
+              class Cmp_,
+              unsigned Arity_,
+              class AllocStr_>
+    void swap(stxxl::priority_queue_local::ext_merger<BlockType_, Cmp_, Arity_, AllocStr_> & a,
+              stxxl::priority_queue_local::ext_merger<BlockType_, Cmp_, Arity_, AllocStr_> & b)
     {
         a.swap(b);
     }
     template <class ValTp_, class Cmp_, unsigned KNKMAX>
-    void swap(      stxxl::priority_queue_local::loser_tree < ValTp_, Cmp_, KNKMAX > & a,
-                    stxxl::priority_queue_local::loser_tree<ValTp_, Cmp_, KNKMAX> & b)
+    void swap(stxxl::priority_queue_local::loser_tree<ValTp_, Cmp_, KNKMAX> & a,
+              stxxl::priority_queue_local::loser_tree<ValTp_, Cmp_, KNKMAX> & b)
     {
         a.swap(b);
     }
@@ -146,37 +146,35 @@ public:
     typedef stxxl::uint64 size_type;
     typedef typed_block<BlockSize, value_type> block_type;
 
-
 protected:
-
     typedef priority_queue_local::internal_priority_queue<value_type, std::vector<value_type>, comparator_type>
     insert_heap_type;
 
     typedef priority_queue_local::loser_tree<
         value_type,
         comparator_type,
-        IntKMAX>  int_merger_type;
+        IntKMAX> int_merger_type;
 
     typedef priority_queue_local::ext_merger<
         block_type,
         comparator_type,
         ExtKMAX,
-        alloc_strategy_type>   ext_merger_type;
+        alloc_strategy_type> ext_merger_type;
 
 
     int_merger_type int_mergers[num_int_groups];
-    prefetch_pool<block_type> &p_pool;
-    write_pool<block_type> &w_pool;
+    prefetch_pool<block_type> & p_pool;
+    write_pool<block_type> & w_pool;
     ext_merger_type * ext_mergers;
 
     // one delete buffer for each tree => group buffer
-    value_type group_buffers[total_num_groups][N + 1]; // tree->group_buffers->delete_buffer (extra space for sentinel)
+    value_type group_buffers[total_num_groups][N + 1];         // tree->group_buffers->delete_buffer (extra space for sentinel)
     value_type * group_buffer_current_mins[total_num_groups];  // group_buffer_current_mins[i] is current start of group_buffers[i], end is group_buffers[i] + N
 
     // overall delete buffer
     value_type delete_buffer[delete_buffer_size + 1];
-    value_type * delete_buffer_current_min; // current start of delete_buffer
-    value_type * delete_buffer_end; // end of delete_buffer
+    value_type * delete_buffer_current_min;                    // current start of delete_buffer
+    value_type * delete_buffer_end;                            // end of delete_buffer
 
     comparator_type cmp;
 
@@ -198,11 +196,10 @@ protected:
     void empty_insert_heap();
 
     value_type get_supremum() const { return cmp.min_value(); } //{ return group_buffers[0][KNN].key; }
-    unsigned_type current_delete_buffer_size( ) const { return delete_buffer_end - delete_buffer_current_min; }
+    unsigned_type current_delete_buffer_size() const { return delete_buffer_end - delete_buffer_current_min; }
     unsigned_type current_group_buffer_size(unsigned_type i) const { return &(group_buffers[i][N]) - group_buffer_current_mins[i]; }
 
 public:
-
     //! \brief Constructs external priority queue object
     //! \param p_pool_ pool of blocks that will be used
     //! for data prefetching for the disk<->memory transfers
@@ -212,7 +209,7 @@ public:
     //! for writing data for the memory<->disk transfers
     //! happening in the priority queue. Larger pool size
     //! helps to speed up operations.
-    priority_queue(prefetch_pool < block_type > & p_pool_, write_pool<block_type> & w_pool_);
+    priority_queue(prefetch_pool<block_type> & p_pool_, write_pool<block_type> & w_pool_);
 
     //! \brief Constructs external priority queue object
     //! \param p_pool_mem memory (in bytes) for prefetch pool that will be used
@@ -303,9 +300,9 @@ public:
         for (int i = 0; i < num_ext_groups; ++i)
             dynam_alloc_mem += ext_mergers[i].mem_cons();
 
-        return (  sizeof(*this) +
-                  sizeof(ext_merger_type) * num_ext_groups +
-                  dynam_alloc_mem );
+        return (sizeof(*this) +
+                sizeof(ext_merger_type) * num_ext_groups +
+                dynam_alloc_mem);
     }
 };
 
@@ -313,10 +310,9 @@ public:
 template <class Config_>
 inline typename priority_queue<Config_>::size_type priority_queue<Config_>::size() const
 {
-    return
-        size_ +
-        insert_heap.size() - 1 +
-        (delete_buffer_end - delete_buffer_current_min);
+    return size_ +
+           insert_heap.size() - 1 +
+           (delete_buffer_end - delete_buffer_current_min);
 }
 
 
@@ -326,7 +322,7 @@ inline const typename priority_queue<Config_>::value_type & priority_queue<Confi
     assert(!insert_heap.empty());
 
     const typename priority_queue<Config_>::value_type & t = insert_heap.top();
-    if ( /*(!insert_heap.empty()) && */ cmp(*delete_buffer_current_min, t))
+    if (/*(!insert_heap.empty()) && */ cmp(*delete_buffer_current_min, t))
         return t;
     else
         return *delete_buffer_current_min;
@@ -338,7 +334,7 @@ inline void priority_queue<Config_>::pop()
     //STXXL_VERBOSE3("priority_queue::pop()");
     assert(!insert_heap.empty());
 
-    if ( /*(!insert_heap.empty()) && */ cmp(*delete_buffer_current_min, insert_heap.top()))
+    if (/*(!insert_heap.empty()) && */ cmp(*delete_buffer_current_min, insert_heap.top()))
         insert_heap.pop();
     else
     {
@@ -363,11 +359,10 @@ inline void priority_queue<Config_>::push(const value_type & obj)
 }
 
 
-
 ////////////////////////////////////////////////////////////////
 
 template <class Config_>
-priority_queue<Config_>::priority_queue(prefetch_pool < block_type > &p_pool_, write_pool<block_type> &w_pool_) :
+priority_queue<Config_>::priority_queue(prefetch_pool<block_type> & p_pool_, write_pool<block_type> & w_pool_) :
     p_pool(p_pool_), w_pool(w_pool_),
     delete_buffer_end(delete_buffer + delete_buffer_size),
     insert_heap(N + 2),
@@ -382,12 +377,12 @@ priority_queue<Config_>::priority_queue(prefetch_pool < block_type > &p_pool_, w
         ext_mergers[j].set_pools(&p_pool, &w_pool);
 
     value_type sentinel = cmp.min_value();
-    insert_heap.push(sentinel); // always keep the sentinel
-    delete_buffer[delete_buffer_size] = sentinel; // sentinel
-    delete_buffer_current_min = delete_buffer_end; // empty
+    insert_heap.push(sentinel);                                // always keep the sentinel
+    delete_buffer[delete_buffer_size] = sentinel;              // sentinel
+    delete_buffer_current_min = delete_buffer_end;             // empty
     for (unsigned_type i = 0;  i < total_num_groups;  i++)
     {
-        group_buffers[i][N] = sentinel; // sentinel
+        group_buffers[i][N] = sentinel;                        // sentinel
         group_buffer_current_mins[i] = &(group_buffers[i][N]); // empty
     }
 }
@@ -409,12 +404,12 @@ priority_queue<Config_>::priority_queue(unsigned_type p_pool_mem, unsigned_type 
         ext_mergers[j].set_pools(&p_pool, &w_pool);
 
     value_type sentinel = cmp.min_value();
-    insert_heap.push(sentinel); // always keep the sentinel
-    delete_buffer[delete_buffer_size] = sentinel; // sentinel
-    delete_buffer_current_min = delete_buffer_end; // empty
+    insert_heap.push(sentinel);                                // always keep the sentinel
+    delete_buffer[delete_buffer_size] = sentinel;              // sentinel
+    delete_buffer_current_min = delete_buffer_end;             // empty
     for (unsigned_type i = 0;  i < total_num_groups;  i++)
     {
-        group_buffers[i][N] = sentinel; // sentinel
+        group_buffers[i][N] = sentinel;                        // sentinel
         group_buffer_current_mins[i] = &(group_buffers[i][N]); // empty
     }
 }
@@ -429,7 +424,7 @@ priority_queue<Config_>::~priority_queue()
         delete &w_pool;
     }
 
-    delete [] ext_mergers;
+    delete[] ext_mergers;
 }
 
 //--------------------- Buffer refilling -------------------------------
@@ -444,10 +439,10 @@ unsigned_type priority_queue<Config_>::refill_group_buffer(unsigned_type group)
     unsigned_type length;
     size_type group_size = (group < num_int_groups) ?
                            int_mergers[group].size() :
-                           ext_mergers[group - num_int_groups].size();   //elements left in segments
+                           ext_mergers[group - num_int_groups].size();                         //elements left in segments
     unsigned_type left_elements = group_buffers[group] + N - group_buffer_current_mins[group]; //elements left in target buffer
-    if (group_size + left_elements >= size_type(N) )
-    { // buffer will be filled completely
+    if (group_size + left_elements >= size_type(N))
+    {                                                                                          // buffer will be filled completely
         target = group_buffers[group];
         length = N - left_elements;
     }
@@ -483,7 +478,7 @@ unsigned_type priority_queue<Config_>::refill_group_buffer(unsigned_type group)
         {
             if (inv_cmp(*v, *(v - 1)))
             {
-                STXXL_MSG("Error in buffer " << group << " at position " << (v - group_buffer_current_mins[group] - 1) << "/" << (v - group_buffer_current_mins[group] ) << "   " << *(v - 2) << " " << *(v - 1) << " " << *v << " " << *(v + 1))
+                STXXL_MSG("Error in buffer " << group << " at position " << (v - group_buffer_current_mins[group] - 1) << "/" << (v - group_buffer_current_mins[group]) << "   " << *(v - 2) << " " << *(v - 1) << " " << *v << " " << *(v + 1))
             }
         }
         assert(false);
@@ -517,10 +512,10 @@ void priority_queue<Config_>::refill_delete_buffer()
     }
 
     unsigned_type length;
-    if (total_group_size >= delete_buffer_size) // buffer can be filled completely
+    if (total_group_size >= delete_buffer_size)     // buffer can be filled completely
     {
-        length = delete_buffer_size; // amount to be copied
-        size_ -= size_type(delete_buffer_size); // amount left in group_buffers
+        length = delete_buffer_size;                // amount to be copied
+        size_ -= size_type(delete_buffer_size);     // amount left in group_buffers
     }
     else
     {
@@ -663,11 +658,11 @@ unsigned_type priority_queue<Config_>::make_space_available(unsigned_type level)
     {
         finalLevel = make_space_available(level + 1);
 
-        if (level < num_int_groups - 1) // from internal to internal tree
+        if (level < num_int_groups - 1)                                  // from internal to internal tree
         {
             unsigned_type segmentSize = int_mergers[level].size();
             value_type * newSegment = new value_type[segmentSize + 1];
-            int_mergers[level].multi_merge(newSegment, segmentSize); // empty this level
+            int_mergers[level].multi_merge(newSegment, segmentSize);     // empty this level
 
             newSegment[segmentSize] = delete_buffer[delete_buffer_size]; // sentinel
             // for queues where size << #inserts
@@ -758,13 +753,13 @@ void priority_queue<Config_>::empty_insert_heap()
     if (freeLevel > 0)
     {
         for (int_type i = freeLevel;  i >= 0;  i--)
-        { // reverse order not needed
+        {                                                                  // reverse order not needed
           // but would allow immediate refill
 
             newSegment = new value_type[current_group_buffer_size(i) + 1]; // with sentinel
             std::copy(group_buffer_current_mins[i], group_buffer_current_mins[i] + current_group_buffer_size(i) + 1, newSegment);
             int_mergers[0].insert_segment(newSegment, current_group_buffer_size(i));
-            group_buffer_current_mins[i] = group_buffers[i] + N; // empty
+            group_buffer_current_mins[i] = group_buffers[i] + N;           // empty
         }
     }
 
@@ -795,11 +790,11 @@ namespace priority_queue_local
     {
         typedef find_B_m<E_, IntM_, MaxS_, B_, m_, stop> Self;
         enum {
-            k = IntM_ / B_, // number of blocks that fit into M
+            k = IntM_ / B_,    // number of blocks that fit into M
             element_size = E_, // element size
             IntM = IntM_,
-            B = B_,  // block size
-            m = m_,  // number of blocks fitting into buffers
+            B = B_,            // block size
+            m = m_,            // number of blocks fitting into buffers
             c = k - m_,
             // memory occ. by block must be at least 10 times larger than size of ext sequence
             // && satisfy memory req && if we have two ext mergers their degree must be at least 64=m/2
@@ -807,14 +802,14 @@ namespace priority_queue_local
             step = 1
         };
 
-        typedef typename find_B_m < element_size, IntM, MaxS_, B, m + step, fits || (m >= k - step) > ::result candidate1;
-        typedef typename find_B_m < element_size, IntM, MaxS_, B / 2, 1, fits || candidate1::fits > ::result candidate2;
-        typedef typename IF < fits, Self, typename IF<candidate1::fits, candidate1, candidate2>::result > ::result result;
+        typedef typename find_B_m<element_size, IntM, MaxS_, B, m + step, fits || (m >= k - step)>::result candidate1;
+        typedef typename find_B_m<element_size, IntM, MaxS_, B / 2, 1, fits || candidate1::fits>::result candidate2;
+        typedef typename IF<fits, Self, typename IF<candidate1::fits, candidate1, candidate2>::result>::result result;
     };
 
     // specialization for the case when no valid parameters are found
     template <unsigned_type E_, unsigned_type IntM_, unsigned_type MaxS_, bool stop>
-    struct find_B_m < E_, IntM_, MaxS_, 2048, 1, stop >
+    struct find_B_m<E_, IntM_, MaxS_, 2048, 1, stop>
     {
         enum { fits = false };
         typedef Parameters_for_priority_queue_not_found_Increase_IntM result;
@@ -833,7 +828,7 @@ namespace priority_queue_local
     struct find_settings
     {
         // start from block size (8*1024*1024) bytes
-        typedef typename find_B_m < E_, IntM_, MaxS_, (8 * 1024 * 1024), 1 > ::result result;
+        typedef typename find_B_m<E_, IntM_, MaxS_, (8 * 1024 * 1024), 1>::result result;
     };
 
     struct Parameters_not_found_Try_to_change_the_Tune_parameter
@@ -852,11 +847,11 @@ namespace priority_queue_local
             AI = AI_,
             N = X / (AI * AI) //two stage internal
         };
-        typedef typename IF < (N >= CriticalSize_), Self, typename compute_N < AI / 2, X, CriticalSize_ > ::result > ::result result;
+        typedef typename IF<(N >= CriticalSize_), Self, typename compute_N<AI / 2, X, CriticalSize_>::result>::result result;
     };
 
     template <unsigned_type X_, unsigned_type CriticalSize_>
-    struct compute_N < 1, X_, CriticalSize_ >
+    struct compute_N<1, X_, CriticalSize_>
     {
         typedef Parameters_not_found_Try_to_change_the_Tune_parameter result;
     };
@@ -934,20 +929,21 @@ template <class Tp_, class Cmp_, unsigned_type IntM_, unsigned MaxS_, unsigned T
 class PRIORITY_QUEUE_GENERATOR
 {
 public:
-    typedef typename priority_queue_local::find_settings < sizeof(Tp_), IntM_, MaxS_ > ::result settings; //actual calculation of B, m, k and element_size
+    typedef typename priority_queue_local::find_settings<sizeof(Tp_), IntM_, MaxS_>::result settings;         //actual calculation of B, m, k and element_size
     enum {
         B = settings::B,
         m = settings::m,
-        X = B * (settings::k - m) / settings::element_size,  //interpretation of result
-        Buffer1Size = 32  //fixed
+        X = B * (settings::k - m) / settings::element_size,                                                   //interpretation of result
+        Buffer1Size = 32                                                                                      //fixed
     };
-    typedef typename priority_queue_local::compute_N < (1 << Tune_), X, 4 * Buffer1Size > ::result ComputeN;  //derivation of N, AI, AE
+    typedef typename priority_queue_local::compute_N<(1 << Tune_), X, 4 * Buffer1Size>::result ComputeN;      //derivation of N, AI, AE
     enum
     {
         N = ComputeN::N,
         AI = ComputeN::AI,
         AE = (m / 2 < 2) ? 2 : (m / 2)  //at least 2
     };
+
 public:
     enum {
         // Estimation of maximum internal memory consumption (in bytes)
@@ -962,7 +958,7 @@ public:
         unsigned ExtKMAX_ = 64, // maximal arity for external mergers
         unsigned ExtLevels_ = 2,
      */
-    typedef priority_queue < priority_queue_config < Tp_, Cmp_, Buffer1Size, N, AI, 2, B, AE, 2 > > result;
+    typedef priority_queue<priority_queue_config<Tp_, Cmp_, Buffer1Size, N, AI, 2, B, AE, 2> > result;
 };
 
 //! \}
@@ -973,8 +969,8 @@ __STXXL_END_NAMESPACE
 namespace std
 {
     template <class Config_>
-    void swap(stxxl::priority_queue<Config_> &a,
-              stxxl::priority_queue<Config_> &b)
+    void swap(stxxl::priority_queue<Config_> & a,
+              stxxl::priority_queue<Config_> & b)
     {
         a.swap(b);
     }
