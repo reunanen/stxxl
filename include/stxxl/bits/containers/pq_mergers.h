@@ -24,7 +24,6 @@ __STXXL_BEGIN_NAMESPACE
  */
 namespace priority_queue_local
 {
-
 /////////////////////////////////////////////////////////////////////
 // auxiliary functions
 
@@ -102,7 +101,7 @@ namespace priority_queue_local
             }
         }
 
-#define Merge3Case(a, b, c)\
+#define Merge3Case(a, b, c) \
     s ## a ## b ## c : \
     if (target == done) \
         return;\
@@ -144,7 +143,7 @@ namespace priority_queue_local
     {
         OutputIterator done    = target + length;
 
-#define StartMerge4(a, b, c, d)\
+#define StartMerge4(a, b, c, d) \
     if ( (!cmp(*source ## a, *source ## b )) && (!cmp(*source ## b, *source ## c )) && (!cmp(*source ## c, *source ## d )) ) \
         goto s ## a ## b ## c ## d;
 
@@ -183,7 +182,7 @@ namespace priority_queue_local
         StartMerge4(3, 2, 1, 0);
         StartMerge4(2, 1, 0, 3);
 
-#define Merge4Case(a, b, c, d)\
+#define Merge4Case(a, b, c, d) \
     s ## a ## b ## c ## d : \
     if (target == done) \
         return;\
@@ -238,7 +237,6 @@ namespace priority_queue_local
 #undef StartMerge4
 #undef Merge4Case
     }
-
 } //priority_queue_local
 
 //! \}
