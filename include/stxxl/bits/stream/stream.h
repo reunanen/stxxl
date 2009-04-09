@@ -69,6 +69,13 @@ namespace stream
         iterator2stream(const iterator2stream & a) : current_(a.current_), end_(a.end_) { }
 
         //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("iterator2stream " << this << " starts.");
+            //do nothing
+        }
+
+        //! \brief Standard stream method
         const value_type & operator * () const
         {
             return *current_;
@@ -129,7 +136,7 @@ namespace stream
 
         void delete_stream()
         {
-            in.reset();
+            in.reset(); //delete object
         }
 
     public:
@@ -137,9 +144,10 @@ namespace stream
 
         //! \brief Standard stream typedef
         typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
+        typedef const value_type * const_iterator;
 
         vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0) :
-            current_(begin), end_(end)
+            current_(begin), end_(end), in(NULL)
         {
             begin.flush();     // flush container
             typename InputIterator_::bids_container_iterator end_iter = end.bid() + ((end.block_offset()) ? 1 : 0);
@@ -157,8 +165,14 @@ namespace stream
             }
         }
 
-        vector_iterator2stream(const Self_ & a) :
-            current_(a.current_), end_(a.end_), in(a.in.release()) { }
+        vector_iterator2stream(const Self_ & a) : current_(a.current_), end_(a.end_), in(a.in) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.");
+            //do nothing
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -188,6 +202,33 @@ namespace stream
         {
             return (current_ == end_);
         }
+
+        //! \brief Standard stream method
+        vector_iterator2stream & operator += (unsigned_type length)
+        {
+            assert(0 < length && length <= batch_length());
+            current_ += length;
+            (*in) += length;
+            return *this;
+        }
+
+        unsigned_type batch_length()
+        {
+            STXXL_VERBOSE(in->batch_length() << " " << end_ - current_);
+            return std::min<unsigned_type>(in->batch_length(), end_ - current_);
+        }
+
+        const_iterator batch_begin()
+        {
+            return in->batch_begin();
+        }
+
+        value_type & operator [] (unsigned_type index)
+        {
+            assert(current_ + index < end_);
+            return (*in)[index];
+        }
+
         virtual ~vector_iterator2stream()
         {
             delete_stream();      // not needed actually
@@ -290,9 +331,16 @@ namespace stream
         vector_iterator2stream_sr(const Self_ & a) : vec_it_stream(a.vec_it_stream), it_stream(a.it_stream) { }
 
         //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.");
+            //do nothing
+        }
+
+        //! \brief Standard stream method
         const value_type & operator * () const
         {
-            if (it_stream)
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return **it_stream;
 
             return **vec_it_stream;
@@ -300,7 +348,7 @@ namespace stream
 
         const value_type * operator -> () const
         {
-            if (it_stream)
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return &(**it_stream);
 
             return &(**vec_it_stream);
@@ -309,7 +357,7 @@ namespace stream
         //! \brief Standard stream method
         Self_ & operator ++ ()
         {
-            if (it_stream)
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 ++(*it_stream);
 
             else
@@ -322,14 +370,14 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-            if (it_stream)
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 return it_stream->empty();
 
             return vec_it_stream->empty();
         }
         virtual ~vector_iterator2stream_sr()
         {
-            if (it_stream)
+            if (it_stream)      //PERFORMANCE: Frequent run-time decision
                 delete it_stream;
 
             else
@@ -374,11 +422,37 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (!in.empty())
         {
             *out = *in;
             ++out;
             ++in;
+        }
+        return out;
+    }
+
+
+    //! \brief Stores consecutively stream content to an output iterator
+    //! \param in stream to be stored used as source
+    //! \param out output iterator used as destination
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output (range) is large enough to hold the all elements in the input stream
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
+    {
+#if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
+        in.start();
+#endif
+        unsigned_type length;
+        while (length = in.batch_length() > 0)
+        {
+            out = std::copy(in.batch_begin(), in.batch_begin() + length, out);
+            in += length;
         }
         return out;
     }
@@ -396,11 +470,41 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while ((!in.empty()) && outend != outbegin)
         {
             *outbegin = *in;
             ++outbegin;
             ++in;
+        }
+        return outbegin;
+    }
+
+
+    //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+#if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
+        in.start();
+#endif
+        unsigned_type length;
+        while ((length = in.batch_length()) > 0 && outbegin != outend)
+        {
+            length = std::min<unsigned_type>(length, outend - outbegin);
+            outbegin = std::copy(in.batch_begin(), in.batch_begin() + length, outbegin);
+            in += length;
         }
         return outbegin;
     }
@@ -429,7 +533,9 @@ namespace stream
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
-
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -477,6 +583,90 @@ namespace stream
     }
 
 
+    //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output \c stxxl::vector iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! which equals to (2 * number_of_disks)
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
+    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
+    materialize_batch(StreamAlgorithm_ & in,
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+                      unsigned_type nbuffers = 0)
+    {
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
+        typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
+
+#if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
+        in.start();
+#endif
+
+        ExtIterator outcurrent = outbegin;
+
+        while (outcurrent.block_offset()) //  go to the beginning of the block
+        //  of the external vector
+        {
+            if (in.empty() || outcurrent == outend)
+                return outcurrent;
+
+            *outcurrent = *in;
+            ++outcurrent;
+            ++in;
+        }
+
+        if (nbuffers == 0)
+            nbuffers = 2 * config::get_instance()->disks_number();
+
+
+        outcurrent.flush(); // flush container
+
+        // create buffered write stream for blocks
+        buf_ostream_type outstream(outcurrent.bid(), nbuffers);
+
+        assert(outcurrent.block_offset() == 0);
+
+        unsigned_type length;
+        while ((length = in.batch_length()) > 0 && outend != outcurrent)
+        {
+            if (outcurrent.block_offset() == 0)
+                outcurrent.outbegin.block_externally_updated();
+
+            length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
+
+            for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+            {
+                *outstream = *i;
+                ++outstream;
+            }
+            outcurrent += length;
+            in += length;
+            //STXXL_VERBOSE0("materialized " << (outcurrent - outbegin));
+        }
+
+        ConstExtIterator const_out = outcurrent;
+
+        while (const_out.block_offset()) // filling the rest of the block
+        {
+            *outstream = *const_out;
+            ++const_out;
+            ++outstream;
+        }
+        outcurrent.flush();
+
+        return outcurrent;
+    }
+
+
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator
     //! \param in stream to be stored used as source
     //! \param out output \c stxxl::vector iterator used as destination
@@ -501,6 +691,9 @@ namespace stream
         // if you stay in a block, then materialize function accesses only the cache of the
         // vector (only one block indeed), amortized complexity should apply here
 
+#if STXXL_START_PIPELINE
+        in.start();
+#endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
         {
@@ -526,7 +719,7 @@ namespace stream
         while (!in.empty())
         {
             if (out.block_offset() == 0)
-                out.block_externally_updated();
+                out.outbegin.block_externally_updated();
             // tells the vector that the block was modified
             *outstream = *in;
             ++out;
@@ -548,15 +741,142 @@ namespace stream
     }
 
 
+    //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator
+    //! \param in stream to be stored used as source
+    //! \param out output \c stxxl::vector iterator used as destination
+    //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! which equals to (2 * number_of_disks)
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output (range) is large enough to hold the all elements in the input stream
+    template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
+              unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
+    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
+    materialize_batch(StreamAlgorithm_ & in,
+                      stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
+                      unsigned_type nbuffers = 0)
+    {
+        typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
+        typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
+        typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
+
+        // on the I/O complexity of "materialize":
+        // crossing block boundary causes O(1) I/Os
+        // if you stay in a block, then materialize function accesses only the cache of the
+        // vector (only one block indeed), amortized complexity should apply here
+
+#if STXXL_START_PIPELINE
+        STXXL_VERBOSE0("materialize_batch starts.");
+        in.start();
+#endif
+        while (out.block_offset()) //  go to the beginning of the block
+        //  of the external vector
+        {
+            if (in.empty())
+                return out;
+
+            *out = *in;
+            ++out;
+            ++in;
+        }
+
+        if (nbuffers == 0)
+            nbuffers = 2 * config::get_instance()->disks_number();
+
+
+        out.flush(); // flush container
+
+        // create buffered write stream for blocks
+        buf_ostream_type outstream(out.bid(), nbuffers);
+
+        assert(out.block_offset() == 0);
+
+        unsigned_type length;
+        while ((length = in.batch_length()) > 0)
+        {
+            if (out.block_offset() == 0)
+                out.outbegin.block_externally_updated();
+            length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
+            for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+            {
+                *outstream = *i;
+                ++outstream;
+            }
+            in += length;
+            out += length;
+        }
+
+        while (!in.empty())
+        {
+            if (out.block_offset() == 0)
+                out.outbegin.block_externally_updated();
+            // tells the vector that the block was modified
+            *outstream = *in;
+            ++out;
+            ++outstream;
+            ++in;
+        }
+
+        ConstExtIterator const_out = out;
+
+        while (const_out.block_offset())
+        {
+            *outstream = *const_out;             // might cause I/Os for loading the page that
+            ++const_out;                         // contains data beyond out
+            ++outstream;
+        }
+        out.flush();
+
+        return out;
+    }
+
+    //! \brief Pulls from a stream, discards output
+    //! \param in stream to be stored used as source
+    //! \param num_elements number of elements to pull
+    template <class StreamAlgorithm_>
+    unsigned_type pull(StreamAlgorithm_ & in, unsigned_type num_elements)
+    {
+        unsigned_type i;
+        for (i = 0; i < num_elements && !in.empty(); ++i)
+        {
+            *in;
+            ++in;
+        }
+        return i;
+    }
+
+
+    //! \brief Pulls from a stream, discards output
+    //! \param in stream to be stored used as source
+    //! \param num_elements number of elements to pull
+    template <class StreamAlgorithm_>
+    unsigned_type pull_batch(StreamAlgorithm_ & in, unsigned_type num_elements)
+    {
+        unsigned_type i, length;
+        typename StreamAlgorithm_::value_type dummy;
+        for (i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
+        {
+            length = std::min(length, num_elements - i);
+            for (typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
+                dummy = *j;
+            in += length;
+            i += length;
+        }
+        return i;
+    }
+
+
     //! \brief A model of stream that outputs data from an adaptable generator functor
     //! For convenience use \c streamify function instead of direct instantiation
     //! of \c generator2stream .
-    template <class Generator_>
+    template <class Generator_, typename T = typename Generator_::value_type>
     class generator2stream
     {
     public:
         //! \brief Standard stream typedef
-        typedef typename Generator_::value_type value_type;
+        typedef T value_type;
+        typedef generator2stream & iterator;
+        typedef const generator2stream & const_iterator;
 
     private:
         Generator_ gen_;
@@ -567,6 +887,13 @@ namespace stream
             gen_(g), current_(gen_()) { }
 
         generator2stream(const generator2stream & a) : gen_(a.gen_), current_(a.current_) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("generator2stream " << this << " starts.");
+            //do nothing
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -684,6 +1011,55 @@ namespace stream
 
     // Specializations
 
+    template <class Operation_, class Input1_Iterator_>
+    class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation_::value_type>
+    {
+    public:
+        typedef typename Operation_::value_type value_type;
+
+    private:
+        Input1_Iterator_ i1;
+        Operation_ & op;
+        mutable value_type current;
+
+    public:
+        transforming_iterator(Operation_ & op, const Input1_Iterator_ & i1) : i1(i1), op(op) { }
+
+        const value_type & operator * () const  //RETURN BY VALUE
+        {
+            current = op(*i1);
+            return current;
+        }
+
+        const value_type * operator -> () const
+        {
+            return &(operator * ());
+        }
+
+        transforming_iterator & operator ++ ()
+        {
+            ++i1;
+
+            return *this;
+        }
+
+        transforming_iterator operator + (unsigned_type addend) const
+        {
+            return transforming_iterator(op, i1 + addend);
+        }
+
+        unsigned_type operator - (const transforming_iterator & subtrahend) const
+        {
+            return i1 - subtrahend.i1;
+        }
+
+        bool operator != (const transforming_iterator & ti) const
+        {
+            return ti.i1 != i1;
+        }
+    };
+
+
     //! \brief Processes an input stream using given operation functor
     //!
     //! Template parameters:
@@ -694,39 +1070,41 @@ namespace stream
     template <class Operation_, class Input1_>
     class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper>
     {
-        Operation_ op;
+        Operation_ & op;
         Input1_ & i1;
 
     public:
         //! \brief Standard stream typedef
         typedef typename Operation_::value_type value_type;
-
-    private:
-        value_type current;
+        typedef transforming_iterator<Operation_, typename Input1_::const_iterator> const_iterator;
 
     public:
         //! \brief Construction
-        transform(Operation_ o, Input1_ & i1_) : op(o), i1(i1_),
-                                                 current(op(*i1)) { }
+        transform(Operation_ & o, Input1_ & i1_) : op(o), i1(i1_) { }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("transform " << this << " starts.");
+            i1.start();
+            op.start_push();
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
         {
-            return current;
+            return op(*i1);
         }
 
         const value_type * operator -> () const
         {
-            return &current;
+            return &(operator * ());
         }
 
         //! \brief Standard stream method
         transform & operator ++ ()
         {
             ++i1;
-            if (!empty())
-                current = op(*i1);
-
 
             return *this;
         }
@@ -734,8 +1112,90 @@ namespace stream
         //! \brief Standard stream method
         bool empty() const
         {
-            return i1.empty();
+            bool is_empty = i1.empty();
+            if (is_empty)
+            {
+                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                op.stop_push();
+            }
+            return is_empty;
         }
+
+        //! \brief Batched stream method
+        unsigned_type batch_length() const
+        {
+            unsigned_type batch_length = i1.batch_length();
+            if (batch_length == 0)
+            {
+                STXXL_VERBOSE0("transform " << this << " stops pushing.");
+                op.stop_push();
+            }
+            return batch_length;
+        }
+
+        //! \brief Batched stream method
+        const_iterator batch_begin() const
+        {
+            return const_iterator(op, i1.batch_begin());
+        }
+
+        //! \brief Batched stream method
+        const value_type & operator [] (unsigned_type index) const
+        {
+            return op(i1[index]);
+        }
+
+        //! \brief Batched stream method
+        transform & operator += (unsigned_type length)
+        {
+            assert(length > 0);
+
+            i1 += length;
+
+            return *this;
+        }
+    };
+
+    template <class Output_>
+    class Pusher
+    {
+        Output_ & output;
+
+    public:
+        typedef typename Output_::value_type value_type;
+
+        void start_push()
+        {
+            STXXL_VERBOSE0("pusher " << this << " starts push.");
+            output.start_push();
+        }
+
+        Pusher(Output_ & output) : output(output)
+        { }
+
+        const value_type & operator () (const value_type & val)
+        {
+            output.push(val);
+            return val;
+        }
+
+        void stop_push()
+        {
+            STXXL_VERBOSE0("pusher " << this << " stops push.");
+            output.stop_push();
+        }
+    };
+
+    template <class Input_, class Output_>
+    class pusher : public transform<Pusher<Output_>, Input_>
+    {
+        Pusher<Output_> p;
+
+    public:
+        pusher(Input_ & input, Output_ & output) :
+            transform<Pusher<Output_>, Input_>(p, input),
+            p(output)
+        { }
     };
 
 
@@ -1007,6 +1467,380 @@ namespace stream
     };
 
 
+    //! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
+    template <class Output_>
+    void * call_stop_push(void * param)
+    {
+        static_cast<Output_ *>(param)->stop_push();
+        return NULL;
+    }
+
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Output_>
+    class basic_distribute
+    {
+    public:
+        //! \brief Standard stream typedef
+        typedef typename Output_::value_type value_type;
+
+    protected:
+        Output_ ** outputs;
+        Output_ * current_output;
+        int num_outputs;
+        value_type current;
+        int pos;
+        int empty_count;
+
+        void next()
+        {
+            ++pos;
+            if (pos == num_outputs)
+                pos = 0;
+            current_output = outputs[pos];
+            //STXXL_VERBOSE0("distribute next " << pos);
+        }
+
+    public:
+        //! \brief Construction
+        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs)
+        {
+            empty_count = 0;
+            pos = 0;
+
+#if !STXXL_START_PIPELINE
+            pos = -1;
+            next();
+#endif
+        }
+
+        //! \brief Standard stream method
+        void start_push()
+        {
+            STXXL_VERBOSE0("distribute " << this << " starts push.");
+            for (int i = 0; i < num_outputs; ++i)
+                outputs[i]->start_push();
+#if STXXL_START_PIPELINE
+            pos = -1;
+            next();
+#endif
+        }
+
+        //! \brief Standard stream method.
+        void stop_push() const
+        {
+            STXXL_VERBOSE0("distribute " << this << " stops push.");
+            pthread_t * threads = new pthread_t[num_outputs];
+            for (int i = 0; i < num_outputs; ++i)
+                pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]);
+
+            void * return_code;
+            for (int i = 0; i < num_outputs; ++i)
+                pthread_join(threads[i], &return_code);
+
+            delete[] threads;
+        }
+    };
+
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Output_>
+    class distribute : public basic_distribute<Output_>
+    {
+        typedef basic_distribute<Output_> base;
+        typedef typename base::value_type value_type;
+        using base::current_output;
+        using base::next;
+
+    public:
+        distribute(Output_ ** outputs, int num_outputs) : base(outputs, num_outputs)
+        { }
+
+        //! \brief Standard stream method.
+        void push(const value_type & val)
+        {
+            current_output->push(val);
+            next();
+        }
+
+        //! \brief Batched stream method.
+        unsigned_type push_batch_length() const
+        {
+            return current_output->push_batch_length();
+        }
+
+        //! \brief Batched stream method.
+        void push_batch(const value_type * batch_begin, const value_type * batch_end)
+        {
+            current_output->push_batch(batch_begin, batch_end);
+            next();
+        }
+    };
+
+    //! \brief Push data to different outputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Output_>
+    class deterministic_distribute : public basic_distribute<Output_>
+    {
+        typedef basic_distribute<Output_> base;
+        using base::current_output;
+        using base::next;
+
+        unsigned_type elements_per_chunk, elements_left;
+
+    public:
+        typedef typename base::value_type value_type;
+
+        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(outputs, num_outputs)
+        {
+            this->elements_per_chunk = elements_per_chunk;
+            elements_left = elements_per_chunk;
+        }
+
+        //! \brief Standard stream method.
+        void push(const value_type & val)
+        {
+            current_output->push(val);
+            --elements_left;
+            if (elements_left == 0)
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+        }
+
+        //! \brief Batched stream method.
+        unsigned_type push_batch_length() const
+        {
+            return std::min(elements_left, current_output->push_batch_length());
+        }
+
+        //! \brief Batched stream method.
+        void push_batch(const value_type * batch_begin, const value_type * batch_end)
+        {
+            current_output->push_batch(batch_begin, batch_end);
+            elements_left -= (batch_end - batch_begin);
+            if (elements_left == 0)
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+        }
+    };
+
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Input_>
+    class basic_round_robin
+    {
+    public:
+        //! \brief Standard stream typedef
+        typedef typename Input_::value_type value_type;
+        typedef typename Input_::const_iterator const_iterator;
+
+    protected:
+        Input_ ** inputs;
+        Input_ * current_input;
+        bool * already_empty;
+        int num_inputs;
+        value_type current;
+        int pos;
+        int empty_count;
+
+        void next()
+        {
+            do
+            {
+                ++pos;
+                if (pos == num_inputs)
+                    pos = 0;
+                current_input = inputs[pos];
+
+                if (current_input->empty())
+                {
+                    if (!already_empty[pos])
+                    {
+                        already_empty[pos] = true;
+                        ++empty_count;
+                        if (empty_count >= num_inputs)
+                            break; //empty() == true
+                    }
+                }
+                else
+                    break;
+            } while (true);
+            //STXXL_VERBOSE0("next " << pos);
+        }
+
+    public:
+        //! \brief Construction
+        basic_round_robin(Input_ ** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
+        {
+            empty_count = 0;
+            pos = 0;
+            already_empty = new bool[num_inputs];
+            for (int i = 0; i < num_inputs; ++i)
+                already_empty[i] = false;
+
+#if !STXXL_START_PIPELINE
+            pos = -1;
+            next();
+#endif
+        }
+
+        ~basic_round_robin()
+        {
+            delete[] already_empty;
+        }
+
+        //! \brief Standard stream method
+        void start()
+        {
+            STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
+            for (int i = 0; i < num_inputs; ++i)
+                inputs[i]->start();
+#if STXXL_START_PIPELINE
+            pos = -1;
+            next();
+#endif
+        }
+
+        //! \brief Standard stream method
+        bool empty() const
+        {
+            return empty_count >= num_inputs;
+        }
+
+        //! \brief Standard stream method
+        const value_type & operator * () const
+        {
+            return *(*current_input);
+        }
+
+        const value_type * operator -> () const
+        {
+            return &(operator * ());
+        }
+
+        const_iterator batch_begin() const
+        {
+            return current_input->batch_begin();
+        }
+
+        const value_type & operator [] (unsigned_type index) const
+        {
+            return (*current_input)[index];
+        }
+    };
+
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Input_>
+    class round_robin : public basic_round_robin<Input_>
+    {
+        typedef basic_round_robin<Input_> base;
+        using base::current_input;
+        using base::next;
+
+    public:
+        //! \brief Construction
+        round_robin(Input_ ** inputs, int num_inputs) : base(inputs, num_inputs)
+        { }
+
+        unsigned_type batch_length() const
+        {
+            return current_input->batch_length();
+        }
+
+        //! \brief Standard stream method
+        round_robin & operator ++ ()
+        {
+            ++(*current_input);
+            next();
+
+            return *this;
+        }
+
+        //! \brief Standard stream method
+        round_robin & operator += (unsigned_type length)
+        {
+            assert(length > 0);
+
+            (*current_input) += length;
+            next();
+
+            return *this;
+        }
+    };
+
+    //! \brief Fetch data from different inputs, in a round-robin fashion.
+    //!
+    //! Template parameters:
+    //! - \c Input_ type of the input
+    template <class Input_>
+    class deterministic_round_robin : public basic_round_robin<Input_>
+    {
+        typedef basic_round_robin<Input_> base;
+        using base::current_input;
+        using base::next;
+
+        unsigned_type elements_per_chunk, elements_left;
+
+    public:
+        //! \brief Construction
+        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk) : base(inputs, num_inputs)
+        {
+            this->elements_per_chunk = elements_per_chunk;
+            elements_left = elements_per_chunk;
+        }
+
+        //! \brief Standard stream method
+        deterministic_round_robin & operator ++ ()
+        {
+            ++(*current_input);
+            --elements_left;
+            if (elements_left == 0 || current_input->empty())
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+
+            return *this;
+        }
+
+        unsigned_type batch_length() const
+        {
+            return std::min(elements_left, current_input->batch_length());
+        }
+
+        //! \brief Standard stream method
+        deterministic_round_robin & operator += (unsigned_type length)
+        {
+            assert(length > 0);
+
+            (*current_input) += length;
+            elements_left -= length;
+
+            if (elements_left == 0 || current_input->batch_length() == 0)
+            {
+                next();
+                elements_left = elements_per_chunk;
+            }
+
+            return *this;
+        }
+    };
+
     //! \brief Creates stream of 6-tuples from 6 input streams
     //!
     //! Template parameters:
@@ -1095,6 +1929,53 @@ namespace stream
         }
     };
 
+    template <class Input1_Iterator_, class Input2_Iterator_>
+    class make_tuple_iterator : std::iterator<
+                                    std::random_access_iterator_tag,
+                                    tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type>
+                                    >
+    {
+    public:
+        typedef tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> value_type;
+
+    private:
+        Input1_Iterator_ i1;
+        Input2_Iterator_ i2;
+        mutable value_type current;
+
+    public:
+        make_tuple_iterator(const Input1_Iterator_ & i1, const Input2_Iterator_ & i2) : i1(i1), i2(i2) { }
+
+        const value_type & operator * () const  //RETURN BY VALUE
+        {
+            current = value_type(*i1, *i2);
+            return current;
+        }
+
+        const value_type * operator -> () const
+        {
+            return &(operator * ());
+        }
+
+        make_tuple_iterator & operator ++ ()
+        {
+            ++i1;
+            ++i2;
+
+            return *this;
+        }
+
+        make_tuple_iterator operator + (unsigned_type addend) const
+        {
+            return make_tuple_iterator(i1 + addend, i2 + addend);
+        }
+
+        bool operator != (const make_tuple_iterator & mti) const
+        {
+            return mti.i1 != i1 || mti.i2 != i2;
+        }
+    };
+
 
     //! \brief Creates stream of 2-tuples (pairs) from 2 input streams
     //!
@@ -1102,21 +1983,23 @@ namespace stream
     //! - \c Input1_ type of the 1st input
     //! - \c Input2_ type of the 2nd input
     //! \remark A specialization of \c make_tuple .
-    template <class Input1_, class Input2_>
+    template <class Input1_,
+              class Input2_
+              >
     class make_tuple<Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
     {
-        Input1_ & i1;
-        Input2_ & i2;
-
     public:
         //! \brief Standard stream typedef
         typedef typename stxxl::tuple<
             typename Input1_::value_type,
             typename Input2_::value_type
             > value_type;
+        typedef make_tuple_iterator<typename Input1_::const_iterator, typename Input2_::const_iterator> const_iterator;
 
     private:
-        value_type current;
+        Input1_ & i1;
+        Input2_ & i2;
+        mutable value_type current;
 
     public:
         //! \brief Construction
@@ -1125,22 +2008,32 @@ namespace stream
             Input2_ & i2_
             ) :
             i1(i1_), i2(i2_)
+        { }
+
+        //! \brief Standard stream method
+        void start()
         {
-            if (!empty())
-            {
-                current = value_type(*i1, *i2);
-            }
+            STXXL_VERBOSE0("make_tuple " << this << " starts.");
+            i1.start();
+            i2.start();
         }
 
         //! \brief Standard stream method
-        const value_type & operator * () const
+        void start_push()
         {
+            //do nothing
+        }
+
+        //! \brief Standard stream method
+        const value_type & operator * () const  //RETURN BY VALUE
+        {
+            current = value_type(*i1, *i2);
             return current;
         }
 
         const value_type * operator -> () const
         {
-            return &current;
+            return &(operator * ());
         }
 
         //! \brief Standard stream method
@@ -1149,10 +2042,6 @@ namespace stream
             ++i1;
             ++i2;
 
-            if (!empty())
-                current = value_type(*i1, *i2);
-
-
             return *this;
         }
 
@@ -1160,6 +2049,33 @@ namespace stream
         bool empty() const
         {
             return i1.empty() || i2.empty();
+        }
+
+        //! \brief Batched stream method.
+        unsigned_type batch_length()
+        {
+            return std::min(i1.batch_length(), i2.batch_length());
+        }
+
+        //! \brief Batched stream method.
+        make_tuple & operator += (unsigned_type size)
+        {
+            i1 += size;
+            i2 += size;
+
+            return *this;
+        }
+
+        //! \brief Batched stream method.
+        const_iterator batch_begin()
+        {
+            return const_iterator(i1.batch_begin(), i2.batch_begin());
+        }
+
+        //! \brief Batched stream method.
+        value_type operator [] (unsigned_type index) const
+        {
+            return value_type(i1[index], i2[index]);
         }
     };
 
@@ -1170,7 +2086,10 @@ namespace stream
     //! - \c Input2_ type of the 2nd input
     //! - \c Input3_ type of the 3rd input
     //! \remark A specialization of \c make_tuple .
-    template <class Input1_, class Input2_, class Input3_>
+    template <class Input1_,
+              class Input2_,
+              class Input3_
+              >
     class make_tuple<Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
     {
         Input1_ & i1;
@@ -1760,7 +2679,11 @@ namespace stream
                 ++input;
         }
         //! \brief Standard stream method
-        const value_type operator * () const { return current; }
+        const value_type & operator * () const
+        {
+            return current;
+        }
+
         //! \brief Standard stream method
         const value_type * operator -> () const
         {
@@ -1796,7 +2719,10 @@ namespace stream
                 ++input;
         }
         //! \brief Standard stream method
-        value_type operator * () const { return current; }
+        value_type & operator * () const
+        {
+            return current;
+        }
 
         //! \brief Standard stream method
         const value_type * operator -> () const
