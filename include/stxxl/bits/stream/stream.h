@@ -165,7 +165,8 @@ namespace stream
             }
         }
 
-        vector_iterator2stream(const Self_ & a) : current_(a.current_), end_(a.end_), in(a.in) { }
+        vector_iterator2stream(const Self_ & a) : 
+            current_(a.current_), end_(a.end_), in(a.in.release()) { }
 
         //! \brief Standard stream method
         void start()
