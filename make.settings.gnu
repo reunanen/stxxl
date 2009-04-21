@@ -31,7 +31,7 @@ USE_PMODE	?= no	# will be overridden from main Makefile
 USE_MCSTL	?= no	# will be overridden from main Makefile
 USE_ICPC	?= no	# will be overridden from main Makefile
 
-STXXL_ROOT	?= $(HOME)/work/stxxl
+STXXL_ROOT	?= $(TOPDIR)
 
 ifeq ($(strip $(USE_ICPC)),yes)
 COMPILER_ICPC	?= icpc
@@ -140,7 +140,7 @@ ifeq (,$(strip $(wildcard $(CURDIR)/make.settings.local)))
 ifneq (,$(strip $(wildcard $(CURDIR)/include/stxxl.h)))
 $(warning *** WARNING: trying autoconfiguration for STXXL_ROOT=$(CURDIR:$(HOME)%=$$(HOME)%))
 $(warning *** WARNING: you did not have a make.settings.local file -- creating ...)
-$(shell echo 'STXXL_ROOT	 = $(CURDIR:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
+$(shell echo -e '\043STXXL_ROOT	 = $(CURDIR:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
 MCSTL_ROOT	?= $(HOME)/work/mcstl
 $(shell echo -e '\043MCSTL_ROOT	 = $(MCSTL_ROOT:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
 $(shell echo -e '\043COMPILER_GCC	 = g++-4.2.3' >> $(CURDIR)/make.settings.local)
@@ -345,7 +345,7 @@ bin	?= $(strip $(EXEEXT))
 
 #### COMPILE/LINK RULES ###########################################
 
-DEPS_MAKEFILES	:= $(wildcard ../Makefile.subdir.gnu ../make.settings ../make.settings.local GNUmakefile Makefile.local)
+DEPS_MAKEFILES	:= $(wildcard $(TOPDIR)/Makefile.subdir.gnu $(TOPDIR)/make.settings $(TOPDIR)/make.settings.local GNUmakefile Makefile Makefile.common Makefile.local)
 %.$o: %.cpp $(DEPS_MAKEFILES)
 	@$(RM) $@ $*.$d
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -MD -MF $*.$dT -c $(OUTPUT_OPTION) $< && mv $*.$dT $*.$d
@@ -360,6 +360,9 @@ LINK_STXXL	 = $(LINKER) $1 $(STXXL_LINKER_OPTIONS) -o $@
 
 
 # last resort rules to ignore header files missing due to renames etc.
+$(STXXL_ROOT)/include/%::
+	@echo "MISSING HEADER: '$@' (ignored)"
+
 %.h::
 	@echo "MISSING HEADER: '$@' (ignored)"
 
