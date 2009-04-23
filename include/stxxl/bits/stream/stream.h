@@ -131,8 +131,8 @@ namespace stream
         typedef buf_istream<typename InputIterator_::block_type,
                             typename InputIterator_::bids_container_iterator> buf_istream_type;
 
-        typedef typename stxxl::compat_unique_ptr<buf_istream_type>::result unique_ptr_type;
-        mutable unique_ptr_type in;
+        typedef typename stxxl::compat_unique_ptr<buf_istream_type>::result buf_istream_unique_ptr_type;
+        mutable buf_istream_unique_ptr_type in;
 
         void delete_stream()
         {
