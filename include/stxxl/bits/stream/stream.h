@@ -640,7 +640,7 @@ namespace stream
         while ((length = in.batch_length()) > 0 && outend != outcurrent)
         {
             if (outcurrent.block_offset() == 0)
-                outcurrent.outbegin.block_externally_updated();
+                outcurrent.block_externally_updated();
 
             length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 

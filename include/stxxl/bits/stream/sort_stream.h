@@ -773,10 +773,12 @@ namespace stream
         request_ptr * write_reqs;
         run_type run;
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         //! \brief Mutex variable, to mutual exclude the other thread.
         pthread_mutex_t mutex;
         //! \brief Condition variable, to wait for the other thread.
         pthread_cond_t cond;
+#endif
         volatile bool result_ready;
 
         void sort_run(block_type * run, unsigned_type elements)
@@ -878,14 +880,18 @@ namespace stream
             assert(m_ > 0);
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             pthread_mutex_init(&mutex, 0);
             pthread_cond_init(&cond, 0);
+#endif
         }
 
         ~runs_creator()
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             pthread_mutex_destroy(&mutex);
             pthread_cond_destroy(&cond);
+#endif
             if (!output_requested)
                 cleanup();
         }
@@ -990,6 +996,7 @@ namespace stream
             return;
         }
 
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         void stop_push()
         {
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
@@ -1007,16 +1014,19 @@ namespace stream
                 pthread_mutex_unlock(&mutex);
             }
         }
+#endif
 
         //! \brief Returns the sorted runs object
         //! \return Sorted runs object.
         //! \remark Returned object is intended to be used by \c runs_merger object as input
         const sorted_runs_type & result()
         {
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             pthread_mutex_lock(&mutex);
             while (!result_ready)
                 pthread_cond_wait(&cond, &mutex);
             pthread_mutex_unlock(&mutex);
+#endif
             return result_;
         }
     };
