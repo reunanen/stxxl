@@ -72,7 +72,7 @@ void double_diamond(vector_type & input)
 #ifdef BOOST_MSVC
         typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
 #else
-        typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+        typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
 #endif //BOOST_MSVC
         input_stream_type input_stream = streamify(input.begin(), input.end()); //0
 
@@ -279,7 +279,7 @@ void double_diamond(vector_type & input)
 
 #define STREAMED_CHECKING 0
 #if STREAMED_CHECKING
-        typedef typeof(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
+        typedef __typeof__(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
 
         output_stream_type * output_stream;
 
