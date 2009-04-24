@@ -140,7 +140,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_empty_stage " << this << " starts pulling.")
+                STXXL_VERBOSE0("pull_empty_stage " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -150,7 +150,7 @@ namespace stream
                     ++so;
                 }
 
-                STXXL_VERBOSE0("pull_empty_stage " << this << " stops pulling.")
+                STXXL_VERBOSE0("pull_empty_stage " << this << " stops pulling.");
             }
         };
 
@@ -181,7 +181,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_empty_stage_batch " << this << " starts pulling.")
+                STXXL_VERBOSE0("pull_empty_stage_batch " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -192,7 +192,7 @@ namespace stream
                         *i;
                     so.operator += (length);
                 }
-                STXXL_VERBOSE0("pull_empty_stage_batch " << this << " stops pulling.")
+                STXXL_VERBOSE0("pull_empty_stage_batch " << this << " stops pulling.");
             }
         };
 
@@ -578,7 +578,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_stage " << this << " starts pulling.")
+                STXXL_VERBOSE0("pull_stage " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -588,7 +588,7 @@ namespace stream
                     ++so;
                 }
                 base::stop_push();
-                STXXL_VERBOSE0("pull_stage " << this << " stops pulling.")
+                STXXL_VERBOSE0("pull_stage " << this << " stops pulling.");
             }
         };
 
@@ -618,7 +618,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_stage_batch " << this << " starts pulling.")
+                STXXL_VERBOSE0("pull_stage_batch " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -630,7 +630,7 @@ namespace stream
                     so.operator += (length);
                 }
                 base::stop_push();
-                STXXL_VERBOSE0("pull_stage_batch " << this << " stops pulling.")
+                STXXL_VERBOSE0("pull_stage_batch " << this << " stops pulling.");
             }
         };
 
@@ -728,7 +728,7 @@ namespace stream
             virtual void async_push()
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("push_stage " << this << " starts pushing.")
+                STXXL_VERBOSE0("push_stage " << this << " starts pushing.");
                 so.start_push();
 #endif
                 while (!base::empty())
@@ -737,7 +737,7 @@ namespace stream
                     base::operator ++ ();
                 }
                 so.stop_push();
-                STXXL_VERBOSE0("push_stage " << this << " stops pushing.")
+                STXXL_VERBOSE0("push_stage " << this << " stops pushing.");
             }
         };
 
@@ -765,7 +765,7 @@ namespace stream
             virtual void async_push()
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("push_stage_batch " << this << " starts pushing.")
+                STXXL_VERBOSE0("push_stage_batch " << this << " starts pushing.");
                 so.start_push();
 #endif
                 unsigned_type length;
@@ -776,7 +776,7 @@ namespace stream
                     base::operator += (length);
                 }
                 so.stop_push();
-                STXXL_VERBOSE0("push_stage_batch " << this << " stops pushing.")
+                STXXL_VERBOSE0("push_stage_batch " << this << " stops pushing.");
             }
         };
 
@@ -886,9 +886,9 @@ namespace stream
             //! \brief Standard stream method.
             void start()
             {
-                STXXL_VERBOSE0("connect_pull_stage " << this << " starts.")
+                STXXL_VERBOSE0("connect_pull_stage " << this << " starts.");
                 cso.start();
-                STXXL_VERBOSE0("connect_pull_stage " << this << " inter.")
+                STXXL_VERBOSE0("connect_pull_stage " << this << " inter.");
                 so.start();
             }
 
