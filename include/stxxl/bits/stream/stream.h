@@ -1533,13 +1533,32 @@ namespace stream
         void stop_push() const
         {
             STXXL_VERBOSE0("distribute " << this << " stops push.");
+			
+#ifdef STXXL_BOOST_THREADS
+            boost::thread * threads = new boost::thread[num_outputs];
+#else
             pthread_t * threads = new pthread_t[num_outputs];
+#endif
             for (int i = 0; i < num_outputs; ++i)
-                pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]);
+#ifdef STXXL_BOOST_THREADS
+                threads[i] = new boost::thread(boost::bind(call_stop_push<Output_>, outputs[i]));
+#else
+                check_pthread_call(pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]));
+#endif
 
-            void * return_code;
             for (int i = 0; i < num_outputs; ++i)
-                pthread_join(threads[i], &return_code);
+#ifdef STXXL_BOOST_THREADS
+            {
+                threads[i]->join();
+                delete threads[i];
+                threads[i] = NULL;
+            }
+#else
+            {
+                void * return_code;
+                check_pthread_call(pthread_join(threads[i], &return_code));
+            }
+#endif
 
             delete[] threads;
         }
