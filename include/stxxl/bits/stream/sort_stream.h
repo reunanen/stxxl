@@ -104,7 +104,8 @@ namespace stream
         pthread_t waiter_and_fetcher;
         pthread_mutex_t mutex;
         pthread_cond_t cond;
-        volatile bool work_done, terminate_requested;
+        volatile bool fully_written;  //is the data already fully written out?
+        volatile bool termination_requested;
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 
         //! \brief Sort a specific run, contained in a sequences of blocks.
@@ -148,7 +149,7 @@ namespace stream
         void join_waiting_and_fetching()
         {
             void * res;
-            terminate_requested = true;
+            termination_requested = true;
             pthread_cond_signal(&cond);
             pthread_join(waiter_and_fetcher, &res);
         }
@@ -172,20 +173,23 @@ namespace stream
 
     public:
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-        //! \brief Routine of the second thread.
+        //! \brief Routine of the second thread, which writes data to disk.
         void async_wait_and_fetch()
         {
             while (true)
             {
                 pthread_mutex_lock(&mutex);
-                while (work_done && !terminate_requested)   //work_done is true in the beginning
-                    pthread_cond_wait(&cond, &mutex);       //wait for other thread
-                if (terminate_requested)
+                //wait for fully_written to become false, or termination being requested
+                while (fully_written && !termination_requested)
+                    pthread_cond_wait(&cond, &mutex);       //wait for a state change
+                if (termination_requested)
                 {
                     pthread_mutex_unlock(&mutex);
                     return;
                 }
                 pthread_mutex_unlock(&mutex);
+
+                //fully_written == false
 
                 wait_fetch_job.end = wait_fetch_job.begin;
                 unsigned_type i;
@@ -210,7 +214,7 @@ namespace stream
                 }
 
                 pthread_mutex_lock(&mutex);
-                work_done = true;
+                fully_written = true;
                 pthread_cond_signal(&cond); //wake up other thread, if necessary
                 pthread_mutex_unlock(&mutex);
             }
@@ -227,7 +231,7 @@ namespace stream
             wait_fetch_job.read_run_size = read_run_size;
 
             pthread_mutex_lock(&mutex);
-            work_done = false;
+            fully_written = false;
             pthread_mutex_unlock(&mutex);
             pthread_cond_signal(&cond); //wake up other thread
         }
@@ -237,7 +241,8 @@ namespace stream
         blocked_index<block_type::size> wait_write_read()
         {
             pthread_mutex_lock(&mutex);
-            while (!work_done)
+            //wait for fully_written to become true
+            while (!fully_written)
                 pthread_cond_wait(&cond, &mutex);   //wait for other thread
             pthread_mutex_unlock(&mutex);
 
@@ -600,8 +605,8 @@ namespace stream
         class AllocStr_>
     void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::start_waiting_and_fetching()
     {
-        work_done = true; //so far, nothing to do
-        terminate_requested = false;
+        fully_written = true; //so far, nothing to write
+        termination_requested = false;
         pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
     }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
