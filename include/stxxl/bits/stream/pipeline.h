@@ -13,6 +13,13 @@
 #ifndef PIPELINE_HEADER
 #define PIPELINE_HEADER
 
+#ifdef STXXL_BOOST_THREADS
+ #include <boost/thread/mutex.hpp>
+ #include <boost/thread/condition.hpp>
+#else
+ #include <pthread.h>
+#endif
+
 #include "stxxl/bits/stream/stream.h"
 
 __STXXL_BEGIN_NAMESPACE
@@ -73,8 +80,13 @@ namespace stream
             StreamOperation & so;
 
         protected:
+#ifdef STXXL_BOOST_THREADS
+            //! \brief Asynchronously pulling thread.
+            boost::thread puller_thread;
+#else
             //! \brief Asynchronously pulling thread.
             pthread_t puller_thread;
+#endif
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
@@ -111,7 +123,11 @@ namespace stream
         template <class StreamOperation>
         void basic_pull_empty_stage<StreamOperation>::start_pulling()
         {
+#ifdef STXXL_BOOST_THREADS
+            puller_thread.start(boost::bind(call_async_pull_empty<StreamOperation>, this));
+#else
             pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this);
+#endif
         }
 
 
@@ -227,10 +243,17 @@ namespace stream
             mutable bool output_finished;
             //! \brief The input stream has run empty, the last swap_buffers() has been performed already.
             mutable volatile bool last_swap_done;
+#ifdef STXXL_BOOST_THREADS
+            //! \brief Mutex variable, to mutual exclude the other thread.
+            boost::mutex mutex;
+            //! \brief Condition variable, to wait for the other thread.
+            boost::condition_variable cond;
+#else
             //! \brief Mutex variable, to mutual exclude the other thread.
             mutable pthread_mutex_t mutex;
             //! \brief Condition variable, to wait for the other thread.
             mutable pthread_cond_t cond;
+#endif
 
             void update_input_buffer_filled() const
             {
@@ -270,15 +293,19 @@ namespace stream
                 input_finished = false;
                 update_last_swap_done();
 
+#ifndef STXXL_BOOST_THREADS
                 pthread_mutex_init(&mutex, 0);
                 pthread_cond_init(&cond, 0);
+#endif
             }
 
             //! \brief Destructor.
             virtual ~push_pull_stage()
             {
+#ifndef STXXL_BOOST_THREADS
                 pthread_mutex_destroy(&mutex);
                 pthread_cond_destroy(&cond);
+#endif
             }
 
         protected:
@@ -306,6 +333,22 @@ namespace stream
             {
                 if (outgoing_buffer->current == outgoing_buffer->stop)
                 {
+#ifdef STXXL_BOOST_THREADS
+                    mutex.lock();
+
+                    update_output_buffer_consumed();            //sets true
+
+                    if (input_buffer_filled)
+                    {
+                        swap_buffers();
+                        cond.notify_one();                      //wake up other thread
+                    }
+                    else
+                        while (!last_swap_done && output_buffer_consumed)               //to be swapped by other thread
+                            cond.wait();                        //wait for other thread to swap in some input
+
+                    mutex.unlock();
+#else
                     pthread_mutex_lock(&mutex);
 
                     update_output_buffer_consumed();            //sets true
@@ -320,6 +363,7 @@ namespace stream
                             pthread_cond_wait(&cond, &mutex);                           //wait for other thread to swap in some input
 
                     pthread_mutex_unlock(&mutex);
+#endif
                 }
                 //otherwise, at least one element available
             }
@@ -400,7 +444,11 @@ namespace stream
                     output_finished = true;
                     update_last_swap_done();
 
+#ifdef STXXL_BOOST_THREADS
+                    cond.notify_one();
+#else
                     pthread_cond_signal(&cond);         //wake up other thread
+#endif
                 }
             }
 
@@ -412,6 +460,22 @@ namespace stream
                 {
                     incoming_buffer->stop = incoming_buffer->current;
 
+#ifdef STXXL_BOOST_THREADS
+                    mutex.lock();
+
+                    update_input_buffer_filled();     //sets true
+
+                    if (output_buffer_consumed)
+                    {
+                        swap_buffers();
+                        cond.notify_one();                             //wake up other thread
+                    }
+                    else
+                        while (!last_swap_done && input_buffer_filled)          //to be swapped by other thread
+                            cond.wait();                              //wait for other thread to take the input
+
+                    mutex.unlock();
+#else
                     pthread_mutex_lock(&mutex);
 
                     update_input_buffer_filled();     //sets true
@@ -426,6 +490,7 @@ namespace stream
                             pthread_cond_wait(&cond, &mutex);                   //wait for other thread to take the input
 
                     pthread_mutex_unlock(&mutex);
+#endif
                 }
             }
 
@@ -502,7 +567,11 @@ namespace stream
 
         protected:
             //! \brief Asynchronously pulling thread.
+#ifdef STXXL_BOOST_THREADS
+            boost::thread puller_thread;
+#else
             pthread_t puller_thread;
+#endif
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
@@ -519,7 +588,11 @@ namespace stream
                 base::stop_pull();
 
                 void * return_code;
+#ifdef STXXL_BOOST_THREADS
+                puller_thread.join();
+#else
                 pthread_join(puller_thread, &return_code);
+#endif
             }
 
         public:
@@ -550,7 +623,11 @@ namespace stream
         template <class StreamOperation>
         void basic_pull_stage<StreamOperation>::start_pulling()
         {
+#ifdef STXXL_BOOST_THREADS
+            puller_thread.start(boost::bind(call_async_pull<StreamOperation>, this));
+#else
             pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this);
+#endif
         }
 
 //! \brief Asynchronous stage to allow concurrent pipelining.
@@ -646,8 +723,13 @@ namespace stream
 
         protected:
             typedef push_pull_stage<typename StreamOperation::value_type> base;
+#ifdef STXXL_BOOST_THREADS
+            //! \brief Asynchronously pushing thread.
+            boost::thread pusher_thread;
+#else
             //! \brief Asynchronously pushing thread.
             pthread_t pusher_thread;
+#endif
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
@@ -679,8 +761,12 @@ namespace stream
                 {
                     base::stop_push();
 
+#ifdef STXXL_BOOST_THREADS
+                    pusher_thread.join();
+#else
                     void * return_code;
                     pthread_join(pusher_thread, &return_code);
+#endif
                 }
             }
 
@@ -702,7 +788,11 @@ namespace stream
         template <class StreamOperation>
         void basic_push_stage<StreamOperation>::start_pushing()
         {
+#ifdef STXXL_BOOST_THREADS
+            pusher_thread.start(boost::bind(call_async_push<StreamOperation>, this));
+#else
             pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this);
+#endif
         }
 
 //! \brief Asynchronous stage to allow concurrent pipelining.
