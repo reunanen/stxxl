@@ -54,7 +54,11 @@ void distribute_gather(vector_type & input)
     using stxxl::stream::make_tuple;
     using stxxl::stream::use_push;
 
+#ifdef BOOST_MSVC
+    typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
+#else
     typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
+#endif //BOOST_MSVC
 
     stxxl::stats::get_instance()->reset();
 
@@ -132,8 +136,6 @@ void distribute_gather(vector_type & input)
 //		delete workers[w];
 //		delete worker_stages[w];
     }
-
-#define OUT output
 
 #if OUTPUT_STATS
     std::cout << *(stxxl::stats::get_instance()) << std::endl;

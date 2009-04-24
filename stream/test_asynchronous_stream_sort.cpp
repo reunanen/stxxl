@@ -66,7 +66,11 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
 
     stxxl::stats::get_instance()->reset();
 
+#ifdef BOOST_MSVC
+    typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
+#else
     typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
+#endif //BOOST_MSVC
 
     input_stream_type input_stream = streamify(input.begin(), input.end());
 
