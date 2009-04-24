@@ -101,12 +101,25 @@ namespace stream
         bool result_computed;     // true iff result is already computed (used in 'result' method)
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifdef STXXL_BOOST_THREADS
+        boost::thread waiter_and_fetcher;
+        boost::mutex mutex;
+        boost::condition_variable cond;
+#else
         pthread_t waiter_and_fetcher;
         pthread_mutex_t mutex;
         pthread_cond_t cond;
+#endif
         volatile bool fully_written;  //is the data already fully written out?
         volatile bool termination_requested;
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+
+#ifdef STXXL_BOOST_THREADS
+#define STXXL_THREAD_ID boost::this_thread::get_id()
+#else
+#define STXXL_THREAD_ID STXXL_THREAD_ID()
+#endif
+
 
         //! \brief Sort a specific run, contained in a sequences of blocks.
         void sort_run(block_type * run, unsigned_type elements)
@@ -148,10 +161,15 @@ namespace stream
         //! \brief Wait for the other thread to join.
         void join_waiting_and_fetching()
         {
-            void * res;
             termination_requested = true;
+#ifdef STXXL_BOOST_THREADS
+            cond.notify_one();
+            waiter_and_fetcher.join();
+#else
             pthread_cond_signal(&cond);
+            void * res;
             pthread_join(waiter_and_fetcher, &res);
+#endif
         }
 
         //! \brief Job structure for waiting.
@@ -178,6 +196,18 @@ namespace stream
         {
             while (true)
             {
+#ifdef STXXL_BOOST_THREADS
+                mutex.lock();
+                //wait for fully_written to become false, or termination being requested
+                while (fully_written && !termination_requested)
+                    cond.wait(mutex);       //wait for a state change
+                if (termination_requested)
+                {
+                    mutex.unlock();
+                    return;
+                }
+                mutex.unlock();
+#else
                 pthread_mutex_lock(&mutex);
                 //wait for fully_written to become false, or termination being requested
                 while (fully_written && !termination_requested)
@@ -188,6 +218,7 @@ namespace stream
                     return;
                 }
                 pthread_mutex_unlock(&mutex);
+#endif
 
                 //fully_written == false
 
@@ -213,10 +244,17 @@ namespace stream
                     // what happens if out of data? function will return immediately
                 }
 
+#ifdef STXXL_BOOST_THREADS
+                mutex.lock();
+                fully_written = true;
+                cond.notify_one();
+                mutex.unlock();
+#else
                 pthread_mutex_lock(&mutex);
                 fully_written = true;
                 pthread_cond_signal(&cond); //wake up other thread, if necessary
                 pthread_mutex_unlock(&mutex);
+#endif
             }
         }
 
@@ -230,21 +268,36 @@ namespace stream
             wait_fetch_job.wait_run_size = wait_run_size;
             wait_fetch_job.read_run_size = read_run_size;
 
+#ifdef STXXL_BOOST_THREADS
+            mutex.lock();
+            fully_written = false;
+            mutex.unlock();
+            cond.notify_one();
+#else
             pthread_mutex_lock(&mutex);
             fully_written = false;
             pthread_mutex_unlock(&mutex);
             pthread_cond_signal(&cond); //wake up other thread
+#endif
         }
 
         //! \brief Wait for a signal from the other thread.
         //! \returns Number of elements fetched by the other thread.
         blocked_index<block_type::size> wait_write_read()
         {
+#ifdef STXXL_BOOST_THREADS
+            mutex.lock();
+            //wait for fully_written to become true
+            while (!fully_written)
+                cond.wait();   //wait for other thread
+            mutex.unlock();
+#else
             pthread_mutex_lock(&mutex);
             //wait for fully_written to become true
             while (!fully_written)
                 pthread_cond_wait(&cond, &mutex);   //wait for other thread
             pthread_mutex_unlock(&mutex);
+#endif
 
             return wait_fetch_job.end;
         }
@@ -258,8 +311,10 @@ namespace stream
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifndef STXXL_BOOST_THREADS
             pthread_mutex_init(&mutex, 0);
             pthread_cond_init(&cond, 0);
+#endif
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             assert(m_ > 0);
             assert(el_in_run > 0);
@@ -271,8 +326,10 @@ namespace stream
         virtual ~basic_runs_creator()
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifndef STXXL_BOOST_THREADS
             pthread_mutex_destroy(&mutex);
             pthread_cond_destroy(&cond);
+#endif
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         }
 
@@ -607,7 +664,11 @@ namespace stream
     {
         fully_written = true; //so far, nothing to write
         termination_requested = false;
+#ifdef STXXL_BOOST_THREADS
+        waiter_and_fetcher.start(boost::bind(call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
+#else
         pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
+#endif
     }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 
@@ -779,10 +840,17 @@ namespace stream
         run_type run;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifdef STXXL_BOOST_THREADS
+        //! \brief Mutex variable, to mutual exclude the other thread.
+        boost::mutex mutex;
+        //! \brief Condition variable, to wait for the other thread.
+        boost::condition_variable cond;
+#else
         //! \brief Mutex variable, to mutual exclude the other thread.
         pthread_mutex_t mutex;
         //! \brief Condition variable, to wait for the other thread.
         pthread_cond_t cond;
+#endif
 #endif
         volatile bool result_ready;
 
@@ -886,16 +954,20 @@ namespace stream
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifndef STXXL_BOOST_THREADS
             pthread_mutex_init(&mutex, 0);
             pthread_cond_init(&cond, 0);
+#endif
 #endif
         }
 
         ~runs_creator()
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifndef STXXL_BOOST_THREADS
             pthread_mutex_destroy(&mutex);
             pthread_cond_destroy(&cond);
+#endif
 #endif
             if (!output_requested)
                 cleanup();
@@ -1013,10 +1085,17 @@ namespace stream
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                 STXXL_MSG(*stats::get_instance());
 #endif //STXXL_PRINT_STAT_AFTER_RF
+#ifdef STXXL_BOOST_THREADS
+                mutex.lock();
+                result_ready = true;
+                cond.notify_one();
+                mutex.unlock();
+#else
                 pthread_mutex_lock(&mutex);
                 result_ready = true;
                 pthread_cond_signal(&cond);
                 pthread_mutex_unlock(&mutex);
+#endif
             }
         }
 #endif
@@ -1027,10 +1106,17 @@ namespace stream
         const sorted_runs_type & result()
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifdef STXXL_BOOST_THREADS
+            mutex.lock();
+            while (!result_ready)
+                cond.wait();
+            mutex.unlock();
+#else
             pthread_mutex_lock(&mutex);
             while (!result_ready)
                 pthread_cond_wait(&cond, &mutex);
             pthread_mutex_unlock(&mutex);
+#endif
 #endif
             return result_;
         }
@@ -1390,12 +1476,12 @@ namespace stream
                             min_last_element = cmp(*min_last_element, *((*seqs)[i].second - 1)) ? min_last_element : &(*((*seqs)[i].second - 1));
 
                         total_size += (*seqs)[i].second - (*seqs)[i].first;
-                        STXXL_VERBOSE2("" << pthread_self() << " last " << *((*seqs)[i].second - 1) << " sequence length " << std::dec << " " << ((*seqs)[i].second - (*seqs)[i].first));
+                        STXXL_VERBOSE2("" << STXXL_THREAD_ID << " last " << *((*seqs)[i].second - 1) << " sequence length " << std::dec << " " << ((*seqs)[i].second - (*seqs)[i].first));
                     }
 
                     assert(min_last_element != NULL);           //there must be some element
 
-                    STXXL_VERBOSE2("" << pthread_self() << " min_last_element " << *min_last_element << " total size " << total_size + (block_type::size - rest) << typeid(cmp).name());
+                    STXXL_VERBOSE2("" << STXXL_THREAD_ID << " min_last_element " << *min_last_element << " total size " << total_size + (block_type::size - rest) << typeid(cmp).name());
 
                     diff_type less_equal_than_min_last = 0;
                     //locate this element in all sequences
@@ -1405,7 +1491,7 @@ namespace stream
                             continue; //empty subsequence
 
                         typename block_type::iterator position = std::upper_bound((*seqs)[i].first, (*seqs)[i].second, *min_last_element, cmp);
-                        STXXL_VERBOSE2("" << pthread_self() << " greater equal than " << position - (*seqs)[i].first << " elements");
+                        STXXL_VERBOSE2("" << STXXL_THREAD_ID << " greater equal than " << position - (*seqs)[i].first << " elements");
                         less_equal_than_min_last += position - (*seqs)[i].first;
                     }
 
