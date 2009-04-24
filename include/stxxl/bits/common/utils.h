@@ -249,6 +249,7 @@ inline stxxl::int64 atoint64(const char * s)
 ////////////////////////////////////////////////////////////////////////////
 
 #define STXXL_MIN(a, b) ((std::min)(a, b))
+#define STXXL_TYPED_MIN(t, a, b) ((std::min<t>)(a, b))
 #define STXXL_MAX(a, b) ((std::max)(a, b))
 
 #define STXXL_L2_SIZE  (512 * 1024)

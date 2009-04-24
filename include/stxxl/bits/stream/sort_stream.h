@@ -1790,7 +1790,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return STXXL_MIN(block_type::size - buffer_pos + 1, elements_remaining);
+            return STXXL_TYPED_MIN(unsigned_type, block_type::size - buffer_pos + 1, elements_remaining);
         }
 
         //! \brief Batched stream method.

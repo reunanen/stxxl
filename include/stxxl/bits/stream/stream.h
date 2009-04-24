@@ -216,7 +216,7 @@ namespace stream
         unsigned_type batch_length()
         {
             STXXL_VERBOSE(in->batch_length() << " " << end_ - current_);
-            return STXXL_MIN(in->batch_length(), end_ - current_);
+            return STXXL_TYPED_MIN(unsigned_type, in->batch_length(), end_ - current_);
         }
 
         const_iterator batch_begin()
@@ -642,7 +642,7 @@ namespace stream
             if (outcurrent.block_offset() == 0)
                 outcurrent.block_externally_updated();
 
-            length = STXXL_MIN(length, STXXL_MIN(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
+            length = STXXL_TYPED_MIN(unsigned_type, length, STXXL_TYPED_MIN(unsigned_type, outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
             for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
             {
