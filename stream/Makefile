@@ -39,6 +39,11 @@ test_asynchronous_stream_sort.$(EXEEXT): test_asynchronous_stream_sort.cpp $(DEP
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c test_asynchronous_stream_sort.cpp -DSTXXL_VERBOSE_LEVEL=1
 	$(LINKER)  test_asynchronous_stream_sort.$(OBJEXT) $(OUT)test_asynchronous_stream_sort.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
 
+test_asynchronous_distribute_gather: test_asynchronous_distribute_gather.$(EXEEXT)
+test_asynchronous_distribute_gather.$(EXEEXT): test_asynchronous_distribute_gather.cpp $(DEPENDENCIES)
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c test_asynchronous_distribute_gather.cpp -DSTXXL_VERBOSE_LEVEL=1
+	$(LINKER)  test_asynchronous_distribute_gather.$(OBJEXT) $(OUT)test_asynchronous_distribute_gather.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
+
 
 clean:
 	$(RM) *.$(OBJEXT) test_stream.$(EXEEXT) test_sorted_runs.$(EXEEXT)
