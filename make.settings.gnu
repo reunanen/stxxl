@@ -254,8 +254,8 @@ endif
 
 #### BOOST OPTIONS ###############################################
 
-BOOST_INCLUDE                   ?= $(if $(strip $(BOOST_ROOT)),$(strip $(BOOST_ROOT)/include))
-BOOST_COMPILER_OPTIONS		+= $(if $(strip $(BOOST_INCLUDE)),-I$(strip $(BOOST_INCLUDE)))
+BOOST_INCLUDE			?= $(if $(strip $(BOOST_ROOT)),$(strip $(BOOST_ROOT))/include)
+BOOST_COMPILER_OPTIONS		+= $(foreach inc,$(BOOST_INCLUDE),-I$(inc))
 BOOST_COMPILER_OPTIONS		+= -DSTXXL_BOOST_CONFIG
 BOOST_COMPILER_OPTIONS		+= -DSTXXL_BOOST_FILESYSTEM
 BOOST_COMPILER_OPTIONS		+= -DSTXXL_BOOST_RANDOM
@@ -265,7 +265,7 @@ BOOST_COMPILER_OPTIONS		+= -DSTXXL_BOOST_THREADS
 BOOST_LIB_COMPILER_SUFFIX	?= 
 BOOST_LIB_MT_SUFFIX		?= -mt
 BOOST_LINKER_OPTIONS		 = \
-	-L$(BOOST_ROOT)/lib \
+	$(if $(strip $(BOOST_ROOT)),$(strip $(BOOST_ROOT))/lib) \
 	-lboost_thread$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
 	-lboost_date_time$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
 	-lboost_iostreams$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
