@@ -30,6 +30,7 @@
 #include "test_parallel_pipelining_common.h"
 #include <vector>
 #include <stxxl/stream>
+#include <stxxl/bits/stream/stream.h>
 #include <stxxl/vector>
 
 stxxl::unsigned_type memory_to_use = 512 * megabyte;
@@ -68,7 +69,11 @@ void double_diamond(vector_type & input)
 
 //input
 
-        typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
+#ifdef BOOST_MSVC
+        typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
+#else
+        typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+#endif //BOOST_MSVC
         input_stream_type input_stream = streamify(input.begin(), input.end()); //0
 
         typedef cmp_less_load cmp_4_type;
@@ -252,7 +257,7 @@ void double_diamond(vector_type & input)
 #endif
     }
     assert(o == tuple_output.end());
-#define OUT tuple_output
+#define STREAM_OUT tuple_output
 
 #if OUTPUT_STATS
     std::cout << *(stxxl::stats::get_instance()) << std::endl;
@@ -274,7 +279,7 @@ void double_diamond(vector_type & input)
 
 #define STREAMED_CHECKING 0
 #if STREAMED_CHECKING
-        typedef __typeof__(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
+        typedef typeof(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
 
         output_stream_type * output_stream;
 
@@ -294,7 +299,7 @@ void double_diamond(vector_type & input)
 
         is_sorted = co.result();
 #else
-        is_sorted = stxxl::is_sorted(OUT.begin(), OUT.end(), cmp_less_tuple());
+        is_sorted = stxxl::is_sorted(STREAM_OUT.begin(), STREAM_OUT.end(), cmp_less_tuple());
 #endif
     }
 
@@ -303,15 +308,15 @@ void double_diamond(vector_type & input)
 #endif
     if (!is_sorted)
     {
-        vector_tuple_type::const_iterator i = OUT.begin(), last = OUT.begin();
-        for ( ; i != OUT.begin() + 1000; i++)
+        vector_tuple_type::const_iterator i = STREAM_OUT.begin(), last = STREAM_OUT.begin();
+        for ( ; i != STREAM_OUT.begin() + 1000; i++)
             std::cout << *i << "   ";
         std::cout << std::endl;
 
-        for (i = OUT.begin(); i != OUT.end(); i++)
+        for (i = STREAM_OUT.begin(); i != STREAM_OUT.end(); i++)
         {
             if (cmp_less_tuple() (*i, *last))
-                std::cout << std::endl << "Wrong @" << (i - OUT.begin()) << ":\t" << *last << " > " << *i << std::endl;
+                std::cout << std::endl << "Wrong @" << (i - STREAM_OUT.begin()) << ":\t" << *last << " > " << *i << std::endl;
             last = i;
         }
     }

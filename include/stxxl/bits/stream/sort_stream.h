@@ -103,7 +103,8 @@ namespace stream
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifdef STXXL_BOOST_THREADS
         boost::thread waiter_and_fetcher;
-        boost::mutex mutex;
+		boost::mutex ul_mutex;
+        boost::unique_lock<boost::mutex> mutex;
         boost::condition_variable cond;
 #else
         pthread_t waiter_and_fetcher;
@@ -309,6 +310,11 @@ namespace stream
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#ifdef STXXL_BOOST_THREADS			
+			, mutex(ul_mutex)
+#endif
+#endif
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
@@ -744,7 +750,7 @@ namespace stream
             unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
             while (((length = input.batch_length()) > 0) && pos != limit)
             {
-                length = std::min<unsigned_type>(length, std::min(limit - pos, block_type::size - pos_in_block));
+                length = STXXL_MIN(length, STXXL_MIN(limit - pos, block_type::size - pos_in_block));
                 typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
                 for (typename Input_::const_iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
                 {
@@ -841,8 +847,9 @@ namespace stream
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifdef STXXL_BOOST_THREADS
+        boost::mutex ul_mutex;
         //! \brief Mutex variable, to mutual exclude the other thread.
-        boost::mutex mutex;
+        boost::unique_lock<boost::mutex> mutex;
         //! \brief Condition variable, to wait for the other thread.
         boost::condition_variable cond;
 #else
@@ -949,6 +956,11 @@ namespace stream
             Blocks2(Blocks1 + m2),
             write_reqs(new request_ptr[m2]),
             result_ready(false)
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_BOOST_THREADS
+			, mutex(ul_mutex)
+#endif
+#endif
         {
             assert(m_ > 0);
             assert(m2 > 0);
@@ -1051,7 +1063,7 @@ namespace stream
             unsigned_type block_no = cur_el.get_block(), pos_in_block = cur_el.get_offset();
             while (batch_begin < batch_end)
             {
-                unsigned_type length = std::min<unsigned_type>(batch_end - batch_begin, block_type::size - pos_in_block);
+                unsigned_type length = STXXL_MIN(batch_end - batch_begin, block_type::size - pos_in_block);
                 typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
                 for (Iterator end = batch_begin + length; batch_begin != end; ++batch_begin)
                 {
@@ -1109,7 +1121,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
             while (!result_ready)
-                cond.wait();
+                cond.wait(mutex);
             mutex.unlock();
 #else
             pthread_mutex_lock(&mutex);
@@ -1495,7 +1507,7 @@ namespace stream
                         less_equal_than_min_last += position - (*seqs)[i].first;
                     }
 
-                    ptrdiff_t output_size = std::min(less_equal_than_min_last, rest);                           //at most rest elements
+                    ptrdiff_t output_size = STXXL_MIN(less_equal_than_min_last, rest);                           //at most rest elements
 
                     assert(less_equal_than_min_last > 0);
 
@@ -1778,7 +1790,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return std::min<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
+            return STXXL_MIN(block_type::size - buffer_pos + 1, elements_remaining);
         }
 
         //! \brief Batched stream method.

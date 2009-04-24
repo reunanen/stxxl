@@ -35,7 +35,7 @@ struct my_type
 
     key_type _key;
     key_type _load;
-    char _data[RECORD_SIZE - 2 * sizeof(key_type)];
+    //char _data[RECORD_SIZE - 2 * sizeof(key_type)];
     key_type key() const { return _key; }
 
     my_type() { }
@@ -61,20 +61,20 @@ bool operator != (const my_type & a, const my_type & b);
 
 struct cmp_less_key : public std::less<my_type>
 {
-    my_type min_value() const { return my_type(std::numeric_limits<my_type::key_type>::min(), MAGIC); }
-    my_type max_value() const { return my_type(std::numeric_limits<my_type::key_type>::max(), MAGIC); }
+    my_type min_value() const { return my_type((std::numeric_limits<my_type::key_type>::min)(), MAGIC); }
+    my_type max_value() const { return my_type((std::numeric_limits<my_type::key_type>::max)(), MAGIC); }
 };
 
 struct cmp_greater_key : public std::greater<my_type>
 {
-    my_type min_value() const { return my_type(std::numeric_limits<my_type::key_type>::max(), MAGIC); }
-    my_type max_value() const { return my_type(std::numeric_limits<my_type::key_type>::min(), MAGIC); }
+    my_type min_value() const { return my_type((std::numeric_limits<my_type::key_type>::max)(), MAGIC); }
+    my_type max_value() const { return my_type((std::numeric_limits<my_type::key_type>::min)(), MAGIC); }
 };
 
 struct cmp_less_load : public std::binary_function<my_type, my_type, bool>
 {
-    my_type min_value() const { return my_type(MAGIC, std::numeric_limits<my_type::key_type>::min()); }
-    my_type max_value() const { return my_type(MAGIC, std::numeric_limits<my_type::key_type>::max()); }
+    my_type min_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::min)()); }
+    my_type max_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::max)()); }
 
     bool operator () (const my_type & mt1, const my_type & mt2) const
     {
@@ -84,8 +84,8 @@ struct cmp_less_load : public std::binary_function<my_type, my_type, bool>
 
 struct cmp_greater_load : public std::binary_function<my_type, my_type, bool>
 {
-    my_type min_value() const { return my_type(MAGIC, std::numeric_limits<my_type::key_type>::max()); }
-    my_type max_value() const { return my_type(MAGIC, std::numeric_limits<my_type::key_type>::min()); }
+    my_type min_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::max)()); }
+    my_type max_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::min)()); }
 
     bool operator () (const my_type & mt1, const my_type & mt2) const
     {
@@ -197,10 +197,10 @@ public:
         //std::cerr << "+ " << t._key << " " << sum << std::endl;
         assert(t._key != 0);
         assert(t._load != 0);
-        assert(t._key != std::numeric_limits<my_type::key_type>::min());
-        assert(t._key != std::numeric_limits<my_type::key_type>::max());
-        assert(t._load != std::numeric_limits<my_type::key_type>::min());
-        assert(t._load != std::numeric_limits<my_type::key_type>::max());
+        assert(t._key != (std::numeric_limits<my_type::key_type>::min)());
+        assert(t._key != (std::numeric_limits<my_type::key_type>::max)());
+        assert(t._load != (std::numeric_limits<my_type::key_type>::min)());
+        assert(t._load != (std::numeric_limits<my_type::key_type>::max)());
         return t;
     }
 

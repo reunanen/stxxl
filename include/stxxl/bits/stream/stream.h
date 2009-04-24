@@ -216,7 +216,7 @@ namespace stream
         unsigned_type batch_length()
         {
             STXXL_VERBOSE(in->batch_length() << " " << end_ - current_);
-            return std::min<unsigned_type>(in->batch_length(), end_ - current_);
+            return STXXL_MIN(in->batch_length(), end_ - current_);
         }
 
         const_iterator batch_begin()
@@ -503,7 +503,7 @@ namespace stream
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
         {
-            length = std::min<unsigned_type>(length, outend - outbegin);
+            length = STXXL_MIN(length, outend - outbegin);
             outbegin = std::copy(in.batch_begin(), in.batch_begin() + length, outbegin);
             in += length;
         }
@@ -642,7 +642,7 @@ namespace stream
             if (outcurrent.block_offset() == 0)
                 outcurrent.block_externally_updated();
 
-            length = std::min<unsigned_type>(length, std::min<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
+            length = STXXL_MIN(length, STXXL_MIN(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
             for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
             {
@@ -797,7 +797,7 @@ namespace stream
         {
             if (out.block_offset() == 0)
                 out.outbegin.block_externally_updated();
-            length = std::min<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
+            length = STXXL_MIN(length, ExtIterator::block_type::size - out.block_offset());
             for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
             {
                 *outstream = *i;
@@ -857,7 +857,7 @@ namespace stream
         typename StreamAlgorithm_::value_type dummy;
         for (i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
         {
-            length = std::min(length, num_elements - i);
+            length = STXXL_MIN(length, num_elements - i);
             for (typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
                 dummy = *j;
             in += length;
@@ -1638,7 +1638,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type push_batch_length() const
         {
-            return std::min(elements_left, current_output->push_batch_length());
+            return STXXL_MIN(elements_left, current_output->push_batch_length());
         }
 
         //! \brief Batched stream method.
@@ -1840,7 +1840,7 @@ namespace stream
 
         unsigned_type batch_length() const
         {
-            return std::min(elements_left, current_input->batch_length());
+            return STXXL_MIN(elements_left, current_input->batch_length());
         }
 
         //! \brief Standard stream method
@@ -2074,7 +2074,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return std::min(i1.batch_length(), i2.batch_length());
+            return STXXL_MIN(i1.batch_length(), i2.batch_length());
         }
 
         //! \brief Batched stream method.

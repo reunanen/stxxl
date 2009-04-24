@@ -244,10 +244,11 @@ namespace stream
             //! \brief The input stream has run empty, the last swap_buffers() has been performed already.
             mutable volatile bool last_swap_done;
 #ifdef STXXL_BOOST_THREADS
+            mutable boost::mutex ul_mutex;
             //! \brief Mutex variable, to mutual exclude the other thread.
-            boost::mutex mutex;
+            mutable boost::unique_lock<boost::mutex> mutex;
             //! \brief Condition variable, to wait for the other thread.
-            boost::condition_variable cond;
+            mutable boost::condition_variable cond;
 #else
             //! \brief Mutex variable, to mutual exclude the other thread.
             mutable pthread_mutex_t mutex;
@@ -278,6 +279,9 @@ namespace stream
                 block2(buffer_size / 2),
                 incoming_buffer(&block1),
                 outgoing_buffer(&block2)
+#if STXXL_BOOST_THREADS
+				, mutex(ul_mutex)
+#endif
             {
                 assert(buffer_size > 0);
 
@@ -345,7 +349,7 @@ namespace stream
                     }
                     else
                         while (!last_swap_done && output_buffer_consumed)               //to be swapped by other thread
-                            cond.wait();                        //wait for other thread to swap in some input
+                            cond.wait(mutex);                        //wait for other thread to swap in some input
 
                     mutex.unlock();
 #else
@@ -472,7 +476,7 @@ namespace stream
                     }
                     else
                         while (!last_swap_done && input_buffer_filled)          //to be swapped by other thread
-                            cond.wait();                              //wait for other thread to take the input
+                            cond.wait(mutex);                              //wait for other thread to take the input
 
                     mutex.unlock();
 #else
@@ -702,7 +706,7 @@ namespace stream
                 unsigned_type length;
                 while ((length = so.batch_length()) > 0 && !base::output_finished)
                 {
-                    length = std::min(length, base::push_batch_length());
+                    length = STXXL_MIN(length, base::push_batch_length());
                     base::push_batch(so.batch_begin(), so.batch_begin() + length);
                     so.operator += (length);
                 }
