@@ -19,7 +19,7 @@
 
 #define OUTPUT_STATS 1
 
-#define STXXL_VERBOSE_LEVEL 0
+//#define STXXL_VERBOSE_LEVEL 0
 
 #include "test_parallel_pipelining_common.h"
 #include <vector>
