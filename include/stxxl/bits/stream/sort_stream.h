@@ -18,6 +18,10 @@
  #include <boost/config.hpp>
 #endif
 
+#ifdef STXXL_BOOST_THREADS
+ #include <boost/thread/condition.hpp>
+#endif
+
 #include <stxxl/bits/stream/stream.h>
 #include <stxxl/sort>
 
@@ -102,8 +106,8 @@ namespace stream
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifdef STXXL_BOOST_THREADS
-        boost::thread waiter_and_fetcher;
-		boost::mutex ul_mutex;
+        boost::thread* waiter_and_fetcher;
+        boost::mutex ul_mutex;
         boost::unique_lock<boost::mutex> mutex;
         boost::condition_variable cond;
 #else
@@ -165,7 +169,8 @@ namespace stream
             termination_requested = true;
 #ifdef STXXL_BOOST_THREADS
             cond.notify_one();
-            waiter_and_fetcher.join();
+            waiter_and_fetcher->join();
+            delete waiter_and_fetcher;
 #else
             pthread_cond_signal(&cond);
             void * res;
@@ -290,7 +295,7 @@ namespace stream
             mutex.lock();
             //wait for fully_written to become true
             while (!fully_written)
-                cond.wait();   //wait for other thread
+                cond.wait(mutex);   //wait for other thread
             mutex.unlock();
 #else
             pthread_mutex_lock(&mutex);
@@ -309,12 +314,13 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
-            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), el_in_run((m_ / 2) * block_type::size)
+            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-#ifdef STXXL_BOOST_THREADS			
-			, mutex(ul_mutex)
+#ifdef STXXL_BOOST_THREADS
+            , mutex(ul_mutex)
 #endif
 #endif
+            , el_in_run((m_ / 2) * block_type::size)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
@@ -671,7 +677,7 @@ namespace stream
         fully_written = true; //so far, nothing to write
         termination_requested = false;
 #ifdef STXXL_BOOST_THREADS
-        waiter_and_fetcher.start(boost::bind(call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
+        waiter_and_fetcher = new boost::thread(boost::bind(call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
 #else
         pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
 #endif

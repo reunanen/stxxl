@@ -82,7 +82,7 @@ namespace stream
         protected:
 #ifdef STXXL_BOOST_THREADS
             //! \brief Asynchronously pulling thread.
-            boost::thread puller_thread;
+            boost::thread* puller_thread;
 #else
             //! \brief Asynchronously pulling thread.
             pthread_t puller_thread;
@@ -124,7 +124,7 @@ namespace stream
         void basic_pull_empty_stage<StreamOperation>::start_pulling()
         {
 #ifdef STXXL_BOOST_THREADS
-            puller_thread.start(boost::bind(call_async_pull_empty<StreamOperation>, this));
+            puller_thread = new boost::thread(boost::bind(call_async_pull_empty<StreamOperation>, this));
 #else
             pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this);
 #endif
@@ -572,7 +572,7 @@ namespace stream
         protected:
             //! \brief Asynchronously pulling thread.
 #ifdef STXXL_BOOST_THREADS
-            boost::thread puller_thread;
+            boost::thread* puller_thread;
 #else
             pthread_t puller_thread;
 #endif
@@ -591,10 +591,11 @@ namespace stream
             {
                 base::stop_pull();
 
-                void * return_code;
 #ifdef STXXL_BOOST_THREADS
-                puller_thread.join();
+                puller_thread->join();
+                delete puller_thread;
 #else
+                void * return_code;
                 pthread_join(puller_thread, &return_code);
 #endif
             }
@@ -628,7 +629,7 @@ namespace stream
         void basic_pull_stage<StreamOperation>::start_pulling()
         {
 #ifdef STXXL_BOOST_THREADS
-            puller_thread.start(boost::bind(call_async_pull<StreamOperation>, this));
+            puller_thread = new boost::thread(boost::bind(call_async_pull<StreamOperation>, this));
 #else
             pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this);
 #endif
@@ -729,7 +730,7 @@ namespace stream
             typedef push_pull_stage<typename StreamOperation::value_type> base;
 #ifdef STXXL_BOOST_THREADS
             //! \brief Asynchronously pushing thread.
-            boost::thread pusher_thread;
+            boost::thread* pusher_thread;
 #else
             //! \brief Asynchronously pushing thread.
             pthread_t pusher_thread;
@@ -766,7 +767,7 @@ namespace stream
                     base::stop_push();
 
 #ifdef STXXL_BOOST_THREADS
-                    pusher_thread.join();
+                    pusher_thread->join();
 #else
                     void * return_code;
                     pthread_join(pusher_thread, &return_code);
@@ -793,7 +794,7 @@ namespace stream
         void basic_push_stage<StreamOperation>::start_pushing()
         {
 #ifdef STXXL_BOOST_THREADS
-            pusher_thread.start(boost::bind(call_async_push<StreamOperation>, this));
+            pusher_thread = new boost::thread(boost::bind(call_async_push<StreamOperation>, this));
 #else
             pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this);
 #endif

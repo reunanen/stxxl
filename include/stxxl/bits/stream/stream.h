@@ -13,6 +13,10 @@
 #ifndef STXXL_STREAM_HEADER
 #define STXXL_STREAM_HEADER
 
+#ifdef STXXL_BOOST_THREADS // Use Portable Boost threads
+ #include <boost/bind.hpp>
+#endif
+
 #include <stxxl/bits/namespace.h>
 #include <stxxl/bits/mng/buf_istream.h>
 #include <stxxl/bits/mng/buf_ostream.h>
@@ -1535,7 +1539,7 @@ namespace stream
             STXXL_VERBOSE0("distribute " << this << " stops push.");
 			
 #ifdef STXXL_BOOST_THREADS
-            boost::thread * threads = new boost::thread[num_outputs];
+            boost::thread ** threads = new boost::thread*[num_outputs];
 #else
             pthread_t * threads = new pthread_t[num_outputs];
 #endif
