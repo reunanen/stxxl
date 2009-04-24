@@ -68,7 +68,7 @@ void double_diamond(vector_type & input)
 
 //input
 
-        typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+        typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
         input_stream_type input_stream = streamify(input.begin(), input.end()); //0
 
         typedef cmp_less_load cmp_4_type;
@@ -274,7 +274,7 @@ void double_diamond(vector_type & input)
 
 #define STREAMED_CHECKING 0
 #if STREAMED_CHECKING
-        typedef typeof(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
+        typedef __typeof__(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
 
         output_stream_type * output_stream;
 

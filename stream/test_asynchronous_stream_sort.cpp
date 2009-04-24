@@ -66,7 +66,7 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
 
     stxxl::stats::get_instance()->reset();
 
-    typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+    typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
 
     input_stream_type input_stream = streamify(input.begin(), input.end());
 

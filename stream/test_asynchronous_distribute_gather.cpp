@@ -54,7 +54,7 @@ void distribute_gather(vector_type & input)
     using stxxl::stream::make_tuple;
     using stxxl::stream::use_push;
 
-    typedef typeof(streamify(input.begin(), input.end())) input_stream_type;
+    typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
 
     stxxl::stats::get_instance()->reset();
 
