@@ -14,6 +14,17 @@
 //! This is an example of how to use the asynchronous nodes needed form
 //! parallel pipelining.
 
+#define STXXL_PARALLEL_MULTIWAY_MERGE 0
+
+#define STXXL_START_PIPELINE 1
+#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 1
+
+#define PIPELINED 1
+#define BATCHED 1
+#define SYMMETRIC 1
+
+#define OUTPUT_STATS 1
+
 #define STXXL_VERBOSE_LEVEL 0
 
 #include "test_parallel_pipelining_common.h"
@@ -358,8 +369,6 @@ int main()
 #if OUTPUT_STATS
     std::cout << *(stxxl::stats::get_instance()) << std::endl;
 #endif
-
-    std::cout << input[0] << " " << input[1] << std::endl;
 
     double_diamond(input);
 }

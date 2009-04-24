@@ -10,17 +10,6 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#define STXXL_PARALLEL_MULTIWAY_MERGE 0
-
-#define STXXL_START_PIPELINE 1
-#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 1
-
-#define PIPELINED 1
-#define BATCHED 1
-#define SYMMETRIC 1
-
-#define OUTPUT_STATS 1
-
 #include <limits>
 #include <stxxl/bits/mng/mng.h>
 #include <stxxl/vector>

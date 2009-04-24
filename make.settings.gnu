@@ -317,7 +317,7 @@ HEADER_FILES_ALGO	+= adaptor.h inmemsort.h intksort.h run_cursor.h sort.h
 HEADER_FILES_ALGO	+= async_schedule.h ksort.h
 HEADER_FILES_ALGO	+= losertree.h scan.h stable_ksort.h random_shuffle.h
 
-HEADER_FILES_STREAM	+= stream.h sort_stream.h
+HEADER_FILES_STREAM	+= stream.h asynchronous_sort_stream.h
 
 HEADER_FILES_UTILS	+= malloc.h
 
