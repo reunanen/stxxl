@@ -14,7 +14,7 @@
 //! This is an example of how to use the asynchronous nodes needed form
 //! parallel pipelining.
 
-#define STXXL_PARALLEL_MULTIWAY_MERGE 0
+//#define STXXL_PARALLEL_MULTIWAY_MERGE 0
 
 #define STXXL_START_PIPELINE 1
 #define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 1
