@@ -142,23 +142,6 @@ typedef stxxl::vector<my_type, 4, stxxl::lru_pager<8>, block_size, STXXL_DEFAULT
 
 typedef stxxl::vector<my_tuple, 4, stxxl::lru_pager<8>, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> vector_tuple_type;
 
-using stxxl::stream::generator2stream;
-using stxxl::stream::round_robin;
-using stxxl::stream::streamify;
-using stxxl::stream::pipeline::pull_stage;
-using stxxl::stream::pipeline::pull_stage_batch;
-using stxxl::stream::pipeline::dummy_pull_stage;
-using stxxl::stream::pipeline::push_stage;
-using stxxl::stream::pipeline::push_stage_batch;
-using stxxl::stream::pipeline::dummy_push_stage;
-using stxxl::stream::transform;
-using stxxl::stream::sort;
-using stxxl::stream::runs_creator;
-using stxxl::stream::runs_creator_batch;
-using stxxl::stream::runs_merger;
-using stxxl::stream::make_tuple;
-using stxxl::stream::use_push;
-
 /** @brief Do nothing, just return argument. */
 template <typename T>
 class identity : public std::unary_function<T, void>
