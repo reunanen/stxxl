@@ -37,12 +37,12 @@ void distribute_gather(vector_type & input)
     using stxxl::stream::streamify;
     using stxxl::stream::pipeline::pull;
     using stxxl::stream::pipeline::pull_batch;
-    using stxxl::stream::pipeline::pull_empty_stage;
-    using stxxl::stream::pipeline::pull_empty_stage_batch;
+    using stxxl::stream::pipeline::pull_empty;
+    using stxxl::stream::pipeline::pull_empty_batch;
     using stxxl::stream::pipeline::dummy_pull;
-    using stxxl::stream::pipeline::push_stage;
-    using stxxl::stream::pipeline::push_stage_batch;
-    using stxxl::stream::pipeline::dummy_push_stage;
+    using stxxl::stream::pipeline::push;
+    using stxxl::stream::pipeline::push_batch;
+    using stxxl::stream::pipeline::dummy_push;
     using stxxl::stream::pipeline::push_pull;
     using stxxl::stream::pipeline::connect_pull;
     using stxxl::stream::pusher;
@@ -107,17 +107,17 @@ void distribute_gather(vector_type & input)
     pusher_stream_type pusher_stream(accumulate_stream1, distributor_stream);
 
 #if BATCHED
-    typedef pull_empty_stage_batch<pusher_stream_type> pull_empty_type;
+    typedef pull_empty_batch<pusher_stream_type> pull_empty_type;
 #else
-    typedef pull_empty_stage<pusher_stream_type> pull_empty_type;
+    typedef pull_empty<pusher_stream_type> pull_empty_type;
 #endif
-    pull_empty_type pull_empty(pusher_stream);
+    pull_empty_type pull_empty_node(pusher_stream);
 
     typedef deterministic_round_robin<worker_stream_stage_type> fetcher_stream_type;
     fetcher_stream_type fetcher_stream(worker_stages, num_workers, chunk_size);
 
     typedef connect_pull<fetcher_stream_type, pull_empty_type> connect_stream_type;
-    connect_stream_type connect_stream(fetcher_stream, pull_empty);
+    connect_stream_type connect_stream(fetcher_stream, pull_empty_node);
 
     typedef transform<accumulate<my_type>, connect_stream_type> accumulate_stream_type2;
     accumulate_stream_type2 accumulate_stream2(acc2, connect_stream);

@@ -1472,7 +1472,7 @@ namespace stream
     };
 
 
-    //! \brief Helper function to call basic_push_stage::push() in a Pthread thread.
+    //! \brief Helper function to call basic_push::push() in a Pthread thread.
     template <class Output_>
     void * call_stop_push(void * param)
     {
