@@ -48,9 +48,9 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
     using stxxl::stream::streamify;
-    using stxxl::stream::pipeline::pull_stage;
-    using stxxl::stream::pipeline::pull_stage_batch;
-    using stxxl::stream::pipeline::dummy_pull_stage;
+    using stxxl::stream::pipeline::pull;
+    using stxxl::stream::pipeline::pull_batch;
+    using stxxl::stream::pipeline::dummy_pull;
     using stxxl::stream::pipeline::push_stage;
     using stxxl::stream::pipeline::push_stage_batch;
     using stxxl::stream::pipeline::dummy_push_stage;

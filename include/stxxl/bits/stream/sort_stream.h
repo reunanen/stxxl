@@ -654,7 +654,7 @@ namespace stream
     }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-//! \brief Helper function to call basic_pull_stage::async_pull() in a thread.
+//! \brief Helper function to call basic_pull::async_pull() in a thread.
     template <
         class Input_,
         class Cmp_,

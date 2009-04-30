@@ -35,16 +35,16 @@ void distribute_gather(vector_type & input)
     using stxxl::stream::deterministic_round_robin;
     using stxxl::stream::deterministic_distribute;
     using stxxl::stream::streamify;
-    using stxxl::stream::pipeline::pull_stage;
-    using stxxl::stream::pipeline::pull_stage_batch;
+    using stxxl::stream::pipeline::pull;
+    using stxxl::stream::pipeline::pull_batch;
     using stxxl::stream::pipeline::pull_empty_stage;
     using stxxl::stream::pipeline::pull_empty_stage_batch;
-    using stxxl::stream::pipeline::dummy_pull_stage;
+    using stxxl::stream::pipeline::dummy_pull;
     using stxxl::stream::pipeline::push_stage;
     using stxxl::stream::pipeline::push_stage_batch;
     using stxxl::stream::pipeline::dummy_push_stage;
-    using stxxl::stream::pipeline::push_pull_stage;
-    using stxxl::stream::pipeline::connect_pull_stage;
+    using stxxl::stream::pipeline::push_pull;
+    using stxxl::stream::pipeline::connect_pull;
     using stxxl::stream::pusher;
     using stxxl::stream::transform;
     using stxxl::stream::sort;
@@ -74,12 +74,12 @@ void distribute_gather(vector_type & input)
 
     const unsigned int num_workers = 2;
 
-    typedef push_pull_stage<my_type> bucket_type;
+    typedef push_pull<my_type> bucket_type;
 
     bucket_type * buckets[num_workers];
 #if INTERMEDIATE
     typedef transform<identity<my_type>, bucket_type> worker_stream_type;
-    typedef pull_stage<worker_stream_type> worker_stream_stage_type;
+    typedef pull<worker_stream_type> worker_stream_stage_type;
     identity<my_type> id;
     worker_stream_type * workers[num_workers];
     worker_stream_stage_type * worker_stages[num_workers];
@@ -116,7 +116,7 @@ void distribute_gather(vector_type & input)
     typedef deterministic_round_robin<worker_stream_stage_type> fetcher_stream_type;
     fetcher_stream_type fetcher_stream(worker_stages, num_workers, chunk_size);
 
-    typedef connect_pull_stage<fetcher_stream_type, pull_empty_type> connect_stream_type;
+    typedef connect_pull<fetcher_stream_type, pull_empty_type> connect_stream_type;
     connect_stream_type connect_stream(fetcher_stream, pull_empty);
 
     typedef transform<accumulate<my_type>, connect_stream_type> accumulate_stream_type2;

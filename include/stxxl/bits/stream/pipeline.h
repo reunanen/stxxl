@@ -217,7 +217,7 @@ namespace stream
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
         template <class ValueType>
-        class push_pull_stage
+        class push_pull
         {
         public:
             typedef ValueType value_type;
@@ -274,7 +274,7 @@ namespace stream
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
-            push_pull_stage(unsigned_type buffer_size) :
+            push_pull(unsigned_type buffer_size) :
                 block1(buffer_size / 2),
                 block2(buffer_size / 2),
                 incoming_buffer(&block1),
@@ -304,7 +304,7 @@ namespace stream
             }
 
             //! \brief Destructor.
-            virtual ~push_pull_stage()
+            virtual ~push_pull()
             {
 #ifndef STXXL_BOOST_THREADS
                 pthread_mutex_destroy(&mutex);
@@ -377,7 +377,7 @@ namespace stream
             void start()
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("push_pull_stage " << this << " starts.");
+                STXXL_VERBOSE0("push_pull " << this << " starts.");
 #endif
                 //do nothing
             }
@@ -404,7 +404,7 @@ namespace stream
             }
 
             //! \brief Standard stream method.
-            push_pull_stage<value_type> & operator ++ ()
+            push_pull<value_type> & operator ++ ()
             {
                 ++outgoing_buffer->current;
                 return *this;
@@ -433,7 +433,7 @@ namespace stream
             }
 
             //! \brief Batched stream method.
-            push_pull_stage<value_type> & operator += (unsigned_type length)
+            push_pull<value_type> & operator += (unsigned_type length)
             {
                 assert(outgoing_buffer->stop - outgoing_buffer->current);
                 outgoing_buffer->current += length;
@@ -502,7 +502,7 @@ namespace stream
             void start_push()
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("push_pull_stage " << this << " starts push.");
+                STXXL_VERBOSE0("push_pull " << this << " starts push.");
 #endif
                 //do nothing
             }
@@ -546,7 +546,7 @@ namespace stream
             void stop_push() const
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("general push_pull_stage " << this << " stops push.");
+                STXXL_VERBOSE0("general push_pull " << this << " stops push.");
 #endif
                 if (!input_finished)
                 {
@@ -561,10 +561,10 @@ namespace stream
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
-        class basic_pull_stage : public push_pull_stage<typename StreamOperation::value_type>
+        class basic_pull : public push_pull<typename StreamOperation::value_type>
         {
         protected:
-            typedef push_pull_stage<typename StreamOperation::value_type> base;
+            typedef push_pull<typename StreamOperation::value_type> base;
 
         public:
             StreamOperation & so;
@@ -581,13 +581,13 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            basic_pull_stage(unsigned_type buffer_size, StreamOperation & so) :
+            basic_pull(unsigned_type buffer_size, StreamOperation & so) :
                 base(buffer_size),
                 so(so)
             { }
 
             //! \brief Destructor.
-            virtual ~basic_pull_stage()
+            virtual ~basic_pull()
             {
                 base::stop_pull();
 
@@ -605,7 +605,7 @@ namespace stream
             void start()
             {
 #if STXXL_START_PIPELINE
-                STXXL_VERBOSE0("basic_pull_stage " << this << " starts.");
+                STXXL_VERBOSE0("basic_pull " << this << " starts.");
                 start_pulling();
 #endif
             }
@@ -616,17 +616,17 @@ namespace stream
             void start_pulling();
         };
 
-//! \brief Helper function to call basic_pull_stage::async_pull() in a thread.
+//! \brief Helper function to call basic_pull::async_pull() in a thread.
         template <class StreamOperation>
         void * call_async_pull(void * param)
         {
-            static_cast<basic_pull_stage<StreamOperation> *>(param)->async_pull();
+            static_cast<basic_pull<StreamOperation> *>(param)->async_pull();
             return NULL;
         }
 
 //! \brief Start pulling data asynchronously.
         template <class StreamOperation>
-        void basic_pull_stage<StreamOperation>::start_pulling()
+        void basic_pull<StreamOperation>::start_pulling()
         {
 #ifdef STXXL_BOOST_THREADS
             puller_thread = new boost::thread(boost::bind(call_async_pull<StreamOperation>, this));
@@ -639,28 +639,28 @@ namespace stream
 //!
 //! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
-        class pull_stage : public basic_pull_stage<StreamOperation>
+        class pull : public basic_pull<StreamOperation>
         {
         public:
-            pull_stage(unsigned_type buffer_size, StreamOperation & so) :
-                basic_pull_stage<StreamOperation>(buffer_size, so)
+            pull(unsigned_type buffer_size, StreamOperation & so) :
+                basic_pull<StreamOperation>(buffer_size, so)
             {
 #if !STXXL_START_PIPELINE
-                basic_pull_stage<StreamOperation>::start_pulling();
+                basic_pull<StreamOperation>::start_pulling();
 #endif
             }
 
             typedef typename StreamOperation::value_type value_type;
 
         protected:
-            typedef push_pull_stage<value_type> base;
+            typedef push_pull<value_type> base;
 
-            using basic_pull_stage<StreamOperation>::so;
+            using basic_pull<StreamOperation>::so;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_stage " << this << " starts pulling.");
+                STXXL_VERBOSE0("pull " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -670,7 +670,7 @@ namespace stream
                     ++so;
                 }
                 base::stop_push();
-                STXXL_VERBOSE0("pull_stage " << this << " stops pulling.");
+                STXXL_VERBOSE0("pull " << this << " stops pulling.");
             }
         };
 
@@ -679,28 +679,28 @@ namespace stream
 //!
 //! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
-        class pull_stage_batch : public basic_pull_stage<StreamOperation>
+        class pull_batch : public basic_pull<StreamOperation>
         {
         public:
-            pull_stage_batch(unsigned_type buffer_size, StreamOperation & so) :
-                basic_pull_stage<StreamOperation>(buffer_size, so)
+            pull_batch(unsigned_type buffer_size, StreamOperation & so) :
+                basic_pull<StreamOperation>(buffer_size, so)
             {
 #if !STXXL_START_PIPELINE
-                basic_pull_stage<StreamOperation>::start_pulling();
+                basic_pull<StreamOperation>::start_pulling();
 #endif
             }
 
             typedef typename StreamOperation::value_type value_type;
 
         protected:
-            typedef push_pull_stage<value_type> base;
+            typedef push_pull<value_type> base;
 
-            using basic_pull_stage<StreamOperation>::so;
+            using basic_pull<StreamOperation>::so;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
-                STXXL_VERBOSE0("pull_stage_batch " << this << " starts pulling.");
+                STXXL_VERBOSE0("pull_batch " << this << " starts pulling.");
 #if STXXL_START_PIPELINE
                 so.start();
 #endif
@@ -712,7 +712,7 @@ namespace stream
                     so.operator += (length);
                 }
                 base::stop_push();
-                STXXL_VERBOSE0("pull_stage_batch " << this << " stops pulling.");
+                STXXL_VERBOSE0("pull_batch " << this << " stops pulling.");
             }
         };
 
@@ -721,13 +721,13 @@ namespace stream
 //!
 //! This wrapper reads the data from a buffer asynchronously and pushes.
         template <class StreamOperation>
-        class basic_push_stage : public push_pull_stage<typename StreamOperation::value_type>
+        class basic_push_stage : public push_pull<typename StreamOperation::value_type>
         {
         public:
             StreamOperation & so;
 
         protected:
-            typedef push_pull_stage<typename StreamOperation::value_type> base;
+            typedef push_pull<typename StreamOperation::value_type> base;
 #ifdef STXXL_BOOST_THREADS
             //! \brief Asynchronously pushing thread.
             boost::thread* pusher_thread;
@@ -878,7 +878,7 @@ namespace stream
 
 //! \brief Dummy stage wrapper switch of pipelining by a define.
         template <class StreamOperation>
-        class dummy_pull_stage
+        class dummy_pull
         {
         public:
             typedef typename StreamOperation::value_type value_type;
@@ -890,7 +890,7 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            dummy_pull_stage(unsigned_type buffer_size, StreamOperation & so) :
+            dummy_pull(unsigned_type buffer_size, StreamOperation & so) :
                 so(so)
             {
                 UNUSED(buffer_size);
@@ -921,7 +921,7 @@ namespace stream
             }
 
             //! \brief Standard stream method.
-            dummy_pull_stage<StreamOperation> & operator ++ ()
+            dummy_pull<StreamOperation> & operator ++ ()
             {
                 ++so;
                 return *this;
@@ -948,7 +948,7 @@ namespace stream
             }
 
             //! \brief Batched stream method.
-            dummy_pull_stage<StreamOperation> & operator += (unsigned_type length)
+            dummy_pull<StreamOperation> & operator += (unsigned_type length)
             {
                 assert(length == 1);
                 return operator ++ ();
@@ -957,7 +957,7 @@ namespace stream
 
 //! \brief Dummy stage wrapper switch of pipelining by a define.
         template <class StreamOperation, class ConnectedStreamOperation>
-        class connect_pull_stage
+        class connect_pull
         {
         public:
             typedef typename StreamOperation::value_type value_type;
@@ -970,7 +970,7 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param so Input stream operation.
             //! \param cso Stream operation to connect to.
-            connect_pull_stage(StreamOperation & so, ConnectedStreamOperation & cso) :
+            connect_pull(StreamOperation & so, ConnectedStreamOperation & cso) :
                 so(so), cso(cso)
             {
 #if !STXXL_START_PIPELINE
@@ -981,9 +981,9 @@ namespace stream
             //! \brief Standard stream method.
             void start()
             {
-                STXXL_VERBOSE0("connect_pull_stage " << this << " starts.");
+                STXXL_VERBOSE0("connect_pull " << this << " starts.");
                 cso.start();
-                STXXL_VERBOSE0("connect_pull_stage " << this << " inter.");
+                STXXL_VERBOSE0("connect_pull " << this << " inter.");
                 so.start();
             }
 
@@ -1006,7 +1006,7 @@ namespace stream
             }
 
             //! \brief Standard stream method.
-            connect_pull_stage<StreamOperation, ConnectedStreamOperation> & operator ++ ()
+            connect_pull<StreamOperation, ConnectedStreamOperation> & operator ++ ()
             {
                 ++so;
                 return *this;
@@ -1032,7 +1032,7 @@ namespace stream
             }
 
             //! \brief Batched stream method.
-            connect_pull_stage<StreamOperation, ConnectedStreamOperation> & operator += (unsigned_type length)
+            connect_pull<StreamOperation, ConnectedStreamOperation> & operator += (unsigned_type length)
             {
                 so += length;
                 return *this;
