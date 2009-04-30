@@ -70,7 +70,7 @@ namespace stream
             }
         };
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
@@ -131,7 +131,7 @@ namespace stream
         }
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -171,7 +171,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -213,7 +213,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
         template <class ValueType>
@@ -557,7 +557,7 @@ namespace stream
             }
         };
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
@@ -635,7 +635,7 @@ namespace stream
 #endif
         }
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -675,7 +675,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -717,7 +717,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper reads the data from a buffer asynchronously and pushes.
         template <class StreamOperation>
@@ -800,7 +800,7 @@ namespace stream
 #endif
         }
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper reads the data from a buffer asynchronously, one element at a time, and pushes.
         template <class StreamOperation>
@@ -837,7 +837,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous stage to allow concurrent pipelining.
+//! \brief Asynchronous node to allow concurrent pipelining.
 //!
 //! This wrapper reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
         template <class StreamOperation>
@@ -876,7 +876,7 @@ namespace stream
         };
 
 
-//! \brief Dummy stage wrapper switch of pipelining by a define.
+//! \brief Dummy node wrapper switch of pipelining by a define.
         template <class StreamOperation>
         class dummy_pull
         {
@@ -955,7 +955,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy stage wrapper switch of pipelining by a define.
+//! \brief Dummy node wrapper switch of pipelining by a define.
         template <class StreamOperation, class ConnectedStreamOperation>
         class connect_pull
         {
@@ -1039,7 +1039,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy stage wrapper switch of pipelining by a define.
+//! \brief Dummy node wrapper to switch of pipelining.
         template <class StreamOperation>
         class dummy_push
         {

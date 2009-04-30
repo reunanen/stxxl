@@ -119,22 +119,22 @@ public:
 };
 
 #if PIPELINED
-#define PULL_STAGE pull
-#define PUSH_STAGE push
+#define PULL pull
+#define PUSH push
 #if BATCHED
-#define PULL_STAGE_BATCH pull_batch
-#define PUSH_STAGE_BATCH push_batch
+#define PULL_BATCH pull_batch
+#define PUSH_BATCH push_batch
 #else
-#define PULL_STAGE_BATCH pull
-#define PUSH_STAGE_BATCH push
+#define PULL_BATCH pull
+#define PUSH_BATCH push
 #endif
 #else
-#define PULL_STAGE dummy_pull
-#define PUSH_STAGE dummy_push
-#define PULL_STAGE_BATCH dummy_pull
-#define PUSH_STAGE_BATCH dummy_push
+#define PULL dummy_pull
+#define PUSH dummy_push
+#define PULL_BATCH dummy_pull
+#define PUSH_BATCH dummy_push
 #endif
-#define PUSH_PULL_STAGE push_pull
+#define PUSH_PULL push_pull
 
 extern stxxl::unsigned_type run_size;
 

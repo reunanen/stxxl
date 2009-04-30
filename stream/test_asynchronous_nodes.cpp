@@ -94,7 +94,7 @@ void double_diamond(vector_type & input)
 //right flow
 
 #if SYMMETRIC
-        typedef PUSH_PULL_STAGE<my_type> runs_creator_stream_stage1_type;
+        typedef PUSH_PULL<my_type> runs_creator_stream_stage1_type;
         runs_creator_stream_stage1_type runs_creator_stream_stage1(buffer_size);        //9
 #else
         typedef runs_creator<use_push<my_type>, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream1_type;
@@ -102,7 +102,7 @@ void double_diamond(vector_type & input)
 
 #if PIPELINED
         //runs_creator<use_push> will not pull asynchronously
-        typedef PUSH_STAGE_BATCH<runs_creator_stream1_type> runs_creator_stream_stage1_type;
+        typedef PUSH_BATCH<runs_creator_stream1_type> runs_creator_stream_stage1_type;
         runs_creator_stream_stage1_type runs_creator_stream_stage1(run_size, runs_creator_stream1);     //9
 #else
         typedef runs_creator_stream1_type runs_creator_stream_stage1_type;
@@ -118,7 +118,7 @@ void double_diamond(vector_type & input)
         split2_stream_type split2_stream(s2, accumulate_stream);                //2
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL_STAGE<split2_stream_type> split2_stream_stage_type;
+        typedef PULL<split2_stream_type> split2_stream_stage_type;
         split2_stream_stage_type split2_stream_stage(run_size, split2_stream);  //3
 #else
         typedef split2_stream_type split2_stream_stage_type;
@@ -141,7 +141,7 @@ void double_diamond(vector_type & input)
 
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL_STAGE_BATCH<left_modifier_stream_type> left_modifier_stream_stage_type;
+        typedef PULL_BATCH<left_modifier_stream_type> left_modifier_stream_stage_type;
         left_modifier_stream_stage_type left_modifier_stream_stage(buffer_size, left_modifier_stream);  //6
 #else
         typedef left_modifier_stream_type left_modifier_stream_stage_type;
@@ -174,7 +174,7 @@ void double_diamond(vector_type & input)
         right_modifier_stream_type right_modifier_stream(acc_right, sort_right_stream1);                        //11
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL_STAGE_BATCH<right_modifier_stream_type> right_modifier_stream_stage_type;
+        typedef PULL_BATCH<right_modifier_stream_type> right_modifier_stream_stage_type;
         right_modifier_stream_stage_type right_modifier_stream_stage(buffer_size, right_modifier_stream);       //12
 #else
         typedef right_modifier_stream_type right_modifier_stream_stage_type;
@@ -192,7 +192,7 @@ void double_diamond(vector_type & input)
         sort_left_stream2_type sort_left_stream2(left_modifier_stream_stage, cmp_7, run_size);  //7
 
 #if PIPELINED
-        typedef PULL_STAGE_BATCH<sort_left_stream2_type> sort_left_stream_stage2_type;
+        typedef PULL_BATCH<sort_left_stream2_type> sort_left_stream_stage2_type;
         sort_left_stream_stage2_type sort_left_stream_stage2(buffer_size, sort_left_stream2);   //8
 #else
         typedef sort_left_stream2_type sort_left_stream_stage2_type;
@@ -232,7 +232,7 @@ void double_diamond(vector_type & input)
 #endif
 
 #if PIPELINED
-        typedef PULL_STAGE_BATCH<sort_right_stream2_type> sort_right_stream_stage2_type;
+        typedef PULL_BATCH<sort_right_stream2_type> sort_right_stream_stage2_type;
         sort_right_stream_stage2_type sort_right_stream_stage2(buffer_size, sort_right_stream2);        //14
 #else
         typedef sort_right_stream2_type sort_right_stream_stage2_type;
