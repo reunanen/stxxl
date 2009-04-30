@@ -79,13 +79,13 @@ void distribute_gather(vector_type & input)
     bucket_type * buckets[num_workers];
 #if INTERMEDIATE
     typedef transform<identity<my_type>, bucket_type> worker_stream_type;
-    typedef pull<worker_stream_type> worker_stream_stage_type;
+    typedef pull<worker_stream_type> worker_stream_node_type;
     identity<my_type> id;
     worker_stream_type * workers[num_workers];
-    worker_stream_stage_type * worker_stages[num_workers];
+    worker_stream_node_type * worker_nodes[num_workers];
 #else
-    typedef bucket_type worker_stream_stage_type;
-    worker_stream_stage_type ** worker_stages = buckets;
+    typedef bucket_type worker_stream_node_type;
+    worker_stream_node_type ** worker_nodes = buckets;
 #endif
 
 
@@ -94,14 +94,14 @@ void distribute_gather(vector_type & input)
         buckets[w] = new bucket_type(buffer_size);
 #if INTERMEDIATE
         workers[w] = new worker_stream_type(id, *buckets[w]);
-        worker_stages[w] = new worker_stream_stage_type(buffer_size, *workers[w]);
+        worker_nodes[w] = new worker_stream_node_type(buffer_size, *workers[w]);
 #endif
     }
 
     const stxxl::unsigned_type chunk_size = buffer_size / sizeof(my_type) / (3 * num_workers);
 
-    typedef deterministic_distribute<worker_stream_stage_type> distributor_stream_type;
-    distributor_stream_type distributor_stream(worker_stages, num_workers, chunk_size);
+    typedef deterministic_distribute<worker_stream_node_type> distributor_stream_type;
+    distributor_stream_type distributor_stream(worker_nodes, num_workers, chunk_size);
 
     typedef pusher<accumulate_stream1_type, distributor_stream_type> pusher_stream_type;
     pusher_stream_type pusher_stream(accumulate_stream1, distributor_stream);
@@ -113,8 +113,8 @@ void distribute_gather(vector_type & input)
 #endif
     pull_empty_type pull_empty_node(pusher_stream);
 
-    typedef deterministic_round_robin<worker_stream_stage_type> fetcher_stream_type;
-    fetcher_stream_type fetcher_stream(worker_stages, num_workers, chunk_size);
+    typedef deterministic_round_robin<worker_stream_node_type> fetcher_stream_type;
+    fetcher_stream_type fetcher_stream(worker_nodes, num_workers, chunk_size);
 
     typedef connect_pull<fetcher_stream_type, pull_empty_type> connect_stream_type;
     connect_stream_type connect_stream(fetcher_stream, pull_empty_node);
@@ -134,7 +134,7 @@ void distribute_gather(vector_type & input)
     {
         delete buckets[w];
 //		delete workers[w];
-//		delete worker_stages[w];
+//		delete worker_nodes[w];
     }
 
 #if OUTPUT_STATS

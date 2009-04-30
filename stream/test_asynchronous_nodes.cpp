@@ -94,46 +94,46 @@ void double_diamond(vector_type & input)
 //right flow
 
 #if SYMMETRIC
-        typedef PUSH_PULL<my_type> runs_creator_stream_stage1_type;
-        runs_creator_stream_stage1_type runs_creator_stream_stage1(buffer_size);        //9
+        typedef PUSH_PULL<my_type> runs_creator_stream_node1_type;
+        runs_creator_stream_node1_type runs_creator_stream_node1(buffer_size);        //9
 #else
         typedef runs_creator<use_push<my_type>, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream1_type;
         runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size);               //10a
 
 #if PIPELINED
         //runs_creator<use_push> will not pull asynchronously
-        typedef PUSH_BATCH<runs_creator_stream1_type> runs_creator_stream_stage1_type;
-        runs_creator_stream_stage1_type runs_creator_stream_stage1(run_size, runs_creator_stream1);     //9
+        typedef PUSH_BATCH<runs_creator_stream1_type> runs_creator_stream_node1_type;
+        runs_creator_stream_node1_type runs_creator_stream_node1(run_size, runs_creator_stream1);     //9
 #else
-        typedef runs_creator_stream1_type runs_creator_stream_stage1_type;
-        runs_creator_stream_stage1_type & runs_creator_stream_stage1 = runs_creator_stream1;            //renaming
+        typedef runs_creator_stream1_type runs_creator_stream_node1_type;
+        runs_creator_stream_node1_type & runs_creator_stream_node1 = runs_creator_stream1;            //renaming
 #endif
 
 #endif
 
 //split
 
-        typedef transform<split2<my_type, runs_creator_stream_stage1_type>, accumulate_stream_type> split2_stream_type;
-        split2<my_type, runs_creator_stream_stage1_type> s2(runs_creator_stream_stage1);
+        typedef transform<split2<my_type, runs_creator_stream_node1_type>, accumulate_stream_type> split2_stream_type;
+        split2<my_type, runs_creator_stream_node1_type> s2(runs_creator_stream_node1);
         split2_stream_type split2_stream(s2, accumulate_stream);                //2
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL<split2_stream_type> split2_stream_stage_type;
-        split2_stream_stage_type split2_stream_stage(run_size, split2_stream);  //3
+        typedef PULL<split2_stream_type> split2_stream_node_type;
+        split2_stream_node_type split2_stream_node(run_size, split2_stream);  //3
 #else
-        typedef split2_stream_type split2_stream_stage_type;
-        split2_stream_stage_type & split2_stream_stage = split2_stream;         //renaming
+        typedef split2_stream_type split2_stream_node_type;
+        split2_stream_node_type & split2_stream_node = split2_stream;         //renaming
 #endif
 
 //left flow
 
 #if PIPELINED && BATCHED
-        typedef sort<split2_stream_stage_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<split2_stream_stage_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream1_type;
+        typedef sort<split2_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<split2_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream1_type;
 #else
-        typedef sort<split2_stream_stage_type, cmp_4_type, block_size> sort_left_stream1_type;
+        typedef sort<split2_stream_node_type, cmp_4_type, block_size> sort_left_stream1_type;
 #endif
 
-        sort_left_stream1_type sort_left_stream1(split2_stream_stage, cmp_4, run_size); //4
+        sort_left_stream1_type sort_left_stream1(split2_stream_node, cmp_4, run_size); //4
 
 
         typedef transform<accumulate<my_type>, sort_left_stream1_type> left_modifier_stream_type;
@@ -141,11 +141,11 @@ void double_diamond(vector_type & input)
 
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL_BATCH<left_modifier_stream_type> left_modifier_stream_stage_type;
-        left_modifier_stream_stage_type left_modifier_stream_stage(buffer_size, left_modifier_stream);  //6
+        typedef PULL_BATCH<left_modifier_stream_type> left_modifier_stream_node_type;
+        left_modifier_stream_node_type left_modifier_stream_node(buffer_size, left_modifier_stream);  //6
 #else
-        typedef left_modifier_stream_type left_modifier_stream_stage_type;
-        left_modifier_stream_stage_type & left_modifier_stream_stage = left_modifier_stream;            //renaming
+        typedef left_modifier_stream_type left_modifier_stream_node_type;
+        left_modifier_stream_node_type & left_modifier_stream_node = left_modifier_stream;            //renaming
 #endif
 
 
@@ -156,12 +156,12 @@ void double_diamond(vector_type & input)
 #if SYMMETRIC
 
 #if PIPELINED && BATCHED
-        typedef sort<runs_creator_stream_stage1_type, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<runs_creator_stream_stage1_type, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_right_stream1_type;
+        typedef sort<runs_creator_stream_node1_type, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<runs_creator_stream_node1_type, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_right_stream1_type;
 #else
-        typedef sort<runs_creator_stream_stage1_type, cmp_10_type, block_size> sort_right_stream1_type;
+        typedef sort<runs_creator_stream_node1_type, cmp_10_type, block_size> sort_right_stream1_type;
 #endif
 
-        sort_right_stream1_type sort_right_stream1(runs_creator_stream_stage1, cmp_10, run_size);       //10
+        sort_right_stream1_type sort_right_stream1(runs_creator_stream_node1, cmp_10, run_size);       //10
 
 #else
 
@@ -174,29 +174,29 @@ void double_diamond(vector_type & input)
         right_modifier_stream_type right_modifier_stream(acc_right, sort_right_stream1);                        //11
 
 #if PIPELINED && !STXXL_PARALLEL_MULTIWAY_MERGE
-        typedef PULL_BATCH<right_modifier_stream_type> right_modifier_stream_stage_type;
-        right_modifier_stream_stage_type right_modifier_stream_stage(buffer_size, right_modifier_stream);       //12
+        typedef PULL_BATCH<right_modifier_stream_type> right_modifier_stream_node_type;
+        right_modifier_stream_node_type right_modifier_stream_node(buffer_size, right_modifier_stream);       //12
 #else
-        typedef right_modifier_stream_type right_modifier_stream_stage_type;
-        right_modifier_stream_stage_type & right_modifier_stream_stage = right_modifier_stream;                 //renaming
+        typedef right_modifier_stream_type right_modifier_stream_node_type;
+        right_modifier_stream_node_type & right_modifier_stream_node = right_modifier_stream;                 //renaming
 #endif
 
 
 //left flow
 #if PIPELINED && BATCHED
-        typedef sort<left_modifier_stream_stage_type, cmp_7_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<left_modifier_stream_stage_type, cmp_7_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream2_type;
+        typedef sort<left_modifier_stream_node_type, cmp_7_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<left_modifier_stream_node_type, cmp_7_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream2_type;
 #else
-        typedef sort<left_modifier_stream_stage_type, cmp_7_type, block_size> sort_left_stream2_type;
+        typedef sort<left_modifier_stream_node_type, cmp_7_type, block_size> sort_left_stream2_type;
 #endif
 
-        sort_left_stream2_type sort_left_stream2(left_modifier_stream_stage, cmp_7, run_size);  //7
+        sort_left_stream2_type sort_left_stream2(left_modifier_stream_node, cmp_7, run_size);  //7
 
 #if PIPELINED
-        typedef PULL_BATCH<sort_left_stream2_type> sort_left_stream_stage2_type;
-        sort_left_stream_stage2_type sort_left_stream_stage2(buffer_size, sort_left_stream2);   //8
+        typedef PULL_BATCH<sort_left_stream2_type> sort_left_stream_node2_type;
+        sort_left_stream_node2_type sort_left_stream_node2(buffer_size, sort_left_stream2);   //8
 #else
-        typedef sort_left_stream2_type sort_left_stream_stage2_type;
-        sort_left_stream_stage2_type & sort_left_stream_stage2 = sort_left_stream2;             //renaming
+        typedef sort_left_stream2_type sort_left_stream_node2_type;
+        sort_left_stream_node2_type & sort_left_stream_node2 = sort_left_stream2;             //renaming
 #endif
 
         STXXL_MSG("1/3 break in the DAG reached");
@@ -205,8 +205,8 @@ void double_diamond(vector_type & input)
 
 #if SYMMETRIC
 #else
-        typedef runs_creator<right_modifier_stream_stage_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream2_type;
-        runs_creator_stream2_type runs_creator_stream2(right_modifier_stream_stage, cmp_13, run_size);  //13a
+        typedef runs_creator<right_modifier_stream_node_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream2_type;
+        runs_creator_stream2_type runs_creator_stream2(right_modifier_stream_node, cmp_13, run_size);  //13a
 #endif
 
 
@@ -215,14 +215,14 @@ void double_diamond(vector_type & input)
 #if SYMMETRIC
 
 #if PIPELINED && BATCHED
-        typedef sort<right_modifier_stream_stage_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY,
-                     runs_creator_batch<right_modifier_stream_stage_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY>
+        typedef sort<right_modifier_stream_node_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY,
+                     runs_creator_batch<right_modifier_stream_node_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY>
                      > sort_right_stream2_type;
 #else
-        typedef sort<right_modifier_stream_stage_type, cmp_13_type, block_size> sort_right_stream2_type;
+        typedef sort<right_modifier_stream_node_type, cmp_13_type, block_size> sort_right_stream2_type;
 #endif
 
-        sort_right_stream2_type sort_right_stream2(right_modifier_stream_stage, cmp_13, run_size);      //13
+        sort_right_stream2_type sort_right_stream2(right_modifier_stream_node, cmp_13, run_size);      //13
 
 
 #else
@@ -232,18 +232,18 @@ void double_diamond(vector_type & input)
 #endif
 
 #if PIPELINED
-        typedef PULL_BATCH<sort_right_stream2_type> sort_right_stream_stage2_type;
-        sort_right_stream_stage2_type sort_right_stream_stage2(buffer_size, sort_right_stream2);        //14
+        typedef PULL_BATCH<sort_right_stream2_type> sort_right_stream_node2_type;
+        sort_right_stream_node2_type sort_right_stream_node2(buffer_size, sort_right_stream2);        //14
 #else
-        typedef sort_right_stream2_type sort_right_stream_stage2_type;
-        sort_right_stream_stage2_type & sort_right_stream_stage2 = sort_right_stream2;                  //renaming
+        typedef sort_right_stream2_type sort_right_stream_node2_type;
+        sort_right_stream_node2_type & sort_right_stream_node2 = sort_right_stream2;                  //renaming
 #endif
 
 
 //join
 
-        typedef make_tuple<sort_left_stream_stage2_type, sort_right_stream_stage2_type> make_tuple_stream_type;
-        make_tuple_stream_type make_tuple_stream(sort_left_stream_stage2, sort_right_stream_stage2);    //15
+        typedef make_tuple<sort_left_stream_node2_type, sort_right_stream_node2_type> make_tuple_stream_type;
+        make_tuple_stream_type make_tuple_stream(sort_left_stream_node2, sort_right_stream_node2);    //15
 
 
         typedef transform<accumulate_tuple<my_type>, make_tuple_stream_type> accumulate_tuple_stream_type;
