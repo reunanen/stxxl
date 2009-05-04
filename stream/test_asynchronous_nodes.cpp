@@ -376,4 +376,6 @@ int main()
 #endif
 
     double_diamond(input);
+
+    return 0;
 }

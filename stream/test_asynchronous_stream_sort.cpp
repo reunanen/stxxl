@@ -143,4 +143,6 @@ int main()
 #endif
 
     linear_sort_streamed(input, output);
+
+    return 0;
 }

@@ -185,4 +185,6 @@ int main()
 #endif
 
     distribute_gather(input);
+
+    return 0;
 }
