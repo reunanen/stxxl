@@ -851,7 +851,7 @@ namespace stream
         request_ptr * write_reqs;
         run_type run;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
 #ifdef STXXL_BOOST_THREADS
         boost::mutex ul_mutex;
         //! \brief Mutex variable, to mutual exclude the other thread.
@@ -962,16 +962,16 @@ namespace stream
             Blocks2(Blocks1 + m2),
             write_reqs(new request_ptr[m2]),
             result_ready(false)
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
 #if STXXL_BOOST_THREADS
-			, mutex(ul_mutex)
+            , mutex(ul_mutex)
 #endif
 #endif
         {
             assert(m_ > 0);
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
@@ -981,7 +981,7 @@ namespace stream
 
         ~runs_creator()
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
@@ -1091,7 +1091,7 @@ namespace stream
             return;
         }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
         void stop_push()
         {
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
@@ -1123,7 +1123,7 @@ namespace stream
         //! \remark Returned object is intended to be used by \c runs_merger object as input
         const sorted_runs_type & result()
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_START_PIPELINE
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
             while (!result_ready)
