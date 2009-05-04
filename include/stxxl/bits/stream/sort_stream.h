@@ -1135,6 +1135,16 @@ namespace stream
                 check_pthread_call(pthread_cond_wait(&cond, &mutex));
             check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
+#else
+            if (!output_requested)
+            {
+                finish_result();
+                output_requested = true;
+                cleanup();
+#ifdef STXXL_PRINT_STAT_AFTER_RF
+                STXXL_MSG(*stats::get_instance());
+#endif //STXXL_PRINT_STAT_AFTER_RF
+            }
 #endif
             return result_;
         }
