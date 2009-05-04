@@ -280,7 +280,7 @@ namespace stream
                 incoming_buffer(&block1),
                 outgoing_buffer(&block2)
 #if STXXL_BOOST_THREADS
-				, mutex(ul_mutex)
+                , mutex(ul_mutex)
 #endif
             {
                 assert(buffer_size > 0);
@@ -768,6 +768,7 @@ namespace stream
 
 #ifdef STXXL_BOOST_THREADS
                     pusher_thread->join();
+                    delete pusher_thread;
 #else
                     void * return_code;
                     check_pthread_call(pthread_join(pusher_thread, &return_code));

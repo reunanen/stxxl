@@ -1555,7 +1555,6 @@ namespace stream
             {
                 threads[i]->join();
                 delete threads[i];
-                threads[i] = NULL;
             }
 #else
             {
