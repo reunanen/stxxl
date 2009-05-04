@@ -126,7 +126,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
             puller_thread = new boost::thread(boost::bind(call_async_pull_empty<StreamOperation>, this));
 #else
-            pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this);
+            check_pthread_call(pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this));
 #endif
         }
 
@@ -298,8 +298,8 @@ namespace stream
                 update_last_swap_done();
 
 #ifndef STXXL_BOOST_THREADS
-                pthread_mutex_init(&mutex, 0);
-                pthread_cond_init(&cond, 0);
+                check_pthread_call(pthread_mutex_init(&mutex, 0));
+                check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
             }
 
@@ -307,8 +307,8 @@ namespace stream
             virtual ~push_pull()
             {
 #ifndef STXXL_BOOST_THREADS
-                pthread_mutex_destroy(&mutex);
-                pthread_cond_destroy(&cond);
+                check_pthread_call(pthread_mutex_destroy(&mutex));
+                check_pthread_call(pthread_cond_destroy(&cond));
 #endif
             }
 
@@ -353,20 +353,20 @@ namespace stream
 
                     mutex.unlock();
 #else
-                    pthread_mutex_lock(&mutex);
+                    check_pthread_call(pthread_mutex_lock(&mutex));
 
                     update_output_buffer_consumed();            //sets true
 
                     if (input_buffer_filled)
                     {
                         swap_buffers();
-                        pthread_cond_signal(&cond);                                     //wake up other thread
+                        check_pthread_call(pthread_cond_signal(&cond));                 //wake up other thread
                     }
                     else
                         while (!last_swap_done && output_buffer_consumed)               //to be swapped by other thread
-                            pthread_cond_wait(&cond, &mutex);                           //wait for other thread to swap in some input
+                            check_pthread_call(pthread_cond_wait(&cond, &mutex));       //wait for other thread to swap in some input
 
-                    pthread_mutex_unlock(&mutex);
+                    check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
                 }
                 //otherwise, at least one element available
@@ -451,7 +451,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
                     cond.notify_one();
 #else
-                    pthread_cond_signal(&cond);         //wake up other thread
+                    check_pthread_call(pthread_cond_signal(&cond));         //wake up other thread
 #endif
                 }
             }
@@ -480,20 +480,20 @@ namespace stream
 
                     mutex.unlock();
 #else
-                    pthread_mutex_lock(&mutex);
+                    check_pthread_call(pthread_mutex_lock(&mutex));
 
                     update_input_buffer_filled();     //sets true
 
                     if (output_buffer_consumed)
                     {
                         swap_buffers();
-                        pthread_cond_signal(&cond);                             //wake up other thread
+                        check_pthread_call(pthread_cond_signal(&cond));         //wake up other thread
                     }
                     else
                         while (!last_swap_done && input_buffer_filled)          //to be swapped by other thread
-                            pthread_cond_wait(&cond, &mutex);                   //wait for other thread to take the input
+                            check_pthread_call(pthread_cond_wait(&cond, &mutex));                   //wait for other thread to take the input
 
-                    pthread_mutex_unlock(&mutex);
+                    check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
                 }
             }
@@ -596,7 +596,7 @@ namespace stream
                 delete puller_thread;
 #else
                 void * return_code;
-                pthread_join(puller_thread, &return_code);
+                check_pthread_call(pthread_join(puller_thread, &return_code));
 #endif
             }
 
@@ -631,7 +631,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
             puller_thread = new boost::thread(boost::bind(call_async_pull<StreamOperation>, this));
 #else
-            pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this);
+            check_pthread_call(pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this));
 #endif
         }
 
@@ -770,7 +770,7 @@ namespace stream
                     pusher_thread->join();
 #else
                     void * return_code;
-                    pthread_join(pusher_thread, &return_code);
+                    check_pthread_call(pthread_join(pusher_thread, &return_code));
 #endif
                 }
             }
@@ -796,7 +796,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
             pusher_thread = new boost::thread(boost::bind(call_async_push<StreamOperation>, this));
 #else
-            pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this);
+            check_pthread_call(pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this));
 #endif
         }
 

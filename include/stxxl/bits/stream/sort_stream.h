@@ -172,9 +172,9 @@ namespace stream
             waiter_and_fetcher->join();
             delete waiter_and_fetcher;
 #else
-            pthread_cond_signal(&cond);
+            check_pthread_call(pthread_cond_signal(&cond));
             void * res;
-            pthread_join(waiter_and_fetcher, &res);
+            check_pthread_call(pthread_join(waiter_and_fetcher, &res));
 #endif
         }
 
@@ -214,16 +214,16 @@ namespace stream
                 }
                 mutex.unlock();
 #else
-                pthread_mutex_lock(&mutex);
+                check_pthread_call(pthread_mutex_lock(&mutex));
                 //wait for fully_written to become false, or termination being requested
                 while (fully_written && !termination_requested)
-                    pthread_cond_wait(&cond, &mutex);       //wait for a state change
+                    check_pthread_call(pthread_cond_wait(&cond, &mutex));       //wait for a state change
                 if (termination_requested)
                 {
-                    pthread_mutex_unlock(&mutex);
+                    check_pthread_call(pthread_mutex_unlock(&mutex));
                     return;
                 }
-                pthread_mutex_unlock(&mutex);
+                check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
 
                 //fully_written == false
@@ -256,10 +256,10 @@ namespace stream
                 cond.notify_one();
                 mutex.unlock();
 #else
-                pthread_mutex_lock(&mutex);
+                check_pthread_call(pthread_mutex_lock(&mutex));
                 fully_written = true;
-                pthread_cond_signal(&cond); //wake up other thread, if necessary
-                pthread_mutex_unlock(&mutex);
+                check_pthread_call(pthread_cond_signal(&cond)); //wake up other thread, if necessary
+                check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
             }
         }
@@ -280,10 +280,10 @@ namespace stream
             mutex.unlock();
             cond.notify_one();
 #else
-            pthread_mutex_lock(&mutex);
+            check_pthread_call(pthread_mutex_lock(&mutex));
             fully_written = false;
-            pthread_mutex_unlock(&mutex);
-            pthread_cond_signal(&cond); //wake up other thread
+            check_pthread_call(pthread_mutex_unlock(&mutex));
+            check_pthread_call(pthread_cond_signal(&cond)); //wake up other thread
 #endif
         }
 
@@ -298,11 +298,11 @@ namespace stream
                 cond.wait(mutex);   //wait for other thread
             mutex.unlock();
 #else
-            pthread_mutex_lock(&mutex);
+            check_pthread_call(pthread_mutex_lock(&mutex));
             //wait for fully_written to become true
             while (!fully_written)
-                pthread_cond_wait(&cond, &mutex);   //wait for other thread
-            pthread_mutex_unlock(&mutex);
+                check_pthread_call(pthread_cond_wait(&cond, &mutex));   //wait for other thread
+            check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
 
             return wait_fetch_job.end;
@@ -324,8 +324,8 @@ namespace stream
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
-            pthread_mutex_init(&mutex, 0);
-            pthread_cond_init(&cond, 0);
+            check_pthread_call(pthread_mutex_init(&mutex, 0));
+            check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
             assert(m_ > 0);
@@ -339,8 +339,8 @@ namespace stream
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
-            pthread_mutex_destroy(&mutex);
-            pthread_cond_destroy(&cond);
+            check_pthread_call(pthread_mutex_destroy(&mutex));
+            check_pthread_call(pthread_cond_destroy(&cond));
 #endif
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
         }
@@ -679,7 +679,7 @@ namespace stream
 #ifdef STXXL_BOOST_THREADS
         waiter_and_fetcher = new boost::thread(boost::bind(call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
 #else
-        pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this);
+        check_pthread_call(pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
 #endif
     }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
@@ -973,8 +973,8 @@ namespace stream
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
-            pthread_mutex_init(&mutex, 0);
-            pthread_cond_init(&cond, 0);
+            check_pthread_call(pthread_mutex_init(&mutex, 0));
+            check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
 #endif
         }
@@ -983,8 +983,8 @@ namespace stream
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
 #ifndef STXXL_BOOST_THREADS
-            pthread_mutex_destroy(&mutex);
-            pthread_cond_destroy(&cond);
+            check_pthread_call(pthread_mutex_destroy(&mutex));
+            check_pthread_call(pthread_cond_destroy(&cond));
 #endif
 #endif
             if (!output_requested)
@@ -1109,10 +1109,10 @@ namespace stream
                 cond.notify_one();
                 mutex.unlock();
 #else
-                pthread_mutex_lock(&mutex);
+                check_pthread_call(pthread_mutex_lock(&mutex));
                 result_ready = true;
-                pthread_cond_signal(&cond);
-                pthread_mutex_unlock(&mutex);
+                check_pthread_call(pthread_cond_signal(&cond));
+                check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
             }
         }
@@ -1130,10 +1130,10 @@ namespace stream
                 cond.wait(mutex);
             mutex.unlock();
 #else
-            pthread_mutex_lock(&mutex);
+            check_pthread_call(pthread_mutex_lock(&mutex));
             while (!result_ready)
-                pthread_cond_wait(&cond, &mutex);
-            pthread_mutex_unlock(&mutex);
+                check_pthread_call(pthread_cond_wait(&cond, &mutex));
+            check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
 #endif
             return result_;
