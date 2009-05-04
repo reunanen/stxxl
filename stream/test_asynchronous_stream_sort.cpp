@@ -16,11 +16,16 @@
 //#define STXXL_PARALLEL_MULTIWAY_MERGE 0
 
 #define STXXL_START_PIPELINE 1
-#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 1
+
+#ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 0
+#endif
 
 #define PIPELINED 1
-#define BATCHED 1
-#define SYMMETRIC 1
+
+#ifndef BATCHED
+#define BATCHED 0
+#endif
 
 #define OUTPUT_STATS 1
 
@@ -121,9 +126,6 @@ int main()
 #endif
 #if BATCHED
     std::cout << "BATCHED" << std::endl;
-#endif
-#if SYMMETRIC
-    std::cout << "SYMMETRIC" << std::endl;
 #endif
 
     int seed = 1000;
