@@ -20,4 +20,11 @@
 // used in: io/*_file.cpp
 // effect:  call request::check_alignment() from request::request(...)
 
+#ifndef STXXL_PARALLEL_MULTIWAY_MERGE
+#define STXXL_PARALLEL_MULTIWAY_MERGE 1
+#endif
+// default: 0 (disabled), in parallel.h
+// used in: algo/*sort*.h, stream/*sort*.h
+// effect:  use parallel (internal memory) sorters
+
 #endif // !STXXL_DEFINES_HEADER
