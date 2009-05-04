@@ -265,10 +265,11 @@ BOOST_COMPILER_OPTIONS		+= -DSTXXL_BOOST_THREADS
 BOOST_LIB_COMPILER_SUFFIX	?= 
 BOOST_LIB_MT_SUFFIX		?= -mt
 BOOST_LINKER_OPTIONS		 = \
-	$(if $(strip $(BOOST_ROOT)),$(strip $(BOOST_ROOT))/lib) \
+	-L$(if $(strip $(BOOST_ROOT)),$(strip $(BOOST_ROOT))/lib) \
 	-lboost_thread$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
 	-lboost_date_time$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
 	-lboost_iostreams$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
+	-lboost_system$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX) \
 	-lboost_filesystem$(BOOST_LIB_COMPILER_SUFFIX)$(BOOST_LIB_MT_SUFFIX)
 
 ##################################################################
