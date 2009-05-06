@@ -20,13 +20,6 @@
 // used in: io/*_file.cpp
 // effect:  call request::check_alignment() from request::request(...)
 
-#ifndef STXXL_PARALLEL_MULTIWAY_MERGE
-#define STXXL_PARALLEL_MULTIWAY_MERGE 1
-#endif
-// default: 0 (disabled), in parallel.h
-// used in: algo/*sort*.h, stream/*sort*.h
-// effect:  use parallel (internal memory) mergers
-
 //#define STXXL_DO_NOT_COUNT_WAIT_TIME
 // default: not defined
 // used in: io/iostats.{h,cpp}
