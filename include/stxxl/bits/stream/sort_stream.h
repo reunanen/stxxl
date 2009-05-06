@@ -1069,7 +1069,7 @@ namespace stream
             unsigned_type block_no = cur_el.get_block(), pos_in_block = cur_el.get_offset();
             while (batch_begin < batch_end)
             {
-                unsigned_type length = STXXL_TYPED_MIN(unsigned_type, batch_end - batch_begin, block_type::size - pos_in_block);
+                unsigned_type length = STXXL_MIN<unsigned_type>(batch_end - batch_begin, block_type::size - pos_in_block);
                 typename block_type::iterator bi = Blocks1[block_no].begin() + pos_in_block;
                 for (Iterator end = batch_begin + length; batch_begin != end; ++batch_begin)
                 {
@@ -1806,7 +1806,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return STXXL_TYPED_MIN(unsigned_type, block_type::size - buffer_pos + 1, elements_remaining);
+            return STXXL_MIN<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
         }
 
         //! \brief Batched stream method.

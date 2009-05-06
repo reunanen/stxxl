@@ -14,6 +14,11 @@
 #ifndef STXXL_KSORT_HEADER
 #define STXXL_KSORT_HEADER
 
+#ifndef STXXL_SORT_OPTIMAL_PREFETCHING
+#define STXXL_SORT_OPTIMAL_PREFETCHING 1
+#endif
+
+
 #include <list>
 
 #include <stxxl/bits/mng/mng.h>
@@ -32,7 +37,6 @@
 #include <stxxl/bits/algo/inmemsort.h>
 
 
-//#define SORT_OPTIMAL_PREFETCHING
 //#define INTERLEAVED_ALLOC
 
 #define OPT_MERGING
@@ -407,21 +411,12 @@ namespace ksort_local
                     }
                 }
                 if (!stxxl::is_sorted(
-#if 1
                         ArrayOfSequencesIterator<
                             block_type, typename block_type::value_type, block_type::size
                             >(blocks, 0),
                         ArrayOfSequencesIterator<
                             block_type, typename block_type::value_type, block_type::size
                             >(blocks, nelements),
-#else
-                        TwoToOneDimArrayRowAdaptor<
-                            block_type, value_type, block_type::size
-                            >(blocks, 0),
-                        TwoToOneDimArrayRowAdaptor<
-                            block_type, value_type, block_type::size
-                            >(blocks, nelements),
-#endif
                         key_comparison<value_type, key_ext_>()))
                 {
                     STXXL_MSG("check_sorted_runs  wrong order in the run " << irun);
@@ -487,7 +482,7 @@ namespace ksort_local
         STXXL_VERBOSE("Prefetch buffers " << n_opt_prefetch_buffers);
 #endif
 
-#ifdef SORT_OPTIMAL_PREFETCHING
+#if STXXL_SORT_OPTIMAL_PREFETCHING
         compute_prefetch_schedule(
             consume_seq,
             prefetch_seq,
