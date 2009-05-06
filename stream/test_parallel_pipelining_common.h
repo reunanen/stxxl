@@ -22,9 +22,7 @@
 #include <functional>
 
 const unsigned long long megabyte = 1024 * 1024;
-
-//const int block_size = STXXL_DEFAULT_BLOCK_SIZE(my_type);
-const int block_size = 8 * megabyte;
+const int block_size = 1 * megabyte;
 
 #define RECORD_SIZE 16
 #define MAGIC 123
