@@ -16,8 +16,8 @@ test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=1
 test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=1
 test_asynchronous_distribute_gather.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=1
 
-$(eval $(call COMPILE_VARIANT,as,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_READ=1))
-$(eval $(call COMPILE_VARIANT,as-ba,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_READ=1 -DBATCHED=1))
+$(eval $(call COMPILE_VARIANT,as,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1))
+$(eval $(call COMPILE_VARIANT,as-ba,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1 -DBATCHED=1))
 
 ifeq ($(strip $(USE_MCSTL)),yes)
 # ICPC 10.0: internal error: backend signals (issue 466173)

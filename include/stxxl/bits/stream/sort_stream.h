@@ -14,8 +14,8 @@
 #ifndef STXXL_SORT_STREAM_HEADER
 #define STXXL_SORT_STREAM_HEADER
 
-#ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_READ
-#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 0
+#ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+#define STXXL_STREAM_SORT_ASYNCHRONOUS_PULL 0
 #endif
 
 
@@ -109,7 +109,7 @@ namespace stream
         unsigned_type m_;         // memory for internal use in blocks
         bool result_computed;     // true iff result is already computed (used in 'result' method)
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
         boost::thread* waiter_and_fetcher;
         boost::mutex ul_mutex;
@@ -122,7 +122,7 @@ namespace stream
 #endif
         volatile bool fully_written;  //is the data already fully written out?
         volatile bool termination_requested;
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
 #ifdef STXXL_BOOST_THREADS
 #define STXXL_THREAD_ID boost::this_thread::get_id()
@@ -165,7 +165,7 @@ namespace stream
         virtual blocked_index<block_type::size>
         fetch(block_type * Blocks, blocked_index<block_type::size> begin, unsigned_type limit) = 0;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         void start_waiting_and_fetching();
 
         //! \brief Wait for the other thread to join.
@@ -196,12 +196,12 @@ namespace stream
         };
 
         WaitFetchJob wait_fetch_job;
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         const unsigned_type el_in_run; // number of elements in this run
 
     public:
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         //! \brief Routine of the second thread, which writes data to disk.
         void async_wait_and_fetch()
         {
@@ -312,7 +312,7 @@ namespace stream
 
             return wait_fetch_job.end;
         }
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         //! \brief Create the object
         //! \param i input stream
@@ -320,19 +320,19 @@ namespace stream
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
 #endif
 #endif
             , el_in_run((m_ / 2) * block_type::size)
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             assert(m_ > 0);
             assert(el_in_run > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
@@ -342,12 +342,12 @@ namespace stream
         //! \brief Destructor.
         virtual ~basic_runs_creator()
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
 #endif
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
 
         void compute_result();
@@ -359,9 +359,9 @@ namespace stream
         {
             if (!result_computed)
             {
-#if STXXL_START_PIPELINE
-                input.start();
-#endif //STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
+                input.start_pull();
+#endif //STXXL_START_PIPELINE_DEFERRED
                 compute_result();
                 result_computed = true;
 #ifdef STXXL_PRINT_STAT_AFTER_RF
@@ -379,9 +379,9 @@ namespace stream
     void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::
     compute_result()
     {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         //other thread has already started, and is waiting
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
@@ -414,9 +414,9 @@ namespace stream
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
             std::sort(result_.small_.begin(), result_.small_.end(), cmp);
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             return;
         }
 #endif //STXXL_SMALL_INPUT_PSORT_OPT
@@ -426,9 +426,9 @@ namespace stream
 
         block_type * Blocks2 = Blocks1 + m2;                        //second half
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         start_write_read(NULL, Blocks2, 0, m2);                     //no write, just read
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         // sort first run
         sort_run(Blocks1, blocks1_length);
@@ -440,9 +440,9 @@ namespace stream
             result_.small_.resize(blocks1_length);
             std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
             delete[] Blocks1;
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             return;
         }
 
@@ -480,34 +480,34 @@ namespace stream
 
         bool already_empty_after_2_blocks;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         blocks2_length = wait_write_read();
 
         already_empty_after_2_blocks = input.empty();
         start_write_read(write_reqs, Blocks1, cur_run_size, m2);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         if (already_empty_after_1_block)
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             wait_write_read();  //for Blocks1
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             delete[] write_reqs;
             delete[] Blocks1;
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             return;
         }
 
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
 
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         blocks2_length = fetch(Blocks2, 0, el_in_run);
         already_empty_after_2_blocks = input.empty();
-#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         result_.elements += blocks2_length;
 
@@ -515,11 +515,11 @@ namespace stream
         {                                        //optimization if whole set fits into both halves
             // (re)sort internally and return
             sort_run(Blocks1, result_.elements); // sort first an second run together
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             wait_write_read();                   //for Blocks1
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
 
@@ -539,9 +539,9 @@ namespace stream
             for (i = 0; i < m2; ++i)
             {
                 run[i].value = Blocks1[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
                 write_reqs[i]->wait();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
@@ -563,9 +563,9 @@ namespace stream
 
             delete[] Blocks1;
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             return;
         }
 
@@ -580,34 +580,34 @@ namespace stream
                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
                        );
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         blocks1_length = wait_write_read();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         for (i = 0; i < cur_run_size; ++i)
         {
             run[i].value = Blocks2[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             write_reqs[i]->wait();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             write_reqs[i] = Blocks2[i].write(run[i].bid);
         }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         start_write_read(write_reqs, Blocks2, cur_run_size, m2);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         result_.runs_sizes.push_back(blocks2_length);
         result_.runs.push_back(run);
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         while (blocks1_length > 0)
         {
 #else
         while (!input.empty())
         {
             blocks1_length = fetch(Blocks1, 0, el_in_run);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             sort_run(Blocks1, blocks1_length);
             cur_run_size = STXXL_DIVRU(blocks1_length, block_type::size); // in blocks
             run.resize(cur_run_size);
@@ -620,22 +620,22 @@ namespace stream
             for (blocked_index<block_type::size> rest = blocks1_length; rest != el_in_run; ++rest)
                 Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             blocks2_length = wait_write_read();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
             for (i = 0; i < cur_run_size; ++i)
             {
                 run[i].value = Blocks1[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
                 write_reqs[i]->wait();
-#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             start_write_read(write_reqs, Blocks1, cur_run_size, m2);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
             result_.runs_sizes.push_back(blocks1_length);
             result_.elements += blocks1_length;
@@ -645,20 +645,20 @@ namespace stream
             std::swap(blocks1_length, blocks2_length);
         }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         wait_write_read();
 #else
         wait_all(write_reqs, write_reqs + cur_run_size);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         delete[] write_reqs;
         delete[] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         join_waiting_and_fetching();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
     }
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 //! \brief Helper function to call basic_pull::async_pull() in a thread.
     template <
         class Input_,
@@ -687,7 +687,7 @@ namespace stream
         check_pthread_call(pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input_, Cmp_, BlockSize_, AllocStr_>, this));
 #endif
     }
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
     //! \brief Forms sorted runs of data from a stream
     //!
@@ -730,9 +730,9 @@ namespace stream
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             base::start_waiting_and_fetching(); //start second thread
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
     };
 
@@ -787,9 +787,9 @@ namespace stream
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
         {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             base::start_waiting_and_fetching(); //start second thread
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
     };
 
@@ -846,7 +846,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
 
-        bool output_requested;    // true after the result() method was called for the first time
+        bool result_requested;    // true after the result() method was called for the first time
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
@@ -856,7 +856,7 @@ namespace stream
         request_ptr * write_reqs;
         run_type run;
 
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
 #ifdef STXXL_BOOST_THREADS
         boost::mutex ul_mutex;
         //! \brief Mutex variable, to mutual exclude the other thread.
@@ -959,7 +959,7 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Cmp_ c, unsigned_type memory_to_use) :
-            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), output_requested(false),
+            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_requested(false),
             m2(m_ / 2),
             el_in_run(m2 * block_type::size),
             cur_el(0),
@@ -967,7 +967,7 @@ namespace stream
             Blocks2(Blocks1 + m2),
             write_reqs(new request_ptr[m2]),
             result_ready(false)
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
 #if STXXL_BOOST_THREADS
             , mutex(ul_mutex)
 #endif
@@ -976,7 +976,7 @@ namespace stream
             assert(m_ > 0);
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
@@ -986,17 +986,17 @@ namespace stream
 
         ~runs_creator()
         {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
 #endif
 #endif
-            if (!output_requested)
+            if (!result_requested)
                 cleanup();
         }
 
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE1("runs_creator " << this << " starts.");
             //do nothing
@@ -1012,7 +1012,7 @@ namespace stream
         //! \param val value to be added
         void push(const value_type & val)
         {
-            assert(output_requested == false);
+            assert(result_requested == false);
             if (cur_el < el_in_run)
             {
                 Blocks1[cur_el.get_block()][cur_el.get_offset()] = val;
@@ -1067,7 +1067,7 @@ namespace stream
         template <class Iterator>
         void push_batch(Iterator batch_begin, Iterator batch_end)
         {
-            assert(output_requested == false);
+            assert(result_requested == false);
             assert((batch_end - batch_begin) > 0);
 
             --batch_end;    //save last element
@@ -1096,14 +1096,14 @@ namespace stream
             return;
         }
 
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
         void stop_push()
         {
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
-            if (!output_requested)
+            if (!result_requested)
             {
                 finish_result();
-                output_requested = true;
+                result_requested = true;
                 cleanup();
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                 STXXL_MSG(*stats::get_instance());
@@ -1128,7 +1128,7 @@ namespace stream
         //! \remark Returned object is intended to be used by \c runs_merger object as input
         const sorted_runs_type & result()
         {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
             while (!result_ready)
@@ -1141,10 +1141,10 @@ namespace stream
             check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
 #else
-            if (!output_requested)
+            if (!result_requested)
             {
                 finish_result();
-                output_requested = true;
+                result_requested = true;
                 cleanup();
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                 STXXL_MSG(*stats::get_instance());
@@ -2034,12 +2034,12 @@ namespace stream
             base(c, memory_to_use),
             sruns(r)
         {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
             base::initialize(r);
-#endif // !STXXL_START_PIPELINE
+#endif // !STXXL_START_PIPELINE_DEFERRED
         }
 
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("runs_merger " << this << " starts.");
             base::initialize(sruns);
@@ -2076,12 +2076,12 @@ namespace stream
             base(c, memory_to_use),
             rc(rc)
         {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
             base::initialize(rc.result());
-#endif // !STXXL_START_PIPELINE
+#endif // !STXXL_START_PIPELINE_DEFERRED
         }
 
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE1("runs_merger " << this << " starts.");
             base::initialize(rc.result());
@@ -2146,10 +2146,10 @@ namespace stream
         { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE1("sort " << this << " starts.");
-            merger.start();
+            merger.start_pull();
         }
 
         //! \brief Standard stream method

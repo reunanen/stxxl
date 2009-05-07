@@ -13,7 +13,7 @@
 //! \example stream/test_asynchronous_distribute_gather.cpp
 //! This is an example of how to use the asynchronous distribute/gather mechanism.
 
-#define STXXL_START_PIPELINE 1
+#define STXXL_START_PIPELINE_DEFERRED 1
 
 #define INTERMEDIATE 1
 

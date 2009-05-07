@@ -13,8 +13,8 @@
 #ifndef STXXL_STREAM_HEADER
 #define STXXL_STREAM_HEADER
 
-#ifndef STXXL_START_PIPELINE
-#define STXXL_START_PIPELINE 0
+#ifndef STXXL_START_PIPELINE_DEFERRED
+#define STXXL_START_PIPELINE_DEFERRED 0
 #endif
 
 
@@ -78,7 +78,7 @@ namespace stream
         iterator2stream(const iterator2stream & a) : current_(a.current_), end_(a.end_) { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("iterator2stream " << this << " starts.");
             //do nothing
@@ -178,7 +178,7 @@ namespace stream
             current_(a.current_), end_(a.end_), in(a.in.release()) { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.");
             //do nothing
@@ -341,7 +341,7 @@ namespace stream
         vector_iterator2stream_sr(const Self_ & a) : vec_it_stream(a.vec_it_stream), it_stream(a.it_stream) { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.");
             //do nothing
@@ -432,8 +432,8 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
     {
-#if STXXL_START_PIPELINE
-        in.start();
+#if STXXL_START_PIPELINE_DEFERRED
+        in.start_pull();
 #endif
         while (!in.empty())
         {
@@ -454,9 +454,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
         STXXL_VERBOSE0("materialize_batch starts.");
-        in.start();
+        in.start_pull();
 #endif
         unsigned_type length;
         while (length = in.batch_length() > 0)
@@ -480,8 +480,8 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
-#if STXXL_START_PIPELINE
-        in.start();
+#if STXXL_START_PIPELINE_DEFERRED
+        in.start_pull();
 #endif
         while ((!in.empty()) && outend != outbegin)
         {
@@ -505,9 +505,9 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
         STXXL_VERBOSE0("materialize_batch starts.");
-        in.start();
+        in.start_pull();
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
@@ -543,8 +543,8 @@ namespace stream
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
-#if STXXL_START_PIPELINE
-        in.start();
+#if STXXL_START_PIPELINE_DEFERRED
+        in.start_pull();
 #endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -616,9 +616,9 @@ namespace stream
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
         STXXL_VERBOSE0("materialize_batch starts.");
-        in.start();
+        in.start_pull();
 #endif
 
         ExtIterator outcurrent = outbegin;
@@ -701,8 +701,8 @@ namespace stream
         // if you stay in a block, then materialize function accesses only the cache of the
         // vector (only one block indeed), amortized complexity should apply here
 
-#if STXXL_START_PIPELINE
-        in.start();
+#if STXXL_START_PIPELINE_DEFERRED
+        in.start_pull();
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -775,9 +775,9 @@ namespace stream
         // if you stay in a block, then materialize function accesses only the cache of the
         // vector (only one block indeed), amortized complexity should apply here
 
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
         STXXL_VERBOSE0("materialize_batch starts.");
-        in.start();
+        in.start_pull();
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -899,7 +899,7 @@ namespace stream
         generator2stream(const generator2stream & a) : gen_(a.gen_), current_(a.current_) { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("generator2stream " << this << " starts.");
             //do nothing
@@ -1093,10 +1093,10 @@ namespace stream
         transform(Operation_ & o, Input1_ & i1_) : op(o), i1(i1_) { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("transform " << this << " starts.");
-            i1.start();
+            i1.start_pull();
             op.start_push();
         }
 
@@ -1520,7 +1520,7 @@ namespace stream
             empty_count = 0;
             pos = 0;
 
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
             pos = -1;
             next();
 #endif
@@ -1532,7 +1532,7 @@ namespace stream
             STXXL_VERBOSE0("distribute " << this << " starts push.");
             for (int i = 0; i < num_outputs; ++i)
                 outputs[i]->start_push();
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
             pos = -1;
             next();
 #endif
@@ -1718,7 +1718,7 @@ namespace stream
             for (int i = 0; i < num_inputs; ++i)
                 already_empty[i] = false;
 
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
             pos = -1;
             next();
 #endif
@@ -1730,12 +1730,12 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
             for (int i = 0; i < num_inputs; ++i)
-                inputs[i]->start();
-#if STXXL_START_PIPELINE
+                inputs[i]->start_pull();
+#if STXXL_START_PIPELINE_DEFERRED
             pos = -1;
             next();
 #endif
@@ -2039,11 +2039,11 @@ namespace stream
         { }
 
         //! \brief Standard stream method
-        void start()
+        void start_pull()
         {
             STXXL_VERBOSE0("make_tuple " << this << " starts.");
-            i1.start();
-            i2.start();
+            i1.start_pull();
+            i2.start_pull();
         }
 
         //! \brief Standard stream method

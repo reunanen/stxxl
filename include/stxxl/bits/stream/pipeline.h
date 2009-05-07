@@ -98,9 +98,9 @@ namespace stream
 
         public:
             //! \brief Standard stream method.
-            void start()
+            void start_pull()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("basic_pull_empty " << this << " starts.");
                 start_pulling();
 #endif
@@ -142,7 +142,7 @@ namespace stream
             pull_empty(StreamOperation & so) :
                 basic_pull_empty<StreamOperation>(so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_pull_empty<StreamOperation>::start_pulling();
 #endif
             }
@@ -158,8 +158,8 @@ namespace stream
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_empty " << this << " starts pulling.");
-#if STXXL_START_PIPELINE
-                so.start();
+#if STXXL_START_PIPELINE_DEFERRED
+                so.start_pull();
 #endif
                 while (!so.empty())
                 {
@@ -182,7 +182,7 @@ namespace stream
             pull_empty_batch(StreamOperation & so) :
                 basic_pull_empty<StreamOperation>(so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_pull_empty<StreamOperation>::start_pulling();
 #endif
             }
@@ -199,8 +199,8 @@ namespace stream
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_empty_batch " << this << " starts pulling.");
-#if STXXL_START_PIPELINE
-                so.start();
+#if STXXL_START_PIPELINE_DEFERRED
+                so.start_pull();
 #endif
                 unsigned_type length;
                 while ((length = so.batch_length()) > 0)
@@ -376,9 +376,9 @@ namespace stream
 
         public:
             //! \brief Standard stream method.
-            void start()
+            void start_pull()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("push_pull " << this << " starts.");
 #endif
                 //do nothing
@@ -503,7 +503,7 @@ namespace stream
         public:
             void start_push()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("push_pull " << this << " starts push.");
 #endif
                 //do nothing
@@ -547,7 +547,7 @@ namespace stream
             //! \brief Standard stream method.
             void stop_push() const
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("general push_pull " << this << " stops push.");
 #endif
                 if (!input_finished)
@@ -604,9 +604,9 @@ namespace stream
 
         public:
             //! \brief Standard stream method.
-            void start()
+            void start_pull()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("basic_pull " << this << " starts.");
                 start_pulling();
 #endif
@@ -647,7 +647,7 @@ namespace stream
             pull(unsigned_type buffer_size, StreamOperation & so) :
                 basic_pull<StreamOperation>(buffer_size, so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_pull<StreamOperation>::start_pulling();
 #endif
             }
@@ -663,8 +663,8 @@ namespace stream
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull " << this << " starts pulling.");
-#if STXXL_START_PIPELINE
-                so.start();
+#if STXXL_START_PIPELINE_DEFERRED
+                so.start_pull();
 #endif
                 while (!so.empty() && !base::output_finished)
                 {
@@ -687,7 +687,7 @@ namespace stream
             pull_batch(unsigned_type buffer_size, StreamOperation & so) :
                 basic_pull<StreamOperation>(buffer_size, so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_pull<StreamOperation>::start_pulling();
 #endif
             }
@@ -703,8 +703,8 @@ namespace stream
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_batch " << this << " starts pulling.");
-#if STXXL_START_PIPELINE
-                so.start();
+#if STXXL_START_PIPELINE_DEFERRED
+                so.start_pull();
 #endif
                 unsigned_type length;
                 while ((length = so.batch_length()) > 0 && !base::output_finished)
@@ -755,7 +755,7 @@ namespace stream
             //! \brief Standard push stream method.
             void start_push()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("basic_push " << this << " starts.");
                 start_pushing();
 #endif
@@ -813,7 +813,7 @@ namespace stream
             push(unsigned_type buffer_size, StreamOperation & so) :
                 basic_push<StreamOperation>(buffer_size, so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_push<StreamOperation>::start_pushing();
 #endif
             }
@@ -825,7 +825,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
             virtual void async_push()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("push " << this << " starts pushing.");
                 so.start_push();
 #endif
@@ -850,7 +850,7 @@ namespace stream
             push_batch(unsigned_type buffer_size, StreamOperation & so) :
                 basic_push<StreamOperation>(buffer_size, so)
             {
-#if !STXXL_START_PIPELINE
+#if !STXXL_START_PIPELINE_DEFERRED
                 basic_push<StreamOperation>::start_pushing();
 #endif
             }
@@ -862,7 +862,7 @@ namespace stream
             //! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
             virtual void async_push()
             {
-#if STXXL_START_PIPELINE
+#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("push_batch " << this << " starts pushing.");
                 so.start_push();
 #endif
@@ -900,9 +900,9 @@ namespace stream
             }
 
             //! \brief Standard stream method.
-            void start()
+            void start_pull()
             {
-                so.start();
+                so.start_pull();
             }
 
             //! \brief Standard stream method.
@@ -976,18 +976,18 @@ namespace stream
             connect_pull(StreamOperation & so, ConnectedStreamOperation & cso) :
                 so(so), cso(cso)
             {
-#if !STXXL_START_PIPELINE
-                start();
+#if !STXXL_START_PIPELINE_DEFERRED
+                start_pull();
 #endif
             }
 
             //! \brief Standard stream method.
-            void start()
+            void start_pull()
             {
                 STXXL_VERBOSE0("connect_pull " << this << " starts.");
-                cso.start();
+                cso.start_pull();
                 STXXL_VERBOSE0("connect_pull " << this << " inter.");
-                so.start();
+                so.start_pull();
             }
 
             //! \brief Standard stream method.
