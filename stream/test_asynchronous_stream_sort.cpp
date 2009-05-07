@@ -69,7 +69,7 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
 
     stxxl::unsigned_type sum1 = checksum(input);
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
 #ifdef BOOST_MSVC
     typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
@@ -98,7 +98,7 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
 #endif
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
 
@@ -134,12 +134,12 @@ int main()
 
     random_my_type rnd(seed);
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
     stxxl::generate(input.begin(), input.end(), rnd, memory_to_use / STXXL_DEFAULT_BLOCK_SIZE(my_type));
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
     linear_sort_streamed(input, output);

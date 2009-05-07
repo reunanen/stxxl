@@ -60,7 +60,7 @@ void distribute_gather(vector_type & input)
     typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
 #endif //BOOST_MSVC
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
     vector_type output(input.size());
     accumulate<my_type> acc1;
@@ -138,7 +138,7 @@ void distribute_gather(vector_type & input)
     }
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
     std::cout << "Distributing/gathering done." << std::endl;
@@ -176,12 +176,12 @@ int main()
 
     random_my_type rnd(seed);
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
     stxxl::generate(input.begin(), input.end(), rnd, memory_to_use / STXXL_DEFAULT_BLOCK_SIZE(my_type));
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
     distribute_gather(input);

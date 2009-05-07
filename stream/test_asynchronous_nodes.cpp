@@ -57,7 +57,7 @@ void double_diamond(vector_type & input)
     using stxxl::stream::make_tuple;
     using stxxl::stream::use_push;
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
     vector_tuple_type tuple_output(input.size());
     accumulate<my_type> acc, acc_left, acc_right;
@@ -260,7 +260,7 @@ void double_diamond(vector_type & input)
 #define STREAM_OUT tuple_output
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
     if (acc.result() != acc_tuple.result().first || acc.result() != acc_tuple.result().second)
@@ -274,8 +274,8 @@ void double_diamond(vector_type & input)
 
     bool is_sorted;
 
+    stats_begin = *stxxl::stats::get_instance();
     {
-        stxxl::stats::get_instance()->reset();
 
 #define STREAMED_CHECKING 0
 #if STREAMED_CHECKING
@@ -304,7 +304,7 @@ void double_diamond(vector_type & input)
     }
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
     if (!is_sorted)
     {
@@ -367,12 +367,12 @@ int main()
 
     random_my_type rnd(seed);
 
-    stxxl::stats::get_instance()->reset();
+    stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
     stxxl::generate(input.begin(), input.end(), rnd, memory_to_use / STXXL_DEFAULT_BLOCK_SIZE(my_type));
 
 #if OUTPUT_STATS
-    std::cout << *(stxxl::stats::get_instance()) << std::endl;
+    std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
     double_diamond(input);
