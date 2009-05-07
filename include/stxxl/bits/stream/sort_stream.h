@@ -136,21 +136,12 @@ namespace stream
         {
             if (block_type::has_filler)
                 std::sort(
-#if 1
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(run, 0),
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(run, elements),
-#else
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(run, 0),
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(run, elements),
-#endif
                     cmp);
 
             else
@@ -856,7 +847,7 @@ namespace stream
         request_ptr * write_reqs;
         run_type run;
 
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifdef STXXL_BOOST_THREADS
         boost::mutex ul_mutex;
         //! \brief Mutex variable, to mutual exclude the other thread.
@@ -967,7 +958,7 @@ namespace stream
             Blocks2(Blocks1 + m2),
             write_reqs(new request_ptr[m2]),
             result_ready(false)
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #if STXXL_BOOST_THREADS
             , mutex(ul_mutex)
 #endif
@@ -976,7 +967,7 @@ namespace stream
             assert(m_ > 0);
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
@@ -986,7 +977,7 @@ namespace stream
 
         ~runs_creator()
         {
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
@@ -1096,7 +1087,7 @@ namespace stream
             return;
         }
 
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
         void stop_push()
         {
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
@@ -1128,7 +1119,7 @@ namespace stream
         //! \remark Returned object is intended to be used by \c runs_merger object as input
         const sorted_runs_type & result()
         {
-#if STXXL_START_PIPELINE_DEFERRED
+#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
             while (!result_ready)
