@@ -1,3 +1,4 @@
+
 /***************************************************************************
  *   Copyright (C) 2008 by Johannes Singler                                *
  *   singler@ira.uka.de                                                    *
@@ -72,7 +73,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, and writes the data to a buffer.
+//! This node pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
         class basic_pull_empty
         {
@@ -133,7 +134,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
         class pull_empty : public basic_pull_empty<StreamOperation>
         {
@@ -173,7 +174,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
         class pull_empty_batch : public basic_pull_empty<StreamOperation>
         {
@@ -213,9 +214,10 @@ namespace stream
         };
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Helper node to for concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, and writes the data to a buffer.
+//! This node gets data pushed in, and gets pulled from.
+//! It does not do anything actively itself.
         template <class ValueType>
         class push_pull
         {
@@ -245,12 +247,12 @@ namespace stream
             mutable volatile bool last_swap_done;
 #ifdef STXXL_BOOST_THREADS
             mutable boost::mutex ul_mutex;
-            //! \brief Mutex variable, to mutual exclude the other thread.
+            //! \brief Mutex variable, to mutually exclude the other thread.
             mutable boost::unique_lock<boost::mutex> mutex;
             //! \brief Condition variable, to wait for the other thread.
             mutable boost::condition_variable cond;
 #else
-            //! \brief Mutex variable, to mutual exclude the other thread.
+            //! \brief Mutex variable, to mutually exclude the other thread.
             mutable pthread_mutex_t mutex;
             //! \brief Condition variable, to wait for the other thread.
             mutable pthread_cond_t cond;
@@ -446,7 +448,7 @@ namespace stream
                 if (!output_finished)
                 {
                     output_finished = true;
-                    update_last_swap_done();
+                    update_last_swap_done();    //sets true
 
 #ifdef STXXL_BOOST_THREADS
                     cond.notify_one();
@@ -457,7 +459,7 @@ namespace stream
             }
 
         protected:
-            //! \brief Check whether incoming buffer has run full and possibly wait for data being pushed forward.
+            //! \brief Check whether incoming buffer has run full and wait for data being pulled.
             void offload() const
             {
                 if (incoming_buffer->current == incoming_buffer->end || input_finished)
@@ -559,7 +561,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, and writes the data to a buffer.
+//! This node pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
         class basic_pull : public push_pull<typename StreamOperation::value_type>
         {
@@ -637,7 +639,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, one element at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
         class pull : public basic_pull<StreamOperation>
         {
@@ -677,7 +679,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
         class pull_batch : public basic_pull<StreamOperation>
         {
@@ -719,7 +721,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper reads the data from a buffer asynchronously and pushes.
+//! This node reads the data from a buffer asynchronously and pushes.
         template <class StreamOperation>
         class basic_push : public push_pull<typename StreamOperation::value_type>
         {
@@ -803,7 +805,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper reads the data from a buffer asynchronously, one element at a time, and pushes.
+//! This node reads the data from a buffer asynchronously, one element at a time, and pushes.
         template <class StreamOperation>
         class push : public basic_push<StreamOperation>
         {
@@ -840,7 +842,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This wrapper reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
+//! This node reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
         template <class StreamOperation>
         class push_batch : public basic_push<StreamOperation>
         {
@@ -877,7 +879,7 @@ namespace stream
         };
 
 
-//! \brief Dummy node wrapper switch of pipelining by a define.
+//! \brief Dummy node node switch of pipelining by a define.
         template <class StreamOperation>
         class dummy_pull
         {
@@ -956,7 +958,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy node wrapper switch of pipelining by a define.
+//! \brief Dummy node node switch of pipelining by a define.
         template <class StreamOperation, class ConnectedStreamOperation>
         class connect_pull
         {
@@ -1040,7 +1042,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy node wrapper to switch of pipelining.
+//! \brief Dummy node node to switch of pipelining.
         template <class StreamOperation>
         class dummy_push
         {
