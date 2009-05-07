@@ -960,7 +960,7 @@ namespace stream
             write_reqs(new request_ptr[m2]),
             result_ready(false),
             wait_for_stop(wait_for_stop)
-#if STXXL_BOOST_THREADS
+#ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
 #endif
         {
