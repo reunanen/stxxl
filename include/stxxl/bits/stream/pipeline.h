@@ -30,13 +30,13 @@ namespace stream
 //! \addtogroup streampack Stream package
 //! \{
 
-//! \brief Sub-namespace for providing parallel pipelined stream processing.
+//! \brief Sub-namespace for providing parallel pipeline processing.
     namespace pipeline
     {
 //! \addtogroup pipelinepack Pipeline package
 //! \{
 
-//! \brief Helper class encapsuling a buffer.
+//! \brief Helper class encapsulating a buffer.
         template <typename value_type>
         class buffer
         {
@@ -49,7 +49,7 @@ namespace stream
             value_type * begin;
             //! \brief End iterator of the buffer.
             value_type * end;
-            //! \brief In case the buffer is not full, stop differs from end.
+            //! \brief In case the buffer is not full, stop may differ from end.
             value_type * stop;
             //! \brief Currrent read or write position.
             value_type * current;
@@ -73,7 +73,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This node pulls asynchronously, and writes the data to a buffer.
+//! This node pulls asynchronously, and throws away the data.
         template <class StreamOperation>
         class basic_pull_empty
         {
@@ -134,7 +134,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This node pulls asynchronously, one element at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one element at a time, and throws away the data.
         template <class StreamOperation>
         class pull_empty : public basic_pull_empty<StreamOperation>
         {
@@ -174,7 +174,7 @@ namespace stream
 
 //! \brief Asynchronous node to allow concurrent pipelining.
 //!
-//! This node pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one batch of elements at a time, and throws away the data.
         template <class StreamOperation>
         class pull_empty_batch : public basic_pull_empty<StreamOperation>
         {
