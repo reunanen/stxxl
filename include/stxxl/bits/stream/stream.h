@@ -13,6 +13,11 @@
 #ifndef STXXL_STREAM_HEADER
 #define STXXL_STREAM_HEADER
 
+#ifndef STXXL_START_PIPELINE
+#define STXXL_START_PIPELINE 0
+#endif
+
+
 #ifdef STXXL_BOOST_THREADS // Use Portable Boost threads
  #include <boost/bind.hpp>
 #endif

@@ -14,6 +14,11 @@
 #ifndef STXXL_SORT_STREAM_HEADER
 #define STXXL_SORT_STREAM_HEADER
 
+#ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_READ
+#define STXXL_STREAM_SORT_ASYNCHRONOUS_READ 0
+#endif
+
+
 #ifdef STXXL_BOOST_CONFIG
  #include <boost/config.hpp>
 #endif
