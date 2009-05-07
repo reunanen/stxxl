@@ -18,11 +18,10 @@
 
 #define STXXL_START_PIPELINE_DEFERRED 1
 #define STXXL_STREAM_SORT_ASYNCHRONOUS_PULL 1
-#define STXXL_PUSHED_STREAM_WAIT_FOR_STOP 1
 
 #define PIPELINED 1
 #define BATCHED 1
-#define SYMMETRIC 1
+#define SYMMETRIC 0
 
 #define OUTPUT_STATS 1
 
@@ -38,7 +37,7 @@ stxxl::unsigned_type memory_to_use = 512 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-void double_diamond(vector_type & input)
+void double_diamond(vector_type & input, bool wait_for_stop)
 {
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
@@ -99,7 +98,7 @@ void double_diamond(vector_type & input)
         runs_creator_stream_node1_type runs_creator_stream_node1(buffer_size);        //9
 #else
         typedef runs_creator<use_push<my_type>, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream1_type;
-        runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size);               //10a
+        runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size, wait_for_stop);               //10a
 
 #if PIPELINED
         //runs_creator<use_push> will not pull asynchronously
@@ -376,7 +375,7 @@ int main()
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-    double_diamond(input);
+    double_diamond(input, true);
 
     return 0;
 }

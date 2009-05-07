@@ -837,7 +837,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
 
-        bool result_requested;    // true after the result() method was called for the first time
+        bool result_finished;    // true after the result() method was called for the first time
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
@@ -847,7 +847,6 @@ namespace stream
         request_ptr * write_reqs;
         run_type run;
 
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifdef STXXL_BOOST_THREADS
         boost::mutex ul_mutex;
         //! \brief Mutex variable, to mutual exclude the other thread.
@@ -860,8 +859,10 @@ namespace stream
         //! \brief Condition variable, to wait for the other thread.
         pthread_cond_t cond;
 #endif
-#endif
         volatile bool result_ready;
+        //! \brief Wait for push_stop from input, or assume that all input has
+        //! arrived when result() is called?
+        bool wait_for_stop;
 
         void sort_run(block_type * run, unsigned_type elements)
         {
@@ -949,41 +950,36 @@ namespace stream
         //! \brief Creates the object
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator(Cmp_ c, unsigned_type memory_to_use) :
-            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_requested(false),
+        runs_creator(Cmp_ c, unsigned_type memory_to_use, bool wait_for_stop = false) :
+            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_finished(false),
             m2(m_ / 2),
             el_in_run(m2 * block_type::size),
             cur_el(0),
             Blocks1(new block_type[m2 * 2]),
             Blocks2(Blocks1 + m2),
             write_reqs(new request_ptr[m2]),
-            result_ready(false)
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
+            result_ready(false),
+            wait_for_stop(wait_for_stop)
 #if STXXL_BOOST_THREADS
             , mutex(ul_mutex)
-#endif
 #endif
         {
             assert(m_ > 0);
             assert(m2 > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
-#endif
 #endif
         }
 
         ~runs_creator()
         {
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
 #endif
-#endif
-            if (!result_requested)
+            if (!result_finished)
                 cleanup();
         }
 
@@ -1003,7 +999,7 @@ namespace stream
         //! \param val value to be added
         void push(const value_type & val)
         {
-            assert(result_requested == false);
+            assert(result_finished == false);
             if (cur_el < el_in_run)
             {
                 Blocks1[cur_el.get_block()][cur_el.get_offset()] = val;
@@ -1058,7 +1054,7 @@ namespace stream
         template <class Iterator>
         void push_batch(Iterator batch_begin, Iterator batch_end)
         {
-            assert(result_requested == false);
+            assert(result_finished == false);
             assert((batch_end - batch_begin) > 0);
 
             --batch_end;    //save last element
@@ -1087,61 +1083,66 @@ namespace stream
             return;
         }
 
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
         void stop_push()
         {
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
-            if (!result_requested)
+            if (wait_for_stop)
             {
-                finish_result();
-                result_requested = true;
-                cleanup();
+                if (!result_finished)
+                {
+                    finish_result();
+                    result_finished = true;
+                    cleanup();
 #ifdef STXXL_PRINT_STAT_AFTER_RF
-                STXXL_MSG(*stats::get_instance());
+                    STXXL_MSG(*stats::get_instance());
 #endif //STXXL_PRINT_STAT_AFTER_RF
 #ifdef STXXL_BOOST_THREADS
-                mutex.lock();
-                result_ready = true;
-                cond.notify_one();
-                mutex.unlock();
+                    mutex.lock();
+                    result_ready = true;
+                    cond.notify_one();
+                    mutex.unlock();
 #else
-                check_pthread_call(pthread_mutex_lock(&mutex));
-                result_ready = true;
-                check_pthread_call(pthread_cond_signal(&cond));
-                check_pthread_call(pthread_mutex_unlock(&mutex));
+                    check_pthread_call(pthread_mutex_lock(&mutex));
+                    result_ready = true;
+                    check_pthread_call(pthread_cond_signal(&cond));
+                    check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
+                }
             }
         }
-#endif
 
         //! \brief Returns the sorted runs object
         //! \return Sorted runs object.
         //! \remark Returned object is intended to be used by \c runs_merger object as input
         const sorted_runs_type & result()
         {
-#if STXXL_PUSHED_STREAM_WAIT_FOR_STOP
-#ifdef STXXL_BOOST_THREADS
-            mutex.lock();
-            while (!result_ready)
-                cond.wait(mutex);
-            mutex.unlock();
-#else
-            check_pthread_call(pthread_mutex_lock(&mutex));
-            while (!result_ready)
-                check_pthread_call(pthread_cond_wait(&cond, &mutex));
-            check_pthread_call(pthread_mutex_unlock(&mutex));
-#endif
-#else
-            if (!result_requested)
+            if (wait_for_stop)
             {
-                finish_result();
-                result_requested = true;
-                cleanup();
-#ifdef STXXL_PRINT_STAT_AFTER_RF
-                STXXL_MSG(*stats::get_instance());
-#endif //STXXL_PRINT_STAT_AFTER_RF
-            }
+                //work was already done by stop_push
+#ifdef STXXL_BOOST_THREADS
+                mutex.lock();
+                while (!result_ready)
+                    cond.wait(mutex);
+                mutex.unlock();
+#else
+                check_pthread_call(pthread_mutex_lock(&mutex));
+                while (!result_ready)
+                    check_pthread_call(pthread_cond_wait(&cond, &mutex));
+                check_pthread_call(pthread_mutex_unlock(&mutex));
 #endif
+            }
+            else
+            {
+                if (!result_finished)
+                {
+                    finish_result();
+                    result_finished = true;
+                    cleanup();
+#ifdef STXXL_PRINT_STAT_AFTER_RF
+                    STXXL_MSG(*stats::get_instance());
+#endif //STXXL_PRINT_STAT_AFTER_RF
+                }
+            }
             return result_;
         }
     };
