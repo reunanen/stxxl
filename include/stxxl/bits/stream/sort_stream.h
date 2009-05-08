@@ -108,6 +108,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
         bool result_computed;     // true iff result is already computed (used in 'result' method)
+        bool asynchronous_pull;
         bool deferred;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -163,16 +164,19 @@ namespace stream
         //! \brief Wait for the other thread to join.
         void join_waiting_and_fetching()
         {
-            termination_requested = true;
+            if (asynchronous_pull)
+            {
+                termination_requested = true;
 #ifdef STXXL_BOOST_THREADS
-            cond.notify_one();
-            waiter_and_fetcher->join();
-            delete waiter_and_fetcher;
+                cond.notify_one();
+                waiter_and_fetcher->join();
+                delete waiter_and_fetcher;
 #else
-            check_pthread_call(pthread_cond_signal(&cond));
-            void * res;
-            check_pthread_call(pthread_join(waiter_and_fetcher, &res));
+                check_pthread_call(pthread_cond_signal(&cond));
+                void * res;
+                check_pthread_call(pthread_join(waiter_and_fetcher, &res));
 #endif
+            }
         }
 
         //! \brief Job structure for waiting.
@@ -310,8 +314,14 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred) :
-            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), deferred(deferred)
+        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull, bool deferred) :
+            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false),
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+            asynchronous_pull(asynchronous_pull),
+#else
+            asynchronous_pull(false),
+#endif
+            deferred(deferred)
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
@@ -324,6 +334,8 @@ namespace stream
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
+#else
+            UNUSED(asynchronous_pull);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             assert(m_ > 0);
             assert(el_in_run > 0);
@@ -372,10 +384,6 @@ namespace stream
     void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::
     compute_result()
     {
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        //other thread has already started, and is waiting
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
         assert(m2 > 0);
@@ -420,7 +428,8 @@ namespace stream
         block_type * Blocks2 = Blocks1 + m2;                        //second half
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        start_write_read(NULL, Blocks2, 0, m2);                     //no write, just read
+        if (asynchronous_pull)
+            start_write_read(NULL, Blocks2, 0, m2);                     //no write, just read
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         // sort first run
@@ -471,19 +480,24 @@ namespace stream
         result_.runs_sizes.push_back(blocks1_length);
         result_.runs.push_back(run); // #
 
-        bool already_empty_after_2_blocks;
+        bool already_empty_after_2_blocks = false;  //will be set correctly
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        blocks2_length = wait_write_read();
+        if (asynchronous_pull)
+        {
+            blocks2_length = wait_write_read();
 
-        already_empty_after_2_blocks = input.empty();
-        start_write_read(write_reqs, Blocks1, cur_run_size, m2);
+            already_empty_after_2_blocks = input.empty();
+            start_write_read(write_reqs, Blocks1, cur_run_size, m2);
+        }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         if (already_empty_after_1_block)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+        if (asynchronous_pull)
             wait_write_read();  //for Blocks1
+        else
 #else
             wait_all(write_reqs, write_reqs + cur_run_size);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -497,10 +511,11 @@ namespace stream
 
         STXXL_VERBOSE1("Filling the second part of the allocated blocks");
 
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        blocks2_length = fetch(Blocks2, 0, el_in_run);
-        already_empty_after_2_blocks = input.empty();
-#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+        if (!asynchronous_pull)
+        {
+            blocks2_length = fetch(Blocks2, 0, el_in_run);
+            already_empty_after_2_blocks = input.empty();
+        }
 
         result_.elements += blocks2_length;
 
@@ -509,9 +524,11 @@ namespace stream
             // (re)sort internally and return
             sort_run(Blocks1, result_.elements); // sort first an second run together
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            wait_write_read();                   //for Blocks1
+            if (asynchronous_pull)
+                wait_write_read();                   //for Blocks1
+            else
 #else
-            wait_all(write_reqs, write_reqs + cur_run_size);
+                wait_all(write_reqs, write_reqs + cur_run_size);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
@@ -532,9 +549,8 @@ namespace stream
             for (i = 0; i < m2; ++i)
             {
                 run[i].value = Blocks1[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-                write_reqs[i]->wait();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+                if (!asynchronous_pull)
+                    write_reqs[i]->wait();
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
@@ -574,33 +590,31 @@ namespace stream
                        );
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        blocks1_length = wait_write_read();
+        if (asynchronous_pull)
+            blocks1_length = wait_write_read();
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         for (i = 0; i < cur_run_size; ++i)
         {
             run[i].value = Blocks2[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            write_reqs[i]->wait();
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+            if (!asynchronous_pull)
+                write_reqs[i]->wait();
             write_reqs[i] = Blocks2[i].write(run[i].bid);
         }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        start_write_read(write_reqs, Blocks2, cur_run_size, m2);
+        if (asynchronous_pull)
+            start_write_read(write_reqs, Blocks2, cur_run_size, m2);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
         result_.runs_sizes.push_back(blocks2_length);
         result_.runs.push_back(run);
 
-#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        while (blocks1_length > 0)
+        while ((asynchronous_pull && blocks1_length > 0) ||
+               (!asynchronous_pull && !input.empty()))
         {
-#else
-        while (!input.empty())
-        {
-            blocks1_length = fetch(Blocks1, 0, el_in_run);
-#endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+            if(!asynchronous_pull)
+                blocks1_length = fetch(Blocks1, 0, el_in_run);
             sort_run(Blocks1, blocks1_length);
             cur_run_size = STXXL_DIVRU(blocks1_length, block_type::size); // in blocks
             run.resize(cur_run_size);
@@ -614,20 +628,21 @@ namespace stream
                 Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            blocks2_length = wait_write_read();
+            if (asynchronous_pull)
+                blocks2_length = wait_write_read();
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
             for (i = 0; i < cur_run_size; ++i)
             {
                 run[i].value = Blocks1[i][0];
-#if !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-                write_reqs[i]->wait();
-#endif // !STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+                if (!asynchronous_pull)
+                    write_reqs[i]->wait();
                 write_reqs[i] = Blocks1[i].write(run[i].bid);
             }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            start_write_read(write_reqs, Blocks1, cur_run_size, m2);
+            if (asynchronous_pull)
+                start_write_read(write_reqs, Blocks1, cur_run_size, m2);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
             result_.runs_sizes.push_back(blocks1_length);
@@ -639,9 +654,11 @@ namespace stream
         }
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-        wait_write_read();
+        if (asynchronous_pull)
+            wait_write_read();
+        else
 #else
-        wait_all(write_reqs, write_reqs + cur_run_size);
+            wait_all(write_reqs, write_reqs + cur_run_size);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         delete[] write_reqs;
         delete[] ((Blocks1 < Blocks2) ? Blocks1 : Blocks2);
@@ -721,10 +738,11 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) : base(i, c, memory_to_use, deferred)
+        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = false, bool deferred = false) : base(i, c, memory_to_use, asynchronous_pull, deferred)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            base::start_waiting_and_fetching(); //start second thread
+            if (asynchronous_pull)
+                base::start_waiting_and_fetching(); //start second thread
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
     };
@@ -778,10 +796,11 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) : base(i, c, memory_to_use, deferred)
+        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = false, bool deferred = false) : base(i, c, memory_to_use, asynchronous_pull, deferred)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            base::start_waiting_and_fetching(); //start second thread
+            if (asynchronous_pull)
+                base::start_waiting_and_fetching(); //start second thread
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
     };
@@ -2117,8 +2136,8 @@ namespace stream
         //! \param in input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) :
-            creator(in, c, memory_to_use, deferred),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = false, bool deferred = false) :
+            creator(in, c, memory_to_use, asynchronous_pull, deferred),
             merger(creator, c, memory_to_use, deferred),
             c(c),
             memory_to_use_m(memory_to_use),
@@ -2130,8 +2149,8 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use_rc memory amount that is allowed to used by the runs creator in bytes
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, bool deferred = false) :
-            creator(in, c, memory_to_use_rc, deferred),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, bool asynchronous_pull = false, bool deferred = false) :
+            creator(in, c, memory_to_use_rc, asynchronous_pull, deferred),
             merger(creator, c, memory_to_use_m, deferred),
             c(c),
             memory_to_use_m(memory_to_use_m)
