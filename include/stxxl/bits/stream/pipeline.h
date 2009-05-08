@@ -287,7 +287,7 @@ namespace stream
                 incoming_buffer(&block1),
                 outgoing_buffer(&block2),
                 deferred(deferred)
-#if STXXL_BOOST_THREADS
+#ifdef STXXL_BOOST_THREADS
                 , mutex(ul_mutex)
 #endif
             {

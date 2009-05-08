@@ -15,6 +15,7 @@
 
 #define STXXL_START_PIPELINE_DEFERRED 1
 #define INTERMEDIATE 1
+#define PIPELINED 1
 #define BATCHED 1
 
 #define OUTPUT_STATS 1
@@ -165,9 +166,6 @@ int main()
 #endif
 #if BATCHED
     std::cout << "BATCHED" << std::endl;
-#endif
-#if SYMMETRIC
-    std::cout << "SYMMETRIC" << std::endl;
 #endif
 
     int seed = 1000;
