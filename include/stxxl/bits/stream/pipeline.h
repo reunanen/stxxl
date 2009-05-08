@@ -1,4 +1,3 @@
-
 /***************************************************************************
  *   Copyright (C) 2008 by Johannes Singler                                *
  *   singler@ira.uka.de                                                    *
@@ -79,6 +78,7 @@ namespace stream
         {
         public:
             StreamOperation & so;
+            bool deferred;
 
         protected:
 #ifdef STXXL_BOOST_THREADS
@@ -92,8 +92,8 @@ namespace stream
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param so Input stream operation.
-            basic_pull_empty(StreamOperation & so) :
-                so(so)
+            basic_pull_empty(StreamOperation & so, bool deferred) :
+                so(so), deferred(deferred)
             { }
 
         public:
@@ -101,8 +101,11 @@ namespace stream
             void start_pull()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("basic_pull_empty " << this << " starts.");
-                start_pulling();
+                if (deferred)
+                {
+                    STXXL_VERBOSE0("basic_pull_empty " << this << " starts.");
+                    start_pulling();
+                }
 #endif
             }
 
@@ -139,12 +142,11 @@ namespace stream
         class pull_empty : public basic_pull_empty<StreamOperation>
         {
         public:
-            pull_empty(StreamOperation & so) :
-                basic_pull_empty<StreamOperation>(so)
+            pull_empty(StreamOperation & so, bool deferred = false) :
+                basic_pull_empty<StreamOperation>(so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_pull_empty<StreamOperation>::start_pulling();
-#endif
+                if (!deferred)
+                    basic_pull_empty<StreamOperation>::start_pulling();
             }
 
             typedef typename StreamOperation::value_type value_type;
@@ -153,13 +155,15 @@ namespace stream
             typedef basic_pull_empty<StreamOperation> base;
 
             using base::so;
+            using base::deferred;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_empty " << this << " starts pulling.");
 #if STXXL_START_PIPELINE_DEFERRED
-                so.start_pull();
+                if (deferred)
+                    so.start_pull();
 #endif
                 while (!so.empty())
                 {
@@ -179,14 +183,12 @@ namespace stream
         class pull_empty_batch : public basic_pull_empty<StreamOperation>
         {
         public:
-            pull_empty_batch(StreamOperation & so) :
-                basic_pull_empty<StreamOperation>(so)
+            pull_empty_batch(StreamOperation & so, bool deferred = false) :
+                basic_pull_empty<StreamOperation>(so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_pull_empty<StreamOperation>::start_pulling();
-#endif
+                if (!deferred)
+                    basic_pull_empty<StreamOperation>::start_pulling();
             }
-
             typedef typename StreamOperation::value_type value_type;
 
         protected:
@@ -194,13 +196,15 @@ namespace stream
             typedef typename StreamOperation::const_iterator const_iterator;
 
             using base::so;
+            using base::deferred;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_empty_batch " << this << " starts pulling.");
 #if STXXL_START_PIPELINE_DEFERRED
-                so.start_pull();
+                if (deferred)
+                    so.start_pull();
 #endif
                 unsigned_type length;
                 while ((length = so.batch_length()) > 0)
@@ -245,6 +249,7 @@ namespace stream
             mutable bool output_finished;
             //! \brief The input stream has run empty, the last swap_buffers() has been performed already.
             mutable volatile bool last_swap_done;
+            bool deferred;
 #ifdef STXXL_BOOST_THREADS
             mutable boost::mutex ul_mutex;
             //! \brief Mutex variable, to mutually exclude the other thread.
@@ -276,11 +281,12 @@ namespace stream
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
-            push_pull(unsigned_type buffer_size) :
+            push_pull(unsigned_type buffer_size, bool deferred = false) :
                 block1(buffer_size / 2),
                 block2(buffer_size / 2),
                 incoming_buffer(&block1),
-                outgoing_buffer(&block2)
+                outgoing_buffer(&block2),
+                deferred(deferred)
 #if STXXL_BOOST_THREADS
                 , mutex(ul_mutex)
 #endif
@@ -309,8 +315,8 @@ namespace stream
             virtual ~push_pull()
             {
 #ifndef STXXL_BOOST_THREADS
-                check_pthread_call(pthread_mutex_destroy(&mutex));
-                check_pthread_call(pthread_cond_destroy(&cond));
+                /*check_pthread_call(*/pthread_mutex_destroy(&mutex)/*)*/;
+                /*check_pthread_call(*/pthread_cond_destroy(&cond)/*)*/;
 #endif
             }
 
@@ -379,7 +385,8 @@ namespace stream
             void start_pull()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("push_pull " << this << " starts.");
+                if (deferred)
+                    STXXL_VERBOSE0("push_pull " << this << " starts.");
 #endif
                 //do nothing
             }
@@ -504,7 +511,8 @@ namespace stream
             void start_push()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("push_pull " << this << " starts push.");
+                if (deferred)
+                    STXXL_VERBOSE0("push_pull " << this << " starts push.");
 #endif
                 //do nothing
             }
@@ -547,9 +555,7 @@ namespace stream
             //! \brief Standard stream method.
             void stop_push() const
             {
-#if STXXL_START_PIPELINE_DEFERRED
                 STXXL_VERBOSE0("general push_pull " << this << " stops push.");
-#endif
                 if (!input_finished)
                 {
                     input_finished = true;
@@ -583,9 +589,8 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            basic_pull(unsigned_type buffer_size, StreamOperation & so) :
-                base(buffer_size),
-                so(so)
+            basic_pull(unsigned_type buffer_size, StreamOperation & so, bool deferred) :
+                base(buffer_size, deferred), so(so)
             { }
 
             //! \brief Destructor.
@@ -603,12 +608,17 @@ namespace stream
             }
 
         public:
+            using base::deferred;
+
             //! \brief Standard stream method.
             void start_pull()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("basic_pull " << this << " starts.");
-                start_pulling();
+                if (deferred)
+                {
+                    STXXL_VERBOSE0("basic_pull " << this << " starts.");
+                    start_pulling();
+                }
 #endif
             }
 
@@ -644,12 +654,11 @@ namespace stream
         class pull : public basic_pull<StreamOperation>
         {
         public:
-            pull(unsigned_type buffer_size, StreamOperation & so) :
-                basic_pull<StreamOperation>(buffer_size, so)
+            pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                basic_pull<StreamOperation>(buffer_size, so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_pull<StreamOperation>::start_pulling();
-#endif
+                if (!deferred)
+                    basic_pull<StreamOperation>::start_pulling();
             }
 
             typedef typename StreamOperation::value_type value_type;
@@ -658,13 +667,15 @@ namespace stream
             typedef push_pull<value_type> base;
 
             using basic_pull<StreamOperation>::so;
+            using basic_pull<StreamOperation>::deferred;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull " << this << " starts pulling.");
 #if STXXL_START_PIPELINE_DEFERRED
-                so.start_pull();
+                if (deferred)
+                    so.start_pull();
 #endif
                 while (!so.empty() && !base::output_finished)
                 {
@@ -684,12 +695,11 @@ namespace stream
         class pull_batch : public basic_pull<StreamOperation>
         {
         public:
-            pull_batch(unsigned_type buffer_size, StreamOperation & so) :
-                basic_pull<StreamOperation>(buffer_size, so)
+            pull_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                basic_pull<StreamOperation>(buffer_size, so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_pull<StreamOperation>::start_pulling();
-#endif
+                if (!deferred)
+                    basic_pull<StreamOperation>::start_pulling();
             }
 
             typedef typename StreamOperation::value_type value_type;
@@ -698,13 +708,15 @@ namespace stream
             typedef push_pull<value_type> base;
 
             using basic_pull<StreamOperation>::so;
+            using basic_pull<StreamOperation>::deferred;
 
             //! \brief Asynchronous method that keeps trying to fill the incoming buffer.
             virtual void async_pull()
             {
                 STXXL_VERBOSE0("pull_batch " << this << " starts pulling.");
 #if STXXL_START_PIPELINE_DEFERRED
-                so.start_pull();
+                if (deferred)
+                    so.start_pull();
 #endif
                 unsigned_type length;
                 while ((length = so.batch_length()) > 0 && !base::output_finished)
@@ -742,9 +754,8 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            basic_push(unsigned_type buffer_size, StreamOperation & so) :
-                base(buffer_size),
-                so(so)
+            basic_push(unsigned_type buffer_size, StreamOperation & so, bool deferred) :
+                base(buffer_size, deferred), so(so)
             { }
 
             //! \brief Destructor.
@@ -752,12 +763,17 @@ namespace stream
             { }
 
         public:
+            using base::deferred;
+
             //! \brief Standard push stream method.
             void start_push()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("basic_push " << this << " starts.");
-                start_pushing();
+                if (deferred)
+                {
+                    STXXL_VERBOSE0("basic_push " << this << " starts.");
+                    start_pushing();
+                }
 #endif
             }
 
@@ -810,24 +826,27 @@ namespace stream
         class push : public basic_push<StreamOperation>
         {
         public:
-            push(unsigned_type buffer_size, StreamOperation & so) :
-                basic_push<StreamOperation>(buffer_size, so)
+            push(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                basic_push<StreamOperation>(buffer_size, so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_push<StreamOperation>::start_pushing();
-#endif
+                if (!deferred)
+                    basic_push<StreamOperation>::start_pushing();
             }
 
         protected:
             typedef basic_push<StreamOperation> base;
             using basic_push<StreamOperation>::so;
+            using basic_push<StreamOperation>::deferred;
 
             //! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
             virtual void async_push()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("push " << this << " starts pushing.");
-                so.start_push();
+                if (deferred)
+                {
+                    STXXL_VERBOSE0("push " << this << " starts pushing.");
+                    so.start_push();
+                }
 #endif
                 while (!base::empty())
                 {
@@ -847,24 +866,27 @@ namespace stream
         class push_batch : public basic_push<StreamOperation>
         {
         public:
-            push_batch(unsigned_type buffer_size, StreamOperation & so) :
-                basic_push<StreamOperation>(buffer_size, so)
+            push_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                basic_push<StreamOperation>(buffer_size, so, deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                basic_push<StreamOperation>::start_pushing();
-#endif
+                if (!deferred)
+                    basic_push<StreamOperation>::start_pushing();
             }
 
         protected:
             typedef basic_push<StreamOperation> base;
             using basic_push<StreamOperation>::so;
+            using basic_push<StreamOperation>::deferred;
 
             //! \brief Asynchronous method that keeps trying to push from the outgoing buffer.
             virtual void async_push()
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                STXXL_VERBOSE0("push_batch " << this << " starts pushing.");
-                so.start_push();
+                if (deferred)
+                {
+                    STXXL_VERBOSE0("push_batch " << this << " starts pushing.");
+                    so.start_push();
+                }
 #endif
                 unsigned_type length;
                 while ((length = base::batch_length()) > 0)
@@ -888,15 +910,18 @@ namespace stream
             typedef const value_type * const_iterator;
 
             StreamOperation & so;
+            bool deferred;
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            dummy_pull(unsigned_type buffer_size, StreamOperation & so) :
-                so(so)
+            dummy_pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                so(so), deferred(deferred)
             {
                 UNUSED(buffer_size);
+                if (!deferred)
+                    start_pull();
             }
 
             //! \brief Standard stream method.
@@ -968,17 +993,17 @@ namespace stream
 
             StreamOperation & so;
             ConnectedStreamOperation & cso;
+            bool deferred;
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param so Input stream operation.
             //! \param cso Stream operation to connect to.
-            connect_pull(StreamOperation & so, ConnectedStreamOperation & cso) :
-                so(so), cso(cso)
+            connect_pull(StreamOperation & so, ConnectedStreamOperation & cso, bool deferred) :
+                so(so), cso(cso), deferred(deferred)
             {
-#if !STXXL_START_PIPELINE_DEFERRED
-                start_pull();
-#endif
+                if (!deferred)
+                    start_pull();
             }
 
             //! \brief Standard stream method.
@@ -1051,13 +1076,14 @@ namespace stream
             typedef typename StreamOperation::result_type result_type;
 
             StreamOperation & so;
+            bool deferred;
 
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            dummy_push(unsigned_type buffer_size, StreamOperation & so) :
-                so(so)
+            dummy_push(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+                so(so), deferred(deferred)
             { }
 
             //! \brief Standard stream method.

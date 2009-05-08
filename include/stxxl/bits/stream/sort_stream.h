@@ -108,6 +108,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
         bool result_computed;     // true iff result is already computed (used in 'result' method)
+        bool deferred;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
@@ -309,8 +310,8 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) :
-            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
+        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred) :
+            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false), deferred(deferred)
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
@@ -351,8 +352,9 @@ namespace stream
             if (!result_computed)
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                input.start_pull();
-#endif //STXXL_START_PIPELINE_DEFERRED
+                if (deferred)
+                    input.start_pull();
+#endif
                 compute_result();
                 result_computed = true;
 #ifdef STXXL_PRINT_STAT_AFTER_RF
@@ -719,7 +721,7 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
+        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) : base(i, c, memory_to_use, deferred)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             base::start_waiting_and_fetching(); //start second thread
@@ -776,7 +778,7 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use) : base(i, c, memory_to_use)
+        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) : base(i, c, memory_to_use, deferred)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             base::start_waiting_and_fetching(); //start second thread
@@ -2022,13 +2024,12 @@ namespace stream
         //! \param r input sorted runs object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use) :
+        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use, bool deferred = false) :
             base(c, memory_to_use),
             sruns(r)
         {
-#if !STXXL_START_PIPELINE_DEFERRED
-            base::initialize(r);
-#endif // !STXXL_START_PIPELINE_DEFERRED
+            if (!deferred)
+                base::initialize(r);
         }
 
         void start_pull()
@@ -2064,13 +2065,12 @@ namespace stream
         //! \param rc Runs creator.
         //! \param c Comparison object.
         //! \param memory_to_use Amount of memory available for the merger in bytes.
-        startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use) :
+        startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use, bool deferred = false) :
             base(c, memory_to_use),
             rc(rc)
         {
-#if !STXXL_START_PIPELINE_DEFERRED
-            base::initialize(rc.result());
-#endif // !STXXL_START_PIPELINE_DEFERRED
+            if (!deferred)
+                base::initialize(rc.result());
         }
 
         void start_pull()
@@ -2117,9 +2117,9 @@ namespace stream
         //! \param in input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use) :
-            creator(in, c, memory_to_use),
-            merger(creator, c, memory_to_use),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, bool deferred = false) :
+            creator(in, c, memory_to_use, deferred),
+            merger(creator, c, memory_to_use, deferred),
             c(c),
             memory_to_use_m(memory_to_use),
             input(in)
@@ -2130,9 +2130,9 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use_rc memory amount that is allowed to used by the runs creator in bytes
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m) :
-            creator(in, c, memory_to_use_rc),
-            merger(creator, c, memory_to_use_m),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, bool deferred = false) :
+            creator(in, c, memory_to_use_rc, deferred),
+            merger(creator, c, memory_to_use_m, deferred),
             c(c),
             memory_to_use_m(memory_to_use_m)
         { }

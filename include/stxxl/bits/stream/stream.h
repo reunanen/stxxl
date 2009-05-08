@@ -17,7 +17,6 @@
 #define STXXL_START_PIPELINE_DEFERRED 0
 #endif
 
-
 #ifdef STXXL_BOOST_THREADS // Use Portable Boost threads
  #include <boost/bind.hpp>
 #endif
@@ -430,10 +429,13 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, bool deferred = false)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        in.start_pull();
+        if (deferred)
+            in.start_pull();
+#else
+        UNUSED(deferred);
 #endif
         while (!in.empty())
         {
@@ -452,11 +454,14 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, bool deferred = false)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        STXXL_VERBOSE0("materialize_batch starts.");
-        in.start_pull();
+        if (deferred)
+        {
+            STXXL_VERBOSE0("materialize_batch starts.");
+            in.start_pull();
+        }
 #endif
         unsigned_type length;
         while (length = in.batch_length() > 0)
@@ -478,10 +483,11 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred = false)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        in.start_pull();
+        if (deferred)
+            in.start_pull();
 #endif
         while ((!in.empty()) && outend != outbegin)
         {
@@ -503,11 +509,14 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred = false)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        STXXL_VERBOSE0("materialize_batch starts.");
-        in.start_pull();
+        if (deferred)
+        {
+            STXXL_VERBOSE0("materialize_batch starts.");
+            in.start_pull();
+        }
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
@@ -537,6 +546,7 @@ namespace stream
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+                bool deferred = false,
                 unsigned_type nbuffers = 0)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
@@ -544,7 +554,10 @@ namespace stream
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
-        in.start_pull();
+        if (deferred)
+            in.start_pull();
+#else
+        UNUSED(deferred);
 #endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -610,6 +623,7 @@ namespace stream
     materialize_batch(StreamAlgorithm_ & in,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+                      bool deferred = false,
                       unsigned_type nbuffers = 0)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
@@ -617,8 +631,11 @@ namespace stream
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
-        STXXL_VERBOSE0("materialize_batch starts.");
-        in.start_pull();
+        if (deferred)
+        {
+            STXXL_VERBOSE0("materialize_batch starts.");
+            in.start_pull();
+        }
 #endif
 
         ExtIterator outcurrent = outbegin;
@@ -690,6 +707,7 @@ namespace stream
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
+                bool deferred = false,
                 unsigned_type nbuffers = 0)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
@@ -702,7 +720,8 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE_DEFERRED
-        in.start_pull();
+        if (deferred)
+            in.start_pull();
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -764,6 +783,7 @@ namespace stream
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize_batch(StreamAlgorithm_ & in,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
+                      bool deferred = false,
                       unsigned_type nbuffers = 0)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
@@ -776,8 +796,11 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE_DEFERRED
-        STXXL_VERBOSE0("materialize_batch starts.");
-        in.start_pull();
+        if (deferred)
+        {
+            STXXL_VERBOSE0("materialize_batch starts.");
+            in.start_pull();
+        }
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -1503,6 +1526,7 @@ namespace stream
         value_type current;
         int pos;
         int empty_count;
+        bool deferred;
 
         void next()
         {
@@ -1515,15 +1539,16 @@ namespace stream
 
     public:
         //! \brief Construction
-        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs)
+        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs, bool deferred) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs), deferred(deferred)
         {
             empty_count = 0;
-            pos = 0;
-
-#if !STXXL_START_PIPELINE_DEFERRED
-            pos = -1;
-            next();
-#endif
+            if (deferred)
+                pos = 0;
+            else
+            {
+                pos = -1;
+                next();
+            }
         }
 
         //! \brief Standard stream method
@@ -1532,10 +1557,11 @@ namespace stream
             STXXL_VERBOSE0("distribute " << this << " starts push.");
             for (int i = 0; i < num_outputs; ++i)
                 outputs[i]->start_push();
-#if STXXL_START_PIPELINE_DEFERRED
-            pos = -1;
-            next();
-#endif
+            if (deferred)
+            {
+                pos = -1;
+                next();
+            }
         }
 
         //! \brief Standard stream method.
@@ -1625,7 +1651,7 @@ namespace stream
     public:
         typedef typename base::value_type value_type;
 
-        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk) : base(outputs, num_outputs)
+        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk, bool deferred = false) : base(outputs, num_outputs, deferred)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
@@ -1682,6 +1708,7 @@ namespace stream
         value_type current;
         int pos;
         int empty_count;
+        bool deferred;
 
         void next()
         {
@@ -1710,18 +1737,20 @@ namespace stream
 
     public:
         //! \brief Construction
-        basic_round_robin(Input_ ** inputs, int num_inputs) : inputs(inputs), num_inputs(num_inputs)
+        basic_round_robin(Input_ ** inputs, int num_inputs, bool deferred) : inputs(inputs), num_inputs(num_inputs), deferred(deferred)
         {
             empty_count = 0;
-            pos = 0;
             already_empty = new bool[num_inputs];
             for (int i = 0; i < num_inputs; ++i)
                 already_empty[i] = false;
 
-#if !STXXL_START_PIPELINE_DEFERRED
-            pos = -1;
-            next();
-#endif
+            if (deferred)
+                pos = 0;
+            else
+            {
+                pos = -1;
+                next();
+            }
         }
 
         ~basic_round_robin()
@@ -1735,10 +1764,11 @@ namespace stream
             STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
             for (int i = 0; i < num_inputs; ++i)
                 inputs[i]->start_pull();
-#if STXXL_START_PIPELINE_DEFERRED
-            pos = -1;
-            next();
-#endif
+            if (deferred)
+            {
+                pos = -1;
+                next();
+            }
         }
 
         //! \brief Standard stream method
@@ -1826,7 +1856,7 @@ namespace stream
 
     public:
         //! \brief Construction
-        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk) : base(inputs, num_inputs)
+        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk, bool deferred = false) : base(inputs, num_inputs, deferred)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;

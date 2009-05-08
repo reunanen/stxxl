@@ -14,8 +14,8 @@
 //! This is an example of how to use the asynchronous distribute/gather mechanism.
 
 #define STXXL_START_PIPELINE_DEFERRED 1
-
 #define INTERMEDIATE 1
+#define BATCHED 1
 
 #define OUTPUT_STATS 1
 
@@ -30,7 +30,7 @@ stxxl::unsigned_type memory_to_use = 2048 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-void distribute_gather(vector_type & input)
+void distribute_gather(vector_type & input, bool deferred)
 {
     using stxxl::stream::deterministic_round_robin;
     using stxxl::stream::deterministic_distribute;
@@ -91,17 +91,17 @@ void distribute_gather(vector_type & input)
 
     for (unsigned int w = 0; w < num_workers; ++w)
     {
-        buckets[w] = new bucket_type(buffer_size);
+        buckets[w] = new bucket_type(buffer_size, deferred);
 #if INTERMEDIATE
         workers[w] = new worker_stream_type(id, *buckets[w]);
-        worker_nodes[w] = new worker_stream_node_type(buffer_size, *workers[w]);
+        worker_nodes[w] = new worker_stream_node_type(buffer_size, *workers[w], deferred);
 #endif
     }
 
     const stxxl::unsigned_type chunk_size = buffer_size / sizeof(my_type) / (3 * num_workers);
 
     typedef deterministic_distribute<worker_stream_node_type> distributor_stream_type;
-    distributor_stream_type distributor_stream(worker_nodes, num_workers, chunk_size);
+    distributor_stream_type distributor_stream(worker_nodes, num_workers, chunk_size, deferred);
 
     typedef pusher<accumulate_stream1_type, distributor_stream_type> pusher_stream_type;
     pusher_stream_type pusher_stream(accumulate_stream1, distributor_stream);
@@ -111,21 +111,21 @@ void distribute_gather(vector_type & input)
 #else
     typedef pull_empty<pusher_stream_type> pull_empty_type;
 #endif
-    pull_empty_type pull_empty_node(pusher_stream);
+    pull_empty_type pull_empty_node(pusher_stream, deferred);
 
     typedef deterministic_round_robin<worker_stream_node_type> fetcher_stream_type;
-    fetcher_stream_type fetcher_stream(worker_nodes, num_workers, chunk_size);
+    fetcher_stream_type fetcher_stream(worker_nodes, num_workers, chunk_size, deferred);
 
     typedef connect_pull<fetcher_stream_type, pull_empty_type> connect_stream_type;
-    connect_stream_type connect_stream(fetcher_stream, pull_empty_node);
+    connect_stream_type connect_stream(fetcher_stream, pull_empty_node, deferred);
 
     typedef transform<accumulate<my_type>, connect_stream_type> accumulate_stream_type2;
     accumulate_stream_type2 accumulate_stream2(acc2, connect_stream);
 
 #if BATCHED
-    o = materialize_batch(accumulate_stream2, output.begin(), output.end());
+    o = materialize_batch(accumulate_stream2, output.begin(), output.end(), deferred);
 #else
-    o = materialize(accumulate_stream2, output.begin(), output.end());
+    o = materialize(accumulate_stream2, output.begin(), output.end(), deferred);
 #endif
 
     assert(o == output.end());
@@ -184,7 +184,7 @@ int main()
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-    distribute_gather(input);
+    distribute_gather(input, true);
 
     return 0;
 }

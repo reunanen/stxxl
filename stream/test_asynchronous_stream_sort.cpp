@@ -16,15 +16,13 @@
 //#define STXXL_PARALLEL_MULTIWAY_MERGE 0
 
 #define STXXL_START_PIPELINE_DEFERRED 1
-
 #ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #define STXXL_STREAM_SORT_ASYNCHRONOUS_PULL 0
 #endif
 
 #define PIPELINED 1
-
 #ifndef BATCHED
-#define BATCHED 0
+#define BATCHED 1
 #endif
 
 #define OUTPUT_STATS 1
@@ -48,7 +46,7 @@ stxxl::unsigned_type checksum(vector_type & input)
     return sum;
 }
 
-void linear_sort_streamed(vector_type & input, vector_type & output)
+void linear_sort_streamed(vector_type & input, vector_type & output, bool deferred)
 {
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
@@ -89,12 +87,12 @@ void linear_sort_streamed(vector_type & input, vector_type & output)
     typedef sort<input_stream_type, comparator_type, block_size> sort_stream_type;
 #endif
 
-    sort_stream_type sort_stream(input_stream, cl, run_size);
+    sort_stream_type sort_stream(input_stream, cl, run_size, deferred);
 
 #if BATCHED
-    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end());
+    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end(), deferred);
 #else
-    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end());
+    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), deferred);
 #endif
 
 #if OUTPUT_STATS
@@ -142,7 +140,7 @@ int main()
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-    linear_sort_streamed(input, output);
+    linear_sort_streamed(input, output, false);
 
     return 0;
 }
