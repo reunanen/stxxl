@@ -869,7 +869,7 @@ namespace stream
                 unsigned_type length;
                 while ((length = base::batch_length()) > 0)
                 {
-                    length = std::min(length, so.push_batch_length());
+                    length = STXXL_MIN(length, so.push_batch_length());
                     so.push_batch(base::batch_begin(), base::batch_begin() + length);
                     base::operator += (length);
                 }

@@ -846,6 +846,10 @@ namespace stream
         block_type * Blocks2;
         request_ptr * write_reqs;
         run_type run;
+        volatile bool result_ready;
+        //! \brief Wait for push_stop from input, or assume that all input has
+        //! arrived when result() is called?
+        bool wait_for_stop;
 
 #ifdef STXXL_BOOST_THREADS
         boost::mutex ul_mutex;
@@ -859,10 +863,6 @@ namespace stream
         //! \brief Condition variable, to wait for the other thread.
         pthread_cond_t cond;
 #endif
-        volatile bool result_ready;
-        //! \brief Wait for push_stop from input, or assume that all input has
-        //! arrived when result() is called?
-        bool wait_for_stop;
 
         void sort_run(block_type * run, unsigned_type elements)
         {
