@@ -1445,7 +1445,7 @@ namespace stream
         loser_tree_type * losers;
         int_type * prefetch_seq;
         unsigned_type nruns;
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
         typename block_type::value_type last_element;
 #endif //STXXL_CHECK_ORDER_IN_SORTS
 
@@ -1570,7 +1570,7 @@ namespace stream
                     }
                 } while (rest > 0 && (*seqs).size() > 0);
 
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
                 if (!stxxl::is_sorted(current_block->begin(), current_block->end(), cmp))
                 {
                     for (value_type * i = current_block->begin() + 1; i != current_block->end(); ++i)
@@ -1611,7 +1611,7 @@ namespace stream
             m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
             current_block(NULL),
             prefetcher(NULL)
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
             , last_element(cmp.min_value())
 #endif //STXXL_CHECK_ORDER_IN_SORTS
         {
@@ -1627,7 +1627,7 @@ namespace stream
             m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
             current_block(NULL),
             prefetcher(NULL)
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
             , last_element(cmp.min_value())
 #endif //STXXL_CHECK_ORDER_IN_SORTS
         {
@@ -1656,7 +1656,7 @@ namespace stream
                 return;
             }
 
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
             assert(check_sorted_runs(r, cmp));
 #endif //STXXL_CHECK_ORDER_IN_SORTS
 
@@ -1797,7 +1797,7 @@ namespace stream
                 {
                     fill_current_block();
 
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
                     assert(stxxl::is_sorted(current_block->elem, current_block->elem + current_block->size, cmp));
                     assert(!cmp(current_block->elem[0], current_value));
 #endif //STXXL_CHECK_ORDER_IN_SORTS
@@ -1809,7 +1809,7 @@ namespace stream
             }
 
 
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
             if (!empty())
             {
                 assert(!cmp(current_value, last_element));

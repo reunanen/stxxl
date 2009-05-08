@@ -14,11 +14,6 @@
 #ifndef STXXL_KSORT_HEADER
 #define STXXL_KSORT_HEADER
 
-#ifndef STXXL_SORT_OPTIMAL_PREFETCHING
-#define STXXL_SORT_OPTIMAL_PREFETCHING 1
-#endif
-
-
 #include <list>
 
 #include <stxxl/bits/mng/mng.h>
@@ -35,6 +30,7 @@
 #include <stxxl/bits/algo/run_cursor.h>
 #include <stxxl/bits/algo/losertree.h>
 #include <stxxl/bits/algo/inmemsort.h>
+#include <stxxl/bits/algo/sort_base.h>
 
 
 //#define INTERLEAVED_ALLOC
@@ -684,7 +680,7 @@ namespace ksort_local
             while (runs_left > 0)
             {
                 int_type runs2merge = STXXL_MIN(runs_left, merge_factor);
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
                 assert((check_ksorted_runs<block_type, run_type, key_extractor>(runs + nruns - runs_left, runs2merge, m2, keyobj)));
 #endif
                 STXXL_VERBOSE("Merging " << runs2merge << " runs");
@@ -1070,7 +1066,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
         }
     }
 
-#ifdef STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
     assert(stxxl::is_sorted(first_, last_, ksort_local::key_comparison<value_type, KeyExtractor_>()));
 #endif
 }
