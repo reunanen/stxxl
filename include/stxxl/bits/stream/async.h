@@ -7,7 +7,7 @@
  *   Part of the STXXL http://stxxl.sourceforge.net                        *
  ***************************************************************************/
 
-//! \file pipeline.h
+//! \file async.h
 //! \brief Pipeline functionality for asynchronous computation.
 
 #ifndef PIPELINE_HEADER
@@ -29,10 +29,11 @@ namespace stream
 //! \addtogroup streampack Stream package
 //! \{
 
-//! \brief Sub-namespace for providing parallel pipeline processing.
-    namespace pipeline
+//! \brief Sub-namespace for providing async pipeline processing.
+    namespace async
     {
-//! \addtogroup pipelinepack Pipeline package
+//! \weakgroup asyncpack Asynchronous pipeline package
+//! \ingroup streampack
 //! \{
 
 //! \brief Helper class encapsulating a buffer.
@@ -70,7 +71,7 @@ namespace stream
             }
         };
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, and throws away the data.
         template <class StreamOperation>
@@ -135,7 +136,7 @@ namespace stream
         }
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, one element at a time, and throws away the data.
         template <class StreamOperation>
@@ -176,7 +177,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, one batch of elements at a time, and throws away the data.
         template <class StreamOperation>
@@ -218,7 +219,7 @@ namespace stream
         };
 
 
-//! \brief Helper node to for concurrent pipelining.
+//! \brief Helper node for asynchronous pipelining.
 //!
 //! This node gets data pushed in, and gets pulled from.
 //! It does not do anything actively itself.
@@ -565,7 +566,7 @@ namespace stream
             }
         };
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, and writes the data to a buffer.
         template <class StreamOperation>
@@ -647,7 +648,7 @@ namespace stream
 #endif
         }
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, one element at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -688,7 +689,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
         template <class StreamOperation>
@@ -731,7 +732,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node reads the data from a buffer asynchronously and pushes.
         template <class StreamOperation>
@@ -819,7 +820,7 @@ namespace stream
 #endif
         }
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node reads the data from a buffer asynchronously, one element at a time, and pushes.
         template <class StreamOperation>
@@ -859,7 +860,7 @@ namespace stream
         };
 
 
-//! \brief Asynchronous node to allow concurrent pipelining.
+//! \brief Node enabling asynchronous pipelining.
 //!
 //! This node reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
         template <class StreamOperation>
@@ -901,7 +902,7 @@ namespace stream
         };
 
 
-//! \brief Dummy node node switch of pipelining by a define.
+//! \brief Dummy node as drop-in replacement as drop-in replacement to switch off asynchronous pipelining by a typedef.
         template <class StreamOperation>
         class dummy_pull
         {
@@ -983,7 +984,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy node node switch of pipelining by a define.
+//! \brief Dummy node as drop-in replacement to switch off asynchronous pipelining by a typedef.
         template <class StreamOperation, class ConnectedStreamOperation>
         class connect_pull
         {
@@ -1067,7 +1068,7 @@ namespace stream
             }
         };
 
-//! \brief Dummy node node to switch of pipelining.
+//! \brief Dummy node as drop-in replacement to switch off asynchronous pipelining by a typedef.
         template <class StreamOperation>
         class dummy_push
         {
@@ -1124,7 +1125,7 @@ namespace stream
         };
 
 //! \}
-    }   //namespace pipeline
+    }   //namespace async
 
 //! \}
 }       //namespace stream

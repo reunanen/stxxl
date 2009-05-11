@@ -15,7 +15,7 @@
 #include <stxxl/vector>
 #include <stxxl/bits/algo/sort.h>
 #include <stxxl/bits/stream/sort_stream.h>
-#include <stxxl/bits/stream/pipeline.h>
+#include <stxxl/bits/stream/async.h>
 #include <stxxl/algorithm>
 
 #include <algorithm>

@@ -196,7 +196,7 @@ ALGO_FILES	 = \
 STREAM_FILES	 = \
 	$(HEADER_PATH)/stream/stream.h \
 	$(HEADER_PATH)/stream/sort_stream.h \
-	$(HEADER_PATH)/stream/pipeline.h
+	$(HEADER_PATH)/stream/async.h
 
 ###################################################################
 

@@ -40,13 +40,13 @@ void double_diamond(vector_type & input, bool asynchronous_pull, bool deferred, 
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
     using stxxl::stream::streamify;
-    using stxxl::stream::pipeline::pull;
-    using stxxl::stream::pipeline::pull_batch;
-    using stxxl::stream::pipeline::dummy_pull;
-    using stxxl::stream::pipeline::push;
-    using stxxl::stream::pipeline::push_batch;
-    using stxxl::stream::pipeline::dummy_push;
-    using stxxl::stream::pipeline::push_pull;
+    using stxxl::stream::async::pull;
+    using stxxl::stream::async::pull_batch;
+    using stxxl::stream::async::dummy_pull;
+    using stxxl::stream::async::push;
+    using stxxl::stream::async::push_batch;
+    using stxxl::stream::async::dummy_push;
+    using stxxl::stream::async::push_pull;
     using stxxl::stream::transform;
     using stxxl::stream::sort;
     using stxxl::stream::runs_creator;
@@ -331,24 +331,6 @@ int main()
     const stxxl::int64 n_records =
         stxxl::int64(megabytes_to_process) * stxxl::int64(megabyte) / sizeof(my_type);
     vector_type input(n_records);
-
-    using stxxl::stream::generator2stream;
-    using stxxl::stream::round_robin;
-    using stxxl::stream::streamify;
-    using stxxl::stream::pipeline::pull;
-    using stxxl::stream::pipeline::pull_batch;
-    using stxxl::stream::pipeline::dummy_pull;
-    using stxxl::stream::pipeline::push;
-    using stxxl::stream::pipeline::push_batch;
-    using stxxl::stream::pipeline::dummy_push;
-    using stxxl::stream::pipeline::push_pull;
-    using stxxl::stream::transform;
-    using stxxl::stream::sort;
-    using stxxl::stream::runs_creator;
-    using stxxl::stream::runs_creator_batch;
-    using stxxl::stream::runs_merger;
-    using stxxl::stream::make_tuple;
-    using stxxl::stream::use_push;
 
 #if PIPELINED
     std::cout << "PIPELINED" << std::endl;

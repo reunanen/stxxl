@@ -51,12 +51,12 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
     using stxxl::stream::streamify;
-    using stxxl::stream::pipeline::pull;
-    using stxxl::stream::pipeline::pull_batch;
-    using stxxl::stream::pipeline::dummy_pull;
-    using stxxl::stream::pipeline::push;
-    using stxxl::stream::pipeline::push_batch;
-    using stxxl::stream::pipeline::dummy_push;
+    using stxxl::stream::async::pull;
+    using stxxl::stream::async::pull_batch;
+    using stxxl::stream::async::dummy_pull;
+    using stxxl::stream::async::push;
+    using stxxl::stream::async::push_batch;
+    using stxxl::stream::async::dummy_push;
     using stxxl::stream::transform;
     using stxxl::stream::sort;
     using stxxl::stream::runs_creator;
