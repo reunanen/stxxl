@@ -142,7 +142,7 @@ namespace stream
         class pull_empty : public basic_pull_empty<StreamOperation>
         {
         public:
-            pull_empty(StreamOperation & so, bool deferred = false) :
+            pull_empty(StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_pull_empty<StreamOperation>(so, deferred)
             {
                 if (!deferred)
@@ -183,7 +183,7 @@ namespace stream
         class pull_empty_batch : public basic_pull_empty<StreamOperation>
         {
         public:
-            pull_empty_batch(StreamOperation & so, bool deferred = false) :
+            pull_empty_batch(StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_pull_empty<StreamOperation>(so, deferred)
             {
                 if (!deferred)
@@ -281,7 +281,7 @@ namespace stream
         public:
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
-            push_pull(unsigned_type buffer_size, bool deferred = false) :
+            push_pull(unsigned_type buffer_size, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 block1(buffer_size / 2),
                 block2(buffer_size / 2),
                 incoming_buffer(&block1),
@@ -654,7 +654,7 @@ namespace stream
         class pull : public basic_pull<StreamOperation>
         {
         public:
-            pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_pull<StreamOperation>(buffer_size, so, deferred)
             {
                 if (!deferred)
@@ -695,7 +695,7 @@ namespace stream
         class pull_batch : public basic_pull<StreamOperation>
         {
         public:
-            pull_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            pull_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_pull<StreamOperation>(buffer_size, so, deferred)
             {
                 if (!deferred)
@@ -826,7 +826,7 @@ namespace stream
         class push : public basic_push<StreamOperation>
         {
         public:
-            push(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            push(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_push<StreamOperation>(buffer_size, so, deferred)
             {
                 if (!deferred)
@@ -866,7 +866,7 @@ namespace stream
         class push_batch : public basic_push<StreamOperation>
         {
         public:
-            push_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            push_batch(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 basic_push<StreamOperation>(buffer_size, so, deferred)
             {
                 if (!deferred)
@@ -916,7 +916,7 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            dummy_pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            dummy_pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 so(so), deferred(deferred)
             {
                 UNUSED(buffer_size);
@@ -999,7 +999,7 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param so Input stream operation.
             //! \param cso Stream operation to connect to.
-            connect_pull(StreamOperation & so, ConnectedStreamOperation & cso, bool deferred) :
+            connect_pull(StreamOperation & so, ConnectedStreamOperation & cso, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 so(so), cso(cso), deferred(deferred)
             {
                 if (!deferred)
@@ -1082,7 +1082,7 @@ namespace stream
             //! \brief Generic Constructor for zero passed arguments.
             //! \param buffer_size Total size of the buffers in bytes.
             //! \param so Input stream operation.
-            dummy_push(unsigned_type buffer_size, StreamOperation & so, bool deferred = false) :
+            dummy_push(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 so(so), deferred(deferred)
             { }
 
