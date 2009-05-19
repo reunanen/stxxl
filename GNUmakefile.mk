@@ -21,7 +21,7 @@ MCSTL	?= mcstl # undefine to disable
 
 default-all: lib tests header-compile-test
 
-lib:
+lib: dep-check-sanity
 	$(MAKE) -f Makefile library_$(MODE) $(if $(PMODE),library_$(MODE)_pmode) $(if $(MCSTL),library_$(MODE)_mcstl)
 
 tests: lib
@@ -32,6 +32,23 @@ header-compile-test: lib
 	$(NICE) $(MAKE) -C test/compile-stxxl-headers
 	$(if $(PMODE),$(NICE) $(MAKE) -C test/compile-stxxl-headers INSTANCE=pmstxxl)
 	$(if $(MCSTL),$(NICE) $(MAKE) -C test/compile-stxxl-headers INSTANCE=mcstxxl)
+
+do-run-all-tests:
+	@test -n "$(STXXL_TMPDIR)" || ( echo "STXXL_TMPDIR is not set"; exit 1 )
+	@test -z "$(LD_PRELOAD)" || ( echo "LD_PRELOAD is set"; exit 1 )
+	./misc/run-all-tests stxxl $(WITH_VALGRIND) $(WITH_VALGRIND)
+	$(if $(MCSTL),./misc/run-all-tests mcstxxl $(WITH_VALGRIND) $(WITH_VALGRIND))
+	$(if $(PMODE),./misc/run-all-tests pmstxxl $(WITH_VALGRIND) $(WITH_VALGRIND))
+
+run-all-tests: WITH_VALGRIND=no
+run-all-tests: do-run-all-tests ;
+
+run-all-tests-valgrind: WITH_VALGRIND=yes
+run-all-tests-valgrind: do-run-all-tests ;
+
+dep-check-sanity:
+	$(SKIP_SANITY_CHECK)find . -name '*.o' -exec misc/remove-unless {} .o .d \; 
+	$(SKIP_SANITY_CHECK)find . -name '*.bin' -exec misc/remove-unless {} .bin .o \; 
 
 clean:
 	$(MAKE) -f Makefile clean_$(MODE) clean_$(MODE)_pmode clean_$(MODE)_mcstl clean_doxy

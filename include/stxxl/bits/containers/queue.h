@@ -20,11 +20,16 @@
 #include <stxxl/bits/mng/mng.h>
 #include <stxxl/bits/common/simple_vector.h>
 #include <stxxl/bits/common/tmeta.h>
+#include <stxxl/bits/mng/read_write_pool.h>
 #include <stxxl/bits/mng/write_pool.h>
 #include <stxxl/bits/mng/prefetch_pool.h>
 
 
 __STXXL_BEGIN_NAMESPACE
+
+#ifndef STXXL_VERBOSE_QUEUE
+#define STXXL_VERBOSE_QUEUE STXXL_VERBOSE2
+#endif
 
 //! \addtogroup stlcont
 //! \{
@@ -55,10 +60,11 @@ public:
     typedef BID<block_size> bid_type;
 
 private:
+    typedef read_write_pool<block_type> pool_type;
+
     size_type size_;
-    bool delete_pools;
-    write_pool<block_type> * w_pool;
-    prefetch_pool<block_type> * p_pool;
+    bool delete_pool;
+    pool_type * pool;
     block_type * front_block;
     block_type * back_block;
     value_type * front_element;
@@ -72,60 +78,93 @@ private:
 public:
     //! \brief Constructs empty queue with own write and prefetch block pool
 
-    //! \param w_pool_size  number of blocks in the write pool, must be at least 2
-    //! \param p_pool_size   number of blocks in the prefetch pool, must be at least 1
-    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side) , default is 1
-    queue(unsigned_type w_pool_size, unsigned_type p_pool_size, unsigned_type blocks2prefetch_ = 1) :
+    //! \param w_pool_size  number of blocks in the write pool, must be at least 2, recommended at least 3
+    //! \param p_pool_size  number of blocks in the prefetch pool, recommended at least 1
+    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side),
+    //!                          default is number of block in the prefetch pool
+    explicit queue(unsigned_type w_pool_size = 3, unsigned_type p_pool_size = 1, int blocks2prefetch_ = -1) :
         size_(0),
-        delete_pools(true),
+        delete_pool(true),
         alloc_counter(0),
-        blocks2prefetch(blocks2prefetch_)
+        bm(block_manager::get_instance())
     {
-        if (w_pool_size < 2)
-            w_pool_size = 2;
-
-        if (p_pool_size < 1)
-            p_pool_size = 1;
-
-        w_pool = new write_pool<block_type>(w_pool_size);
-        front_block = back_block = w_pool->steal();
-        back_element = back_block->elem - 1;
-        front_element = back_block->elem;
-        p_pool = new prefetch_pool<block_type>(p_pool_size);
-        bm = block_manager::get_instance();
+        STXXL_VERBOSE_QUEUE("queue[" << this << "]::queue(sizes)");
+        pool = new pool_type(w_pool_size, p_pool_size);
+        init(blocks2prefetch_);
     }
 
     //! \brief Constructs empty queue
 
-    //! \param w_pool_ write pool
-    //! \param p_pool_ prefetch pool
-    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side) , default is 1
-    //!  \warning Number of blocks in the write pool must be at least 2
-    //!  \warning Number of blocks in the prefetch pool must be at least 1
-    queue(write_pool<block_type> & w_pool_, prefetch_pool<block_type> & p_pool_, unsigned blocks2prefetch_ = 1) :
+    //! \param w_pool write pool
+    //! \param p_pool prefetch pool
+    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side),
+    //!                          default is number of blocks in the prefetch pool
+    //!  \warning Number of blocks in the write pool must be at least 2, recommended at least 3
+    //!  \warning Number of blocks in the prefetch pool recommended at least 1
+    __STXXL_DEPRECATED(
+    queue(write_pool<block_type> & w_pool, prefetch_pool<block_type> & p_pool, int blocks2prefetch_ = -1)) :
         size_(0),
-        delete_pools(false),
-        w_pool(&w_pool_),
-        p_pool(&p_pool_),
+        delete_pool(true),
         alloc_counter(0),
-        blocks2prefetch(blocks2prefetch_)
+        bm(block_manager::get_instance())
     {
-        if (w_pool->size() < 2)
-            w_pool->resize(2);
-
-        if (p_pool->size() < 2)
-            p_pool->resize(1);
-
-        front_block = back_block = w_pool->steal();
-        back_element = back_block->elem - 1;
-        front_element = back_block->elem;
-        bm = block_manager::get_instance();
+        STXXL_VERBOSE_QUEUE("queue[" << this << "]::queue(pools)");
+        pool = new pool_type(w_pool, p_pool);
+        init(blocks2prefetch_);
     }
 
-    //! \brief Defines the number of blocks to prefetch (\c front side)
-    void set_prefetch_aggr(unsigned_type blocks2prefetch_)
+    //! \brief Constructs empty queue
+
+    //! \param pool_ block write/prefetch pool
+    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side),
+    //!                          default is number of blocks in the prefetch pool
+    //!  \warning Number of blocks in the write pool must be at least 2, recommended at least 3
+    //!  \warning Number of blocks in the prefetch pool recommended at least 1
+    queue(pool_type & pool_, int blocks2prefetch_ = -1) :
+        size_(0),
+        delete_pool(false),
+        pool(&pool_),
+        alloc_counter(0),
+        bm(block_manager::get_instance())
     {
-        blocks2prefetch = blocks2prefetch_;
+        STXXL_VERBOSE_QUEUE("queue[" << this << "]::queue(pool)");
+        init(blocks2prefetch_);
+    }
+
+private:
+    void init(int blocks2prefetch_)
+    {
+        if (pool->size_write() < 2) {
+            STXXL_ERRMSG("queue: invalid configuration, not enough blocks (" << pool->size_write() 
+                         << ") in write pool, at least 2 are needed, resizing to 3");
+            pool->resize_write(3);
+        }
+
+        if (pool->size_write() < 3) {
+            STXXL_MSG("queue: inefficient configuration, no blocks for buffered writing available");
+        }
+
+        if (pool->size_prefetch() < 1) {
+            STXXL_MSG("queue: inefficient configuration, no blocks for prefetching available");
+        }
+
+        front_block = back_block = pool->steal();
+        back_element = back_block->elem - 1;
+        front_element = back_block->elem;
+        set_prefetch_aggr(blocks2prefetch_);
+    }
+
+public:
+    //! \brief Defines the number of blocks to prefetch (\c front side)
+    //!        This method should be called whenever the prefetch pool is resized
+    //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side),
+    //!                          a negative value means to use the number of blocks in the prefetch pool
+    void set_prefetch_aggr(int_type blocks2prefetch_)
+    {
+        if (blocks2prefetch_ < 0)
+            blocks2prefetch = pool->size_prefetch();
+        else
+            blocks2prefetch = blocks2prefetch_;
     }
 
     //! \brief Returns the number of blocks prefetched from the \c front side
@@ -154,13 +193,17 @@ public:
 
                 offset_allocator<alloc_strategy> alloc_str(alloc_counter++);
 
-                //bm->new_blocks<block_type>(1, alloc_str, &newbid);
-                bm->new_blocks(alloc_str, &newbid, (&newbid) + 1);
+                bm->new_block(alloc_str, newbid);
 
+                STXXL_VERBOSE_QUEUE("queue[" << this << "]: push block " << back_block << " @ " << FMT_BID(newbid));
                 bids.push_back(newbid);
-                w_pool->write(back_block, newbid);
+                pool->write(back_block, newbid);
+                if (bids.size() <= blocks2prefetch) {
+                    STXXL_VERBOSE1("queue::push Case Hints");
+                    pool->hint(newbid);
+                }
             }
-            back_block = w_pool->steal();
+            back_block = pool->steal();
 
             back_element = back_block->elem;
             *back_element = val;
@@ -199,7 +242,7 @@ public:
                 STXXL_VERBOSE1("queue::pop Case 4");
                 assert(bids.empty());
                 // the back_block is the next block
-                w_pool->add(front_block);
+                pool->add(front_block);
                 front_block = back_block;
                 front_element = back_block->elem;
                 return;
@@ -207,11 +250,14 @@ public:
             STXXL_VERBOSE1("queue::pop Case 5");
 
             assert(!bids.empty());
-            request_ptr req = p_pool->read(front_block, bids.front());
+            request_ptr req = pool->read(front_block, bids.front());
+            STXXL_VERBOSE_QUEUE("queue[" << this << "]: pop block  " << front_block << " @ " << FMT_BID(bids.front()));
+
+            // give prefetching hints
             for (unsigned_type i = 0; i < blocks2prefetch && i < bids.size() - 1; ++i)
-            {             // give prefetching hints
+            {
                 STXXL_VERBOSE1("queue::pop Case Hints");
-                p_pool->hint(bids[i + 1], *w_pool);
+                pool->hint(bids[i + 1]);
             }
 
             front_element = front_block->elem;
@@ -268,15 +314,14 @@ public:
 
     ~queue()
     {
-        w_pool->add(front_block);
+        pool->add(front_block);
         if (front_block != back_block)
-            w_pool->add(back_block);
+            pool->add(back_block);
 
 
-        if (delete_pools)
+        if (delete_pool)
         {
-            delete w_pool;
-            delete p_pool;
+            delete pool;
         }
 
         if (!bids.empty())
@@ -289,3 +334,4 @@ public:
 __STXXL_END_NAMESPACE
 
 #endif // !STXXL_QUEUE_HEADER
+// vim: et:ts=4:sw=4

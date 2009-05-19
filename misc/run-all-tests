@@ -111,6 +111,8 @@ run mng/test_mng
 run mng/test_mng1
 run mng/test_prefetch_pool
 run mng/test_write_pool
+run mng/test_pool_pair
+run mng/test_read_write_pool
 run mng/test_mng_recursive_alloc
 
 run containers/bench_pqueue
@@ -161,7 +163,7 @@ run algo/test_manyunits
 run algo/test_random_shuffle
 run algo/test_scan
 run algo/test_sort
-run algo/test_stable_ksort
+test -n "$WITH_STABLE_KSORT" && run algo/test_stable_ksort
 
 run stream/test_push_sort
 run stream/test_sorted_runs
@@ -200,9 +202,9 @@ run containers/leda_sm_pq_benchmark 2 1000000
 run containers/leda_sm_stack_benchmark 1 1073741824
 run containers/leda_sm_stack_benchmark 2 1073741824
 
-#algo/test_sort_all_parameters		<MB to sort> <MB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
-#algo/test_ksort_all_parameters		<MB to sort> <MB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
-#algo/test_stable_ksort_all_parameters	<MB to sort> <MB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
+#algo/test_sort_all_parameters		<MiB to sort> <MiB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
+#algo/test_ksort_all_parameters		<MiB to sort> <MiB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
+#algo/test_stable_ksort_all_parameters	<MiB to sort> <MiB to use> <alloc_strategy [0..3]> <blk_size [0..14]> <seed>
 for data in 1024 ; do
 for ram in 384 ; do
 for strategy in 0 1 2 3 ; do
@@ -215,7 +217,7 @@ done
 done
 done
 
-#algo/test_parallel_sort [n in megabytes] [p threads] [M in megabytes] [sorting algorithm: m | q | qb | s] [merging algorithm: p | s | n]
+#algo/test_parallel_sort [n in MiB] [p threads] [M in MiB] [sorting algorithm: m | q | qb | s] [merging algorithm: p | s | n]
 for data in 768 ; do
 for ram in 128 ; do
 for threads in 1 2 3 4 ; do
@@ -227,3 +229,5 @@ done
 done
 done
 done
+
+exit 0

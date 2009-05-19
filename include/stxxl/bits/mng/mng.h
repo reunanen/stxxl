@@ -20,7 +20,6 @@
 #include <iomanip>
 #include <fstream>
 #include <vector>
-#include <list>
 #include <map>
 #include <algorithm>
 #include <string>
@@ -114,13 +113,18 @@ bool operator != (const BID<blk_sz> & a, const BID<blk_sz> & b)
     return (a.storage != b.storage) || (a.offset != b.offset) || (a.size != b.size);
 }
 
-
 template <unsigned blk_sz>
 std::ostream & operator << (std::ostream & s, const BID<blk_sz> & bid)
 {
-    s << " storage file addr: " << bid.storage;
-    s << " offset: " << bid.offset;
-    s << " size: " << bid.size;
+    // [0x12345678|0]0x00100000/0x00010000
+    // [file ptr|file id]offset/size
+
+    s << "[" << bid.storage << "|";
+    if (bid.storage)
+        s << bid.storage->get_id();
+    else
+        s << "?";
+    s << "]0x" << std::hex << std::setfill('0') << std::setw(8) << bid.offset << "/0x" << std::setw(8) << bid.size;
     return s;
 }
 
@@ -624,7 +628,7 @@ stxxl::int64 DiskAllocator::new_blocks(BID<BLK_SIZE> * begin,
 
     sortseq::iterator space =
         std::find_if(free_space.begin(), free_space.end(),
-                     bind2nd(FirstFit(), requested_size));
+                     bind2nd(FirstFit(), requested_size) __STXXL_FORCE_SEQUENTIAL);
 
     if (space != free_space.end())
     {
@@ -1208,6 +1212,16 @@ public:
         DiskAssignFunctor functor,
         BIDIteratorClass out);
 
+    //! Allocates a new block according to the strategy
+    //! given by \b functor and stores the block identifier
+    //! to bid.
+    //! \param functor object of model of \b allocation_strategy concept
+    //! \param bid BID to store the block identifier
+    template <typename DiskAssignFunctor, unsigned BLK_SIZE>
+    void new_block(DiskAssignFunctor functor, BID<BLK_SIZE> & bid)
+    {
+        new_blocks_int<BID<BLK_SIZE> >(1, functor, &bid);
+    }
 
     //! \brief Deallocates blocks
 
