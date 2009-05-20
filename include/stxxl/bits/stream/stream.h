@@ -17,6 +17,11 @@
 #define STXXL_START_PIPELINE_DEFERRED 0
 #endif
 
+#ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+#define STXXL_STREAM_SORT_ASYNCHRONOUS_PULL 0
+#endif
+
+
 #ifdef STXXL_BOOST_THREADS // Use Portable Boost threads
  #include <boost/bind.hpp>
 #endif
@@ -40,6 +45,7 @@
 #ifndef STXXL_WAIT_FOR_STOP_DEFAULT
 #define STXXL_WAIT_FOR_STOP_DEFAULT false
 #endif
+
 
 __STXXL_BEGIN_NAMESPACE
 
