@@ -250,9 +250,9 @@ void double_diamond(vector_type & input, bool asynchronous_pull, bool deferred, 
 
 
 #if BATCHED
-        o = materialize_batch(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), deferred);       //17
+        o = materialize_batch(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, deferred);       //17
 #else
-        o = materialize(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), deferred);             //17
+        o = materialize(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, deferred);             //17
 #endif
     }
     assert(o == tuple_output.end());

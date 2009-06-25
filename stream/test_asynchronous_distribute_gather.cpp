@@ -124,9 +124,9 @@ void distribute_gather(vector_type & input, bool deferred)
     accumulate_stream_type2 accumulate_stream2(acc2, connect_stream);
 
 #if BATCHED
-    o = materialize_batch(accumulate_stream2, output.begin(), output.end(), deferred);
+    o = materialize_batch(accumulate_stream2, output.begin(), output.end(), 0, deferred);
 #else
-    o = materialize(accumulate_stream2, output.begin(), output.end(), deferred);
+    o = materialize(accumulate_stream2, output.begin(), output.end(), 0, deferred);
 #endif
 
     assert(o == output.end());

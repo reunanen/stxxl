@@ -564,8 +564,8 @@ namespace stream
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
-                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT,
-                unsigned_type nbuffers = 0)
+                unsigned_type nbuffers = 0,
+                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
@@ -641,8 +641,8 @@ namespace stream
     materialize_batch(StreamAlgorithm_ & in,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
-                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT,
-                      unsigned_type nbuffers = 0)
+                      unsigned_type nbuffers = 0,
+                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
@@ -725,8 +725,8 @@ namespace stream
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
-                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT,
-                unsigned_type nbuffers = 0)
+                unsigned_type nbuffers = 0,
+                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
@@ -801,8 +801,8 @@ namespace stream
     stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
     materialize_batch(StreamAlgorithm_ & in,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
-                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT,
-                      unsigned_type nbuffers = 0)
+                      unsigned_type nbuffers = 0,
+                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;

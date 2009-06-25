@@ -90,9 +90,9 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
     sort_stream_type sort_stream(input_stream, cl, run_size, asynchronous_pull, deferred);
 
 #if BATCHED
-    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end(), deferred);
+    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end(), 0, deferred);
 #else
-    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), deferred);
+    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), 0, deferred);
 #endif
 
 #if OUTPUT_STATS
