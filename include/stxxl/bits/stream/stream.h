@@ -501,7 +501,7 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (deferred)
@@ -516,6 +516,11 @@ namespace stream
         return outbegin;
     }
 
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+        materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
 
     //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
@@ -527,7 +532,7 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (deferred)
@@ -546,6 +551,11 @@ namespace stream
         return outbegin;
     }
 
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+        materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
