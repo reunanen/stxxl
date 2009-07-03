@@ -480,6 +480,8 @@ namespace stream
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
+#else
+        UNUSED(deferred);
 #endif
         unsigned_type length;
         while (length = in.batch_length() > 0)
@@ -506,6 +508,8 @@ namespace stream
 #if STXXL_START_PIPELINE_DEFERRED
         if (deferred)
             in.start_pull();
+#else
+        UNUSED(deferred);
 #endif
         while ((!in.empty()) && outend != outbegin)
         {
@@ -540,6 +544,8 @@ namespace stream
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
+#else
+        UNUSED(deferred);
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
@@ -664,6 +670,8 @@ namespace stream
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
+#else
+        UNUSED(deferred);
 #endif
 
         ExtIterator outcurrent = outbegin;
@@ -750,6 +758,8 @@ namespace stream
 #if STXXL_START_PIPELINE_DEFERRED
         if (deferred)
             in.start_pull();
+#else
+        UNUSED(deferred);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -829,6 +839,8 @@ namespace stream
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
+#else
+        UNUSED(deferred);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
