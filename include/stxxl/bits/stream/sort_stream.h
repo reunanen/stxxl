@@ -2148,7 +2148,8 @@ namespace stream
             creator(in, c, memory_to_use_rc, asynchronous_pull, deferred),
             merger(creator, c, memory_to_use_m, deferred),
             c(c),
-            memory_to_use_m(memory_to_use_m)
+            memory_to_use_m(memory_to_use_m),
+            input(in)
         { }
 
         //! \brief Standard stream method
