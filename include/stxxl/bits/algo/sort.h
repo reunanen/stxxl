@@ -421,9 +421,7 @@ namespace sort_local
 
         if(inplace)
         {
-            out_run->bids = new bid_type[out_run->size()];
-            out_run->first_of_each_block = new value_type[out_run->size()];
-        	typename consume_seq_type::iterator c = consume_seq.begin();
+            typename consume_seq_type::iterator c = consume_seq.begin();
             for(unsigned_type i = 0; i < out_run->size(); ++i)
             	out_run->bids[i] = (*c++).bid;
         }
