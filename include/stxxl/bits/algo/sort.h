@@ -366,8 +366,7 @@ namespace sort_local
 
 
     template <typename block_type, typename run_type, typename value_cmp>
-    void merge_runs(run_type ** in_runs, int_type nruns, run_type * out_run, unsigned_type _m, value_cmp cmp
-                    )
+    void merge_runs(run_type ** in_runs, int_type nruns, run_type * out_run, unsigned_type _m, value_cmp cmp, bool inplace = false)
     {
         typedef typename block_type::bid_type bid_type;
         typedef typename block_type::value_type value_type;
@@ -420,10 +419,20 @@ namespace sort_local
 
 #endif
 
+        if(inplace)
+        {
+            out_run->bids = new bid_type[out_run->size()];
+            out_run->first_of_each_block = new value_type[out_run->size()];
+        	typename consume_seq_type::iterator c = consume_seq.begin();
+            for(unsigned_type i = 0; i < out_run->size(); ++i)
+            	out_run->bids[i] = (*c++).bid;
+        }
+
         prefetcher_type prefetcher(consume_seq.begin(),
                                    consume_seq.end(),
                                    prefetch_seq,
-                                   nruns + n_prefetch_buffers);
+                                   nruns + n_prefetch_buffers,
+                                   !inplace);
 
         buffered_writer<block_type> writer(n_write_buffers, n_write_buffers / 2);
 
@@ -596,17 +605,8 @@ namespace sort_local
 
         delete[] prefetch_seq;
 
-        //deletion is too late for being in-place
-        block_manager * bm = block_manager::get_instance();
         for (int_type i = 0; i < nruns; ++i)
-        {
-            unsigned_type sz = in_runs[i]->size();
-            for (unsigned_type j = 0; j < sz; ++j)
-                bm->delete_block((*in_runs[i])[j].bid);
-
-
             delete in_runs[i];
-        }
     }
 
 
