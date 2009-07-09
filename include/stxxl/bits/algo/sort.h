@@ -371,17 +371,20 @@ namespace sort_local
     {
         typedef typename block_type::bid_type bid_type;
         typedef typename block_type::value_type value_type;
-        typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
+        typedef trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef simple_vector<trigger_entry_type> consume_seq_type;
+        typedef block_prefetcher<block_type, typename consume_seq_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
         typedef run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
 
-        run_type consume_seq(out_run->size());
+        consume_seq_type consume_seq(out_run->size());
 
         int_type * prefetch_seq = new int_type[out_run->size()];
 
-        typename run_type::iterator copy_start = consume_seq.begin();
+        typename consume_seq_type::iterator copy_start = consume_seq.begin();
         for (int_type i = 0; i < nruns; i++)
         {
+            //copy BIDs to virtual run
             // TODO: try to avoid copy
             copy_start = std::copy(
                 in_runs[i]->begin(),
@@ -593,6 +596,7 @@ namespace sort_local
 
         delete[] prefetch_seq;
 
+        //deletion is too late for being in-place
         block_manager * bm = block_manager::get_instance();
         for (int_type i = 0; i < nruns; ++i)
         {
@@ -812,6 +816,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
                 mng->new_blocks(FR(), &first_bid, (&first_bid) + 1);                // try to overlap
                 mng->new_blocks(FR(), &last_bid, (&last_bid) + 1);
                 req->wait();
+                //delete block here?
 
 
                 req = last_block->read(*last.bid());
@@ -823,6 +828,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
                 }
 
                 req->wait();
+                //delete block here?
 
 
                 req = first_block->write(first_bid);
@@ -866,6 +872,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
 
                 reqs[0]->wait();
                 reqs[1]->wait();
+                //delete block here?
 
                 reqs[0] = last_block->read(last_bid);
                 reqs[1] = sorted_last_block->read(((*out)[out->size() - 1]).bid);
@@ -877,6 +884,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
 
                 reqs[0]->wait();
                 reqs[1]->wait();
+                //delete block here?
 
                 req = first_block->write(first_bid);
 
@@ -927,6 +935,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
                 req = first_block->read(*first.bid());
                 mng->new_blocks(FR(), &first_bid, (&first_bid) + 1);                // try to overlap
                 req->wait();
+                //delete block here?
 
 
                 unsigned_type i = 0;
@@ -965,6 +974,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
 
                 reqs[0]->wait();
                 reqs[1]->wait();
+                //delete block here?
 
                 for (i = first.block_offset(); i < block_type::size; ++i)
                 {
@@ -1011,6 +1021,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
                 req = last_block->read(*last.bid());
                 mng->new_blocks(FR(), &last_bid, (&last_bid) + 1);
                 req->wait();
+                //delete block here?
 
 
                 for (i = last.block_offset(); i < block_type::size; ++i)
@@ -1046,6 +1057,7 @@ void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsign
 
                 reqs[0]->wait();
                 reqs[1]->wait();
+                //delete block here?
 
                 for (i = 0; i < last.block_offset(); ++i)
                 {
