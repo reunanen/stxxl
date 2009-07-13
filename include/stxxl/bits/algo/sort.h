@@ -423,7 +423,7 @@ namespace sort_local
         {
             typename consume_seq_type::iterator c = consume_seq.begin();
             for(unsigned_type i = 0; i < out_run->size(); ++i)
-            	out_run->bids[i] = (*c++).bid;
+            	(*out_run)[i].bid = (*c++).bid;
         }
 
         prefetcher_type prefetcher(consume_seq.begin(),
