@@ -31,7 +31,7 @@ stxxl::unsigned_type memory_to_use = 2048 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-void distribute_gather(vector_type & input, bool deferred)
+void distribute_gather(vector_type & input, stxxl::stream::StartMode start_mode)
 {
     using stxxl::stream::deterministic_round_robin;
     using stxxl::stream::deterministic_distribute;
@@ -92,17 +92,17 @@ void distribute_gather(vector_type & input, bool deferred)
 
     for (unsigned int w = 0; w < num_workers; ++w)
     {
-        buckets[w] = new bucket_type(buffer_size, deferred);
+        buckets[w] = new bucket_type(buffer_size, start_mode);
 #if INTERMEDIATE
         workers[w] = new worker_stream_type(id, *buckets[w]);
-        worker_nodes[w] = new worker_stream_node_type(buffer_size, *workers[w], deferred);
+        worker_nodes[w] = new worker_stream_node_type(buffer_size, *workers[w], start_mode);
 #endif
     }
 
     const stxxl::unsigned_type chunk_size = buffer_size / sizeof(my_type) / (3 * num_workers);
 
     typedef deterministic_distribute<worker_stream_node_type> distributor_stream_type;
-    distributor_stream_type distributor_stream(worker_nodes, num_workers, chunk_size, deferred);
+    distributor_stream_type distributor_stream(worker_nodes, num_workers, chunk_size, start_mode);
 
     typedef pusher<accumulate_stream1_type, distributor_stream_type> pusher_stream_type;
     pusher_stream_type pusher_stream(accumulate_stream1, distributor_stream);
@@ -112,21 +112,21 @@ void distribute_gather(vector_type & input, bool deferred)
 #else
     typedef pull_empty<pusher_stream_type> pull_empty_type;
 #endif
-    pull_empty_type pull_empty_node(pusher_stream, deferred);
+    pull_empty_type pull_empty_node(pusher_stream, start_mode);
 
     typedef deterministic_round_robin<worker_stream_node_type> fetcher_stream_type;
-    fetcher_stream_type fetcher_stream(worker_nodes, num_workers, chunk_size, deferred);
+    fetcher_stream_type fetcher_stream(worker_nodes, num_workers, chunk_size, start_mode);
 
     typedef connect_pull<fetcher_stream_type, pull_empty_type> connect_stream_type;
-    connect_stream_type connect_stream(fetcher_stream, pull_empty_node, deferred);
+    connect_stream_type connect_stream(fetcher_stream, pull_empty_node, start_mode);
 
     typedef transform<accumulate<my_type>, connect_stream_type> accumulate_stream_type2;
     accumulate_stream_type2 accumulate_stream2(acc2, connect_stream);
 
 #if BATCHED
-    o = materialize_batch(accumulate_stream2, output.begin(), output.end(), 0, deferred);
+    o = materialize_batch(accumulate_stream2, output.begin(), output.end(), 0, start_mode);
 #else
-    o = materialize(accumulate_stream2, output.begin(), output.end(), 0, deferred);
+    o = materialize(accumulate_stream2, output.begin(), output.end(), 0, start_mode);
 #endif
 
     assert(o == output.end());
@@ -182,7 +182,7 @@ int main()
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-    distribute_gather(input, true);
+    distribute_gather(input, stxxl::stream::start_deferred);
 
     return 0;
 }

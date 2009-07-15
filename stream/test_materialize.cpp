@@ -70,11 +70,17 @@ int main()
     forty_two _42;
     std::vector<int> v(1000);
     stxxl::stream::materialize(_42.reset(), v.begin());
+    stxxl::stream::materialize(_42.reset(), v.begin(), stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), v.begin(), v.end());
+    stxxl::stream::materialize(_42.reset(), v.begin(), v.end(), stxxl::stream::start_deferred);
 
     stxxl::VECTOR_GENERATOR<int>::result xv(1000);
     stxxl::stream::materialize(_42.reset(), xv.begin());
+    stxxl::stream::materialize(_42.reset(), xv.begin(), stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), xv.begin(), 42);
+    stxxl::stream::materialize(_42.reset(), xv.begin(), 42, stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end());
+    stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), 42);
+    stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), 42, stxxl::stream::start_deferred);
 }
