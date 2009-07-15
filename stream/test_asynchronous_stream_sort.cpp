@@ -46,7 +46,7 @@ stxxl::unsigned_type checksum(vector_type & input)
     return sum;
 }
 
-void linear_sort_streamed(vector_type & input, vector_type & output, bool asynchronous_pull, bool deferred)
+void linear_sort_streamed(vector_type & input, vector_type & output, bool asynchronous_pull, stxxl::stream::StartMode start_mode)
 {
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
@@ -87,12 +87,12 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
     typedef sort<input_stream_type, comparator_type, block_size> sort_stream_type;
 #endif
 
-    sort_stream_type sort_stream(input_stream, cl, run_size, asynchronous_pull, deferred);
+    sort_stream_type sort_stream(input_stream, cl, run_size, asynchronous_pull, start_mode);
 
 #if BATCHED
-    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end(), 0, deferred);
+    vector_type::iterator o = materialize_batch(sort_stream, output.begin(), output.end(), 0, start_mode);
 #else
-    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), 0, deferred);
+    vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), 0, start_mode);
 #endif
 
 #if OUTPUT_STATS
@@ -140,7 +140,7 @@ int main()
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-    linear_sort_streamed(input, output, true, false);
+    linear_sort_streamed(input, output, true, stxxl::stream::start_immediately);
 
     return 0;
 }

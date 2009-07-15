@@ -15,6 +15,7 @@ test_asynchronous_stream_sort.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_asynchronous_distribute_gather.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
+test_materialize.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -DSTXXL_VERBOSE_MATERIALIZE=STXXL_VERBOSE0
 
 $(eval $(call COMPILE_VARIANT,as,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1))
 $(eval $(call COMPILE_VARIANT,as-ba,-DSTXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1 -DBATCHED=1))

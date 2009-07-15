@@ -11,8 +11,9 @@
 ############################################################################
 
 HOST		?= unknown
-SIZE		?= 100	# GiB
-STEP		?= 256  # MiB
+FILE_SIZE	?= $(or $(SIZE),100)	# GiB
+BLOCK_SIZE	?= $(or $(STEP),256)	# MiB
+BATCH_SIZE	?= 1	# blocks
 
 disk2file	?= /stxxl/sd$1/stxxl
 
@@ -36,7 +37,7 @@ $(foreach d,$(DISKS_1by1),$(eval DISKS_$d ?= $d))
 define do-some-disks
 	-$(pipefail) \
 	$(if $(IOSTAT_PLOT_RECORD_DATA),$(IOSTAT_PLOT_RECORD_DATA) -p $(@:.log=)) \
-	$(DISKBENCH_BINDIR)/$(DISKBENCH) 0 $(SIZE) $(STEP) $(FLAGS_$*) $(FLAGS_EX) $(foreach d,$(DISKS_$*),$(call disk2file,$d)) | tee $@
+	$(DISKBENCH_BINDIR)/$(DISKBENCH) 0 $(FILE_SIZE) $(BLOCK_SIZE) $(BATCH_SIZE) $(FLAGS_$*) $(FLAGS_EX) $(foreach d,$(DISKS_$*),$(call disk2file,$d)) | tee $@
 endef
 
 $(HOST)-%.cr.log:
@@ -66,11 +67,15 @@ all: crx wr ex
 
 crx: $(foreach d,$(DISKS_1by1),$(HOST)-$d.crx.log)
 cr: $(foreach d,$(DISKS_1by1),$(HOST)-$d.cr.log)
+cr+: $(foreach d,$(DISKS),$(HOST)-$d.crx.log)
 wr: $(foreach d,$(DISKS),$(HOST)-$d.wr.log)
 ex: $(foreach d,$(DISKS_1by1),$(HOST)-$d.wrx.log $(HOST)-$d.rdx.log)
 ex+: $(foreach d,$(DISKS),$(HOST)-$d.wrx.log $(HOST)-$d.rdx.log)
 
 plot: $(HOST).gnuplot
+	gnuplot $<
+
+dotplot: $(HOST).d.gnuplot
 	gnuplot $<
 
 # $1 = logfile, $2 = column
@@ -113,7 +118,7 @@ DISKNAME	?= unknown disk
 PLOTXMAX	?= 475
 PLOTYMAX	?= 120
 
-$(HOST).gnuplot: Makefile $(wildcard *.log)
+$(HOST).gnuplot: $(MAKEFILE_LIST) $(wildcard *.log)
 	$(RM) $@
 	echo 'set title "STXXL Disk Benchmark $(DISKNAME) @ $(HOST)"' >> $@
 	echo 'set xlabel "Disk offset [GiB]"' >> $@
@@ -124,13 +129,13 @@ $(HOST).gnuplot: Makefile $(wildcard *.log)
 	$(foreach d,$(DISKS_1by1),\
 		$(call plotline-cr1,$(HOST)-$d.cr1.log,$(call disk2label,$d)) \
 		$(call plotline-crx,$(HOST)-$d.crx.log,$(call disk2label,$d)) \
-		$(call plotline-wrx,$(HOST)-$d.wrx.log,$(call disk2label,$d)) \
-		$(call plotline-rdx,$(HOST)-$d.rdx.log,$(call disk2label,$d)) \
 		$(call plotline-cr,$(HOST)-$d.cr.log,$(call disk2label,$d)) \
 		$(call plotline-wr,$(HOST)-$d.wr1.log,$(call disk2label,$d)) \
 		$(call plotline-rd,$(HOST)-$d.wr1.log,$(call disk2label,$d)) \
 		$(call plotline-wr,$(HOST)-$d.wr.log,$(call disk2label,$d)) \
 		$(call plotline-rd,$(HOST)-$d.wr.log,$(call disk2label,$d)) \
+		$(call plotline-wrx,$(HOST)-$d.wrx.log,$(call disk2label,$d)) \
+		$(call plotline-rdx,$(HOST)-$d.rdx.log,$(call disk2label,$d)) \
 	)
 	$(foreach d,$(filter-out $(DISKS_1by1),$(DISKS)),\
 		$(call plotline-wrx,$(HOST)-$d.wrx.log,$(call disks2label,$d)) \
@@ -141,12 +146,15 @@ $(HOST).gnuplot: Makefile $(wildcard *.log)
 	echo '        "nothing" notitle' >> $@
 
 	echo '' >> $@
-	echo 'pause mouse' >> $@
+	echo 'pause -1' >> $@
 	echo '' >> $@
 	echo 'set title "STXXL Disk Benchmark $(DISKNAME) \\@ $(subst _,\\_,$(HOST))"' >> $@
 	echo 'set term postscript enhanced color solid' >> $@
 	echo 'set output "$(HOST).ps"' >> $@
 	echo 'replot' >> $@
+
+$(HOST).d.gnuplot: $(HOST).gnuplot
+	sed -e 's/ w l / w d lw 2 /' $< > $@
 
 -include iostat-plot.mk
 

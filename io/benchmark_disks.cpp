@@ -97,32 +97,56 @@ void out_stat(double start, double end, double * times, unsigned n, const std::v
 
 void usage(const char * argv0)
 {
-    std::cout << "Usage: " << argv0 << " offset length step [r|w] diskfile..." << std::endl;
-    std::cout << "    starting 'offset' and 'length' are given in GiB, 'step' size in MiB" << std::endl;
+    std::cout << "Usage: " << argv0 << " offset length [block_size [batch_size]] [r|w] [--] diskfile..." << std::endl;
+    std::cout << "    starting 'offset' and 'length' are given in GiB," << std::endl;
+    std::cout << "    'block_size' (default 8) in MiB, increase 'batch_size' (default 1)" << std::endl;
+    std::cout << "    to submit several I/Os at once and report average rate" << std::endl;
+    std::cout << "    ops: write and reread (default), (r)ead only, (w)rite only" << std::endl;
     std::cout << "    length == 0 implies till end of space (please ignore the write error)" << std::endl;
+    std::cout << "    Memory consumption: block_size * batch_size * num_disks" << std::endl;
     exit(-1);
 }
 
 int main(int argc, char * argv[])
 {
-    if (argc < 5)
+    if (argc < 4)
         usage(argv[0]);
 
     stxxl::int64 offset    = stxxl::int64(GB) * stxxl::int64(atoi(argv[1]));
     stxxl::int64 length    = stxxl::int64(GB) * stxxl::int64(atoi(argv[2]));
-    stxxl::int64 step_size = stxxl::int64(MB) * stxxl::int64(atoi(argv[3]));
     stxxl::int64 endpos    = offset + length;
+    stxxl::int64 block_size = 0;
+    stxxl::int64 batch_size = 0;
 
     bool do_read = true, do_write = true;
-    int first_disk_arg = 4;
+    int first_disk_arg = 3;
 
-    if (strcmp("r", argv[4]) == 0 || strcmp("R", argv[4]) == 0) {
+    if (first_disk_arg < argc)
+        block_size = atoi(argv[first_disk_arg]);
+    if (block_size > 0) {
+        ++first_disk_arg;
+    } else {
+        block_size = 8;
+    }
+    block_size *= MB;
+
+    if (first_disk_arg < argc)
+        batch_size = atoi(argv[first_disk_arg]);
+    if (batch_size > 0) {
+        ++first_disk_arg;
+    } else {
+        batch_size = 1;
+    }
+
+    if (first_disk_arg < argc && (strcmp("r", argv[first_disk_arg]) == 0 || strcmp("R", argv[first_disk_arg]) == 0)) {
         do_write = false;
+        ++first_disk_arg;
+    } else if (first_disk_arg < argc && (strcmp("w", argv[first_disk_arg]) == 0 || strcmp("W", argv[first_disk_arg]) == 0)) {
+        do_read = false;
         ++first_disk_arg;
     }
 
-    if (strcmp("w", argv[4]) == 0 || strcmp("W", argv[4]) == 0) {
-        do_read = false;
+    if (first_disk_arg < argc && strcmp("--", argv[first_disk_arg]) == 0) {
         ++first_disk_arg;
     }
 
@@ -139,15 +163,13 @@ int main(int argc, char * argv[])
 
     const unsigned ndisks = disks_arr.size();
 
-    const unsigned block_size = 8 * MB;
-    unsigned num_blocks = STXXL_DIVRU(step_size, block_size);
-    step_size = num_blocks * block_size;
+    const stxxl::unsigned_type step_size = block_size * batch_size;
     const unsigned block_size_int = block_size / sizeof(int);
     const stxxl::int64 step_size_int = step_size / sizeof(int);
 
     unsigned * buffer = (unsigned *)stxxl::aligned_alloc<BLOCK_ALIGN>(step_size * ndisks);
     file ** disks = new file *[ndisks];
-    request_ptr * reqs = new request_ptr[ndisks * num_blocks];
+    request_ptr * reqs = new request_ptr[ndisks * batch_size];
 #ifdef WATCH_TIMES
     double * r_finish_times = new double[ndisks];
     double * w_finish_times = new double[ndisks];
@@ -181,7 +203,7 @@ int main(int argc, char * argv[])
 
     std::cout << "# Step size: "
               << step_size << " bytes per disk ("
-              << num_blocks << " blocks of "
+              << batch_size << " blocks of "
               << block_size << " bytes)" << std::endl;
     try {
         while (offset < endpos)

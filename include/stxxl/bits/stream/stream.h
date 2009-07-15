@@ -34,10 +34,6 @@
 #include <stxxl/bits/compat_unique_ptr.h>
 
 
-#ifndef STXXL_START_PIPELINE_DEFERRED_DEFAULT
-#define STXXL_START_PIPELINE_DEFERRED_DEFAULT false
-#endif
-
 #ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT
 #define STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT false
 #endif
@@ -52,6 +48,12 @@ __STXXL_BEGIN_NAMESPACE
 //! \brief Stream package subnamespace
 namespace stream
 {
+    enum StartMode { start_deferred, start_immediately };
+
+    #ifndef STXXL_START_PIPELINE_DEFERRED_DEFAULT
+    #define STXXL_START_PIPELINE_DEFERRED_DEFAULT start_immediately
+    #endif
+
     //! \weakgroup streampack Stream package
     //! Package that enables pipelining of consequent sorts
     //! and scans of the external data avoiding the saving the intermediate
@@ -447,13 +449,13 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         while (!in.empty())
         {
@@ -472,16 +474,16 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
         {
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         unsigned_type length;
         while (length = in.batch_length() > 0)
@@ -503,13 +505,13 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         while ((!in.empty()) && outend != outbegin)
         {
@@ -518,12 +520,6 @@ namespace stream
             ++in;
         }
         return outbegin;
-    }
-
-    template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
-    {
-        materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
     //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
@@ -536,16 +532,16 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, bool deferred)
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
         {
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
@@ -555,12 +551,6 @@ namespace stream
             in += length;
         }
         return outbegin;
-    }
-
-    template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
-    {
-        materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
@@ -581,17 +571,17 @@ namespace stream
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
                 unsigned_type nbuffers = 0,
-                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+                StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -658,20 +648,20 @@ namespace stream
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
                       unsigned_type nbuffers = 0,
-                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+                      StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
         {
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
 
         ExtIterator outcurrent = outbegin;
@@ -744,7 +734,7 @@ namespace stream
     materialize(StreamAlgorithm_ & in,
                 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
                 unsigned_type nbuffers = 0,
-                bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+                StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
@@ -756,10 +746,10 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -786,7 +776,7 @@ namespace stream
         while (!in.empty())
         {
             if (out.block_offset() == 0)
-                out.outbegin.block_externally_updated();
+                out.block_externally_updated();
             // tells the vector that the block was modified
             *outstream = *in;
             ++out;
@@ -822,7 +812,7 @@ namespace stream
     materialize_batch(StreamAlgorithm_ & in,
                       stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
                       unsigned_type nbuffers = 0,
-                      bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+                      StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
@@ -834,13 +824,13 @@ namespace stream
         // vector (only one block indeed), amortized complexity should apply here
 
 #if STXXL_START_PIPELINE_DEFERRED
-        if (deferred)
+        if (start_mode == start_deferred)
         {
             STXXL_VERBOSE0("materialize_batch starts.");
             in.start_pull();
         }
 #else
-        UNUSED(deferred);
+        UNUSED(start_mode);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -1566,7 +1556,7 @@ namespace stream
         value_type current;
         int pos;
         int empty_count;
-        bool deferred;
+        StartMode start_mode;
 
         void next()
         {
@@ -1579,10 +1569,10 @@ namespace stream
 
     public:
         //! \brief Construction
-        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs, bool deferred) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs), deferred(deferred)
+        basic_distribute(/*Input_ input, */ Output_ ** outputs, int num_outputs, StartMode start_mode) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs), start_mode(start_mode)
         {
             empty_count = 0;
-            if (deferred)
+            if (start_mode == start_deferred)
                 pos = 0;
             else
             {
@@ -1597,7 +1587,7 @@ namespace stream
             STXXL_VERBOSE0("distribute " << this << " starts push.");
             for (int i = 0; i < num_outputs; ++i)
                 outputs[i]->start_push();
-            if (deferred)
+            if (start_mode == start_deferred)
             {
                 pos = -1;
                 next();
@@ -1691,7 +1681,7 @@ namespace stream
     public:
         typedef typename base::value_type value_type;
 
-        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(outputs, num_outputs, deferred)
+        deterministic_distribute(Output_ ** outputs, int num_outputs, unsigned_type elements_per_chunk, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(outputs, num_outputs, start_mode)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;
@@ -1748,7 +1738,7 @@ namespace stream
         value_type current;
         int pos;
         int empty_count;
-        bool deferred;
+        StartMode start_mode;
 
         void next()
         {
@@ -1777,14 +1767,14 @@ namespace stream
 
     public:
         //! \brief Construction
-        basic_round_robin(Input_ ** inputs, int num_inputs, bool deferred) : inputs(inputs), num_inputs(num_inputs), deferred(deferred)
+        basic_round_robin(Input_ ** inputs, int num_inputs, StartMode start_mode) : inputs(inputs), num_inputs(num_inputs), start_mode(start_mode)
         {
             empty_count = 0;
             already_empty = new bool[num_inputs];
             for (int i = 0; i < num_inputs; ++i)
                 already_empty[i] = false;
 
-            if (deferred)
+            if (start_mode == start_deferred)
                 pos = 0;
             else
             {
@@ -1804,7 +1794,7 @@ namespace stream
             STXXL_VERBOSE0("basic_round_robin " << this << " starts.");
             for (int i = 0; i < num_inputs; ++i)
                 inputs[i]->start_pull();
-            if (deferred)
+            if (start_mode == start_deferred)
             {
                 pos = -1;
                 next();
@@ -1852,7 +1842,7 @@ namespace stream
 
     public:
         //! \brief Construction
-        round_robin(Input_ ** inputs, int num_inputs, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(inputs, num_inputs, deferred)
+        round_robin(Input_ ** inputs, int num_inputs, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(inputs, num_inputs, start_mode)
         { }
 
         unsigned_type batch_length() const
@@ -1896,7 +1886,7 @@ namespace stream
 
     public:
         //! \brief Construction
-        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(inputs, num_inputs, deferred)
+        deterministic_round_robin(Input_ ** inputs, int num_inputs, unsigned_type elements_per_chunk, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(inputs, num_inputs, start_mode)
         {
             this->elements_per_chunk = elements_per_chunk;
             elements_left = elements_per_chunk;

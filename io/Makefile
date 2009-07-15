@@ -115,6 +115,16 @@ benchmark_disk_and_flash.$(EXEEXT): benchmark_disk_and_flash.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c benchmark_disk_and_flash.cpp
 	$(LINKER) benchmark_disk_and_flash.$(OBJEXT) $(OUT)benchmark_disk_and_flash.$(EXEEXT) $(STXXL_LINKER_OPTIONS) $(CPPUNIT_LINKER_OPTIONS)
 
+benchmark_configured_disks: benchmark_configured_disks.$(EXEEXT)
+benchmark_configured_disks.$(EXEEXT): benchmark_configured_disks.cpp $(DEPENDENCIES)
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c benchmark_configured_disks.cpp
+	$(LINKER) benchmark_configured_disks.$(OBJEXT) $(OUT)benchmark_configured_disks.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
+	
+benchmark_random_block_access: benchmark_random_block_access.$(EXEEXT)
+benchmark_random_block_access.$(EXEEXT): benchmark_random_block_access.cpp $(DEPENDENCIES)
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c benchmark_random_block_access.cpp
+	$(LINKER) benchmark_random_block_access.$(OBJEXT) $(OUT)benchmark_random_block_access.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
+	
 
 clean:
 	$(RM) *.$(OBJEXT) *.$(EXEEXT)
