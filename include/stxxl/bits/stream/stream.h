@@ -501,7 +501,7 @@ namespace stream
         UNUSED(start_mode);
 #endif
         unsigned_type length;
-        while (length = in.batch_length() > 0)
+        while ((length = in.batch_length()) > 0)
         {
             out = std::copy(in.batch_begin(), in.batch_begin() + length, out);
             in += length;
