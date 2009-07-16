@@ -14,8 +14,13 @@
 #include <stxxl/stream>
 #include <stxxl/vector>
 
-struct forty_two {
+struct forty_two
+{
+	typedef int* const_iterator;
+
     unsigned counter;
+
+    static int ft;
 
     forty_two() : counter(0) { }
 
@@ -39,7 +44,22 @@ struct forty_two {
         counter = 0;
         return *this;
     }
+
+    int* batch_begin()
+    {
+    	return &ft;
+    }
+
+    int batch_length()
+    {
+    	return 1;
+    }
+
+    void operator+=(int)
+    { }
 };
+
+int forty_two::ft = 42;
 
 /*
     template <class OutputIterator_, class StreamAlgorithm_>
@@ -73,6 +93,10 @@ int main()
     stxxl::stream::materialize(_42.reset(), v.begin(), stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), v.begin(), v.end());
     stxxl::stream::materialize(_42.reset(), v.begin(), v.end(), stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), v.begin());
+    stxxl::stream::materialize_batch(_42.reset(), v.begin(), stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), v.begin(), v.end());
+    stxxl::stream::materialize_batch(_42.reset(), v.begin(), v.end(), stxxl::stream::start_deferred);
 
     stxxl::VECTOR_GENERATOR<int>::result xv(1000);
     stxxl::stream::materialize(_42.reset(), xv.begin());
@@ -83,4 +107,12 @@ int main()
     stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), stxxl::stream::start_deferred);
     stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), 42);
     stxxl::stream::materialize(_42.reset(), xv.begin(), xv.end(), 42, stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin());
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), 42);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), 42, stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), xv.end());
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), xv.end(), stxxl::stream::start_deferred);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), xv.end(), 42);
+    stxxl::stream::materialize_batch(_42.reset(), xv.begin(), xv.end(), 42, stxxl::stream::start_deferred);
 }

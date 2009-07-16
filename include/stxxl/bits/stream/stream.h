@@ -445,11 +445,12 @@ namespace stream
     //! \brief Stores consecutively stream content to an output iterator
     //! \param in stream to be stored used as source
     //! \param out output iterator used as destination
+    //! \param start_mode start node immediately or deferred
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
@@ -474,7 +475,21 @@ namespace stream
     //! i.e. points to the first unwritten value
     //! \pre Output (range) is large enough to hold the all elements in the input stream
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
+    {
+    	return materialize(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
+
+
+    //! \brief Stores consecutively stream content to an output iterator
+    //! \param in stream to be stored used as source
+    //! \param out output iterator used as destination
+    //! \param start_mode start node immediately or deferred
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output (range) is large enough to hold the all elements in the input stream
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
@@ -494,18 +509,30 @@ namespace stream
         return out;
     }
 
+    //! \brief Stores consecutively stream content to an output iterator
+    //! \param in stream to be stored used as source
+    //! \param out output iterator used as destination
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output (range) is large enough to hold the all elements in the input stream
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
+    {
+    	return materialize_batch(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
 
     //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
     //! \param outbegin output iterator used as destination
     //! \param outend output end iterator, pointing beyond the output range
+    //! \param start_mode start node immediately or deferred
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
     //! \pre Output range is large enough to hold the all elements in the input stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
@@ -532,7 +559,24 @@ namespace stream
     //!
     //! This function is useful when you do not know the length of the stream beforehand.
     template <class OutputIterator_, class StreamAlgorithm_>
-    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+    	return materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
+
+
+    //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \param start_mode start node immediately or deferred
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
     {
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
@@ -546,18 +590,33 @@ namespace stream
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
         {
-            length = STXXL_MIN(length, outend - outbegin);
+            length = STXXL_MIN<unsigned_type>(length, outend - outbegin);
             outbegin = std::copy(in.batch_begin(), in.batch_begin() + length, outbegin);
             in += length;
         }
         return outbegin;
     }
 
+    //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+    //! \param in stream to be stored used as source
+    //! \param outbegin output iterator used as destination
+    //! \param outend output end iterator, pointing beyond the output range
+    //! \return value of the output iterator after all increments,
+    //! i.e. points to the first unwritten value
+    //! \pre Output range is large enough to hold the all elements in the input stream
+    //!
+    //! This function is useful when you do not know the length of the stream beforehand.
+    template <class OutputIterator_, class StreamAlgorithm_>
+    OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
+    {
+    	return materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+    }
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
     //! \param outbegin output \c stxxl::vector iterator used as destination
     //! \param outend output end iterator, pointing beyond the output range
     //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! \param start_mode start node immediately or deferred
     //! which equals to (2 * number_of_disks)
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
@@ -635,6 +694,7 @@ namespace stream
     //! \param outbegin output \c stxxl::vector iterator used as destination
     //! \param outend output end iterator, pointing beyond the output range
     //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! \param start_mode start node immediately or deferred
     //! which equals to (2 * number_of_disks)
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
@@ -724,6 +784,7 @@ namespace stream
     //! \param in stream to be stored used as source
     //! \param out output \c stxxl::vector iterator used as destination
     //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! \param start_mode start node immediately or deferred
     //! which equals to (2 * number_of_disks)
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
@@ -802,6 +863,7 @@ namespace stream
     //! \param in stream to be stored used as source
     //! \param out output \c stxxl::vector iterator used as destination
     //! \param nbuffers number of blocks used for overlapped writing (0 is default,
+    //! \param start_mode start node immediately or deferred
     //! which equals to (2 * number_of_disks)
     //! \return value of the output iterator after all increments,
     //! i.e. points to the first unwritten value
@@ -858,8 +920,8 @@ namespace stream
         while ((length = in.batch_length()) > 0)
         {
             if (out.block_offset() == 0)
-                out.outbegin.block_externally_updated();
-            length = STXXL_MIN(length, ExtIterator::block_type::size - out.block_offset());
+                out.block_externally_updated();
+            length = STXXL_MIN<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
             for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
             {
                 *outstream = *i;
@@ -872,7 +934,7 @@ namespace stream
         while (!in.empty())
         {
             if (out.block_offset() == 0)
-                out.outbegin.block_externally_updated();
+                out.block_externally_updated();
             // tells the vector that the block was modified
             *outstream = *in;
             ++out;
@@ -919,7 +981,7 @@ namespace stream
         typename StreamAlgorithm_::value_type dummy;
         for (i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
         {
-            length = STXXL_MIN(length, num_elements - i);
+            length = STXXL_MIN<unsigned_type>(length, num_elements - i);
             for (typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
                 dummy = *j;
             in += length;
@@ -1702,7 +1764,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type push_batch_length() const
         {
-            return STXXL_MIN(elements_left, current_output->push_batch_length());
+            return STXXL_MIN<unsigned_type>(elements_left, current_output->push_batch_length());
         }
 
         //! \brief Batched stream method.
@@ -1908,7 +1970,7 @@ namespace stream
 
         unsigned_type batch_length() const
         {
-            return STXXL_MIN(elements_left, current_input->batch_length());
+            return STXXL_MIN<unsigned_type>(elements_left, current_input->batch_length());
         }
 
         //! \brief Standard stream method
@@ -2142,7 +2204,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return STXXL_MIN(i1.batch_length(), i2.batch_length());
+            return STXXL_MIN<unsigned_type>(i1.batch_length(), i2.batch_length());
         }
 
         //! \brief Batched stream method.
