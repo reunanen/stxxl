@@ -104,7 +104,7 @@ namespace stream
         unsigned_type m_;         // memory for internal use in blocks
         bool result_computed;     // true iff result is already computed (used in 'result' method)
         bool asynchronous_pull;
-        bool deferred;
+        StartMode start_mode;
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
@@ -309,14 +309,14 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull, bool deferred) :
+        basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull, StartMode start_mode) :
             input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false),
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             asynchronous_pull(asynchronous_pull),
 #else
             asynchronous_pull(false),
 #endif
-            deferred(deferred)
+            start_mode(start_mode)
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
@@ -359,7 +359,7 @@ namespace stream
             if (!result_computed)
             {
 #if STXXL_START_PIPELINE_DEFERRED
-                if (deferred)
+                if (start_mode == start_deferred)
                     input.start_pull();
 #endif
                 compute_result();
@@ -733,7 +733,7 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(i, c, memory_to_use, asynchronous_pull, deferred)
+        runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(i, c, memory_to_use, asynchronous_pull, start_mode)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             if (asynchronous_pull)
@@ -791,7 +791,7 @@ namespace stream
         //! \param i input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(i, c, memory_to_use, asynchronous_pull, deferred)
+        runs_creator_batch(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(i, c, memory_to_use, asynchronous_pull, start_mode)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             if (asynchronous_pull)
@@ -2038,11 +2038,11 @@ namespace stream
         //! \param r input sorted runs object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
+        runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
             base(c, memory_to_use),
             sruns(r)
         {
-            if (!deferred)
+            if (start_mode == start_immediately)
                 base::initialize(r);
         }
 
@@ -2079,11 +2079,11 @@ namespace stream
         //! \param rc Runs creator.
         //! \param c Comparison object.
         //! \param memory_to_use Amount of memory available for the merger in bytes.
-        startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
+        startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
             base(c, memory_to_use),
             rc(rc)
         {
-            if (!deferred)
+            if (start_mode == start_immediately)
                 base::initialize(rc.result());
         }
 
@@ -2131,9 +2131,9 @@ namespace stream
         //! \param in input stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
-            creator(in, c, memory_to_use, asynchronous_pull, deferred),
-            merger(creator, c, memory_to_use, deferred),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
+            creator(in, c, memory_to_use, asynchronous_pull, start_mode),
+            merger(creator, c, memory_to_use, start_mode),
             c(c),
             memory_to_use_m(memory_to_use),
             input(in)
@@ -2144,9 +2144,9 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use_rc memory amount that is allowed to used by the runs creator in bytes
         //! \param memory_to_use_m memory amount that is allowed to used by the merger in bytes
-        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
-            creator(in, c, memory_to_use_rc, asynchronous_pull, deferred),
-            merger(creator, c, memory_to_use_m, deferred),
+        sort(Input_ & in, Cmp_ c, unsigned_type memory_to_use_rc, unsigned_type memory_to_use_m, bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
+            creator(in, c, memory_to_use_rc, asynchronous_pull, start_mode),
+            merger(creator, c, memory_to_use_m, start_mode),
             c(c),
             memory_to_use_m(memory_to_use_m),
             input(in)
