@@ -18,6 +18,7 @@
 #include <deque>
 
 #include <stxxl/bits/mng/mng.h>
+#include <stxxl/bits/mng/typed_block.h>
 #include <stxxl/bits/common/simple_vector.h>
 #include <stxxl/bits/common/tmeta.h>
 #include <stxxl/bits/mng/read_write_pool.h>
@@ -89,7 +90,7 @@ public:
         bm(block_manager::get_instance())
     {
         STXXL_VERBOSE_QUEUE("queue[" << this << "]::queue(sizes)");
-        pool = new pool_type(w_pool_size, p_pool_size);
+        pool = new pool_type(p_pool_size, w_pool_size);
         init(blocks2prefetch_);
     }
 

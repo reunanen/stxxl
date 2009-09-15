@@ -15,6 +15,7 @@
 #include <stxxl/mng>
 #include <stxxl/bits/io/io.h>
 #include <stxxl/bits/version.h>
+#include <stxxl/bits/common/debug.h>
 
 
 __STXXL_BEGIN_NAMESPACE
@@ -129,8 +130,8 @@ void config::init(const char * config_path)
 }
 
 file * FileCreator::create(const std::string & io_impl,
-                                  const std::string & filename,
-                                  int options, int disk)
+                           const std::string & filename,
+                           int options, int disk)
 {
     if (io_impl == "syscall")
     {
@@ -180,7 +181,7 @@ file * FileCreator::create(const std::string & io_impl,
 #ifdef STXXL_BOOST_CONFIG
     else if (io_impl == "boostfd")
     {
-        boostfd_file* result = new boostfd_file(filename, options, disk);
+        boostfd_file * result = new boostfd_file(filename, options, disk);
         result->lock();
         return result;
     }

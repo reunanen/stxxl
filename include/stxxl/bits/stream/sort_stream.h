@@ -24,6 +24,7 @@
 
 #include <stxxl/bits/stream/stream.h>
 #include <stxxl/sort>
+#include <stxxl/bits/mng/typed_block.h>
 
 
 __STXXL_BEGIN_NAMESPACE
@@ -440,8 +441,8 @@ namespace stream
         if (blocks1_length < block_type::size && already_empty_after_1_block) // small input, do not flush it on the disk(s)
         {
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
-            result_.small_.resize(blocks1_length);
-            std::copy(Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length, result_.small_.begin());
+            assert(result_.small_.empty());
+            result_.small_.insert(result_.small_.end(), Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length);
             delete[] Blocks1;
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();

@@ -17,8 +17,10 @@
 #include <vector>
 
 #include <stxxl/bits/mng/mng.h>
+#include <stxxl/bits/mng/typed_block.h>
 #include <stxxl/bits/common/simple_vector.h>
 #include <stxxl/bits/common/tmeta.h>
+#include <stxxl/bits/mng/read_write_pool.h>
 #include <stxxl/bits/mng/write_pool.h>
 #include <stxxl/bits/mng/prefetch_pool.h>
 
@@ -447,6 +449,7 @@ public:
 };
 
 //! \brief Efficient implementation that uses prefetching and overlapping using (shared) buffers pools
+//! \warning This is a single buffer stack! Each direction change (push() followed by pop() or vice versa) may cause one I/O.
 template <class Config_>
 class grow_shrink_stack2 : private noncopyable
 {
@@ -471,8 +474,7 @@ private:
     std::vector<bid_type> bids;
     alloc_strategy alloc_strategy_;
     unsigned_type pref_aggr;
-    prefetch_pool<block_type> & p_pool;
-    write_pool<block_type> & w_pool;
+    read_write_pool<block_type> pool;
 
 public:
     //! \brief Constructs stack
@@ -487,8 +489,7 @@ public:
         cache_offset(0),
         cache(new block_type),
         pref_aggr(prefetch_aggressiveness),
-        p_pool(p_pool_),
-        w_pool(w_pool_)
+        pool(p_pool_, w_pool_)
     {
         STXXL_VERBOSE2("grow_shrink_stack2::grow_shrink_stack2(...)");
     }
@@ -502,8 +503,7 @@ public:
         std::swap(bids, obj.bids);
         std::swap(alloc_strategy_, obj.alloc_strategy_);
         std::swap(pref_aggr, obj.pref_aggr);
-        //std::swap(p_pool,obj.p_pool);
-        //std::swap(w_pool,obj.w_pool);
+        //std::swap(pool,obj.pool);
     }
 
     virtual ~grow_shrink_stack2()
@@ -516,18 +516,18 @@ public:
             int_type i;
             for (i = bids_size - 1; i >= last_pref; --i)
             {
-                if (p_pool.in_prefetching(bids[i]))
-                    p_pool.read(cache, bids[i])->wait();
                 // clean the prefetch buffer
+                pool.invalidate(bids[i]);
             }
             typename std::vector<bid_type>::iterator cur = bids.begin();
             typename std::vector<bid_type>::const_iterator end = bids.end();
             for ( ; cur != end; ++cur)
             {
-                block_type * b = w_pool.steal(*cur);
+                // FIXME: read_write_pool needs something like cancel_write(bid)
+                block_type * b = NULL; // w_pool.steal(*cur);
                 if (b)
                 {
-                    w_pool.add(cache); // return buffer
+                    pool.add(cache); // return buffer
                     cache = b;
                 }
             }
@@ -537,7 +537,11 @@ public:
         { }
         block_manager::get_instance()->delete_blocks(bids.begin(), bids.end());
     }
-    size_type size() const { return size_; }
+
+    size_type size() const
+    {
+        return size_;
+    }
 
     bool empty() const
     {
@@ -557,15 +561,14 @@ public:
             typename std::vector<bid_type>::iterator cur_bid = bids.end() - 1;
             block_manager::get_instance()->new_blocks(
                 offset_allocator<alloc_strategy>(cur_bid - bids.begin(), alloc_strategy_), cur_bid, bids.end());
-            w_pool.write(cache, bids.back());
-            cache = w_pool.steal();
+            pool.write(cache, bids.back());
+            cache = pool.steal();
             const int_type bids_size = bids.size();
             const int_type last_pref = STXXL_MAX(int_type(bids_size) - int_type(pref_aggr) - 1, (int_type)0);
             for (int_type i = bids_size - 2; i >= last_pref; --i)
             {
-                if (p_pool.in_prefetching(bids[i]))
-                    p_pool.read(cache, bids[i])->wait();
                 //  clean prefetch buffers
+                pool.invalidate(bids[i]);
             }
             cache_offset = 0;
         }
@@ -577,6 +580,7 @@ public:
         assert(cache_offset > 0);
         assert(cache_offset <= block_type::size);
     }
+
     value_type & top()
     {
         assert(size_ > 0);
@@ -584,6 +588,7 @@ public:
         assert(cache_offset <= block_type::size);
         return current;
     }
+
     const value_type & top() const
     {
         assert(size_ > 0);
@@ -591,6 +596,7 @@ public:
         assert(cache_offset <= block_type::size);
         return current;
     }
+
     void pop()
     {
         STXXL_VERBOSE3("grow_shrink_stack2::pop()");
@@ -603,26 +609,9 @@ public:
 
             bid_type last_block = bids.back();
             bids.pop_back();
-            /*block_type * b = w_pool.steal(last_block);
-               if(b)
-               {
-               STXXL_VERBOSE2("grow_shrink_stack2::pop() block is still in write buffer");
-               w_pool.add(cache);
-               cache = b;
-               }
-               else*/
-            {
-                //STXXL_VERBOSE2("grow_shrink_stack2::pop() block is no longer in write buffer"
-                //  ", reading from prefetch/read pool");
-                p_pool.read(cache, last_block)->wait();
-            }
+            pool.read(cache, last_block)->wait();
             block_manager::get_instance()->delete_block(last_block);
-            const int_type bids_size = bids.size();
-            const int_type last_pref = STXXL_MAX(int_type(bids_size) - int_type(pref_aggr), (int_type)0);
-            for (int_type i = bids_size - 1; i >= last_pref; --i)
-            {
-                p_pool.hint(bids[i]); // prefetch
-            }
+            rehint();
             cache_offset = block_type::size + 1;
         }
 
@@ -632,6 +621,7 @@ public:
 
         --size_;
     }
+
     //! \brief Sets level of prefetch aggressiveness (number
     //! of blocks from the prefetch pool used for prefetching)
     //! \param new_p new value for the prefetch aggressiveness
@@ -643,26 +633,30 @@ public:
             const int_type last_pref = STXXL_MAX(int_type(bids_size) - int_type(pref_aggr), (int_type)0);
             for (int_type i = bids_size - new_p - 1; i >= last_pref; --i)
             {
-                if (p_pool.in_prefetching(bids[i]))
-                    p_pool.read(cache, bids[i])->wait();
                 //  clean prefetch buffers
-            }
-        }
-        else if (pref_aggr < new_p)
-        {
-            const int_type bids_size = bids.size();
-            const int_type last_pref = STXXL_MAX(int_type(bids_size) - int_type(new_p), (int_type)0);
-            for (int_type i = bids_size - 1; i >= last_pref; --i)
-            {
-                p_pool.hint(bids[i]); // prefetch
+                pool.invalidate(bids[i]);
             }
         }
         pref_aggr = new_p;
+        rehint();
     }
+
     //! \brief Returns number of blocks used for prefetching
     unsigned_type get_prefetch_aggr() const
     {
         return pref_aggr;
+    }
+
+private:
+    //! \brief hint the last pref_aggr external blocks
+    void rehint()
+    {
+        const int_type bids_size = bids.size();
+        const int_type last_pref = STXXL_MAX(int_type(bids_size) - int_type(pref_aggr), (int_type)0);
+        for (int_type i = bids_size - 1; i >= last_pref; --i)
+        {
+            pool.hint(bids[i]); // prefetch
+        }
     }
 };
 
@@ -910,3 +904,4 @@ namespace std
 }
 
 #endif // !STXXL_STACK_HEADER
+// vim: et:ts=4:sw=4

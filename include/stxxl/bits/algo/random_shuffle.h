@@ -5,6 +5,7 @@
  *
  *  Copyright (C) 2007 Manuel Krings
  *  Copyright (C) 2007 Markus Westphal
+ *  Copyright (C) 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -16,6 +17,7 @@
 
 // TODO: improve main memory consumption in recursion
 //        (free stacks buffers)
+// TODO: shuffle small input in internal memory
 
 
 #include <stxxl/bits/stream/stream.h>
@@ -25,70 +27,6 @@
 
 __STXXL_BEGIN_NAMESPACE
 
-namespace random_shuffle_local
-{
-    // efficiently writes data into an stxxl::vector with overlapping of I/O and
-    // computation
-    template <class ExtIterator>
-    class write_vector
-    {
-        typedef typename ExtIterator::size_type size_type;
-        typedef typename ExtIterator::value_type value_type;
-        typedef typename ExtIterator::block_type block_type;
-        typedef typename ExtIterator::const_iterator ConstExtIterator;
-        typedef stxxl::buf_ostream<block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
-
-        ExtIterator it;
-        unsigned_type nbuffers;
-        buf_ostream_type * outstream;
-
-    public:
-        write_vector(ExtIterator begin,
-                     unsigned nbuffers_ = 2  // buffers to use for overlapping (>=2 recommended)
-                     ) : it(begin), nbuffers(nbuffers_)
-        {
-            outstream = new buf_ostream_type(it.bid(), nbuffers);
-        }
-
-        value_type & operator * ()
-        {
-            if (it.block_offset() == 0)
-                it.block_externally_updated();
-            // tells the vector that the block was modified
-            return **outstream;
-        }
-
-        write_vector & operator ++ ()
-        {
-            ++it;
-            ++(*outstream);
-            return *this;
-        }
-
-        void flush()
-        {
-            ConstExtIterator const_out = it;
-
-            while (const_out.block_offset())
-            {
-                **outstream = *const_out; // might cause I/Os for loading the page that
-                ++const_out;              // contains data beyond out
-                ++(*outstream);
-            }
-
-            it.flush();
-            delete outstream;
-            outstream = NULL;
-        }
-
-        virtual ~write_vector()
-        {
-            if (outstream)
-                flush();
-        }
-    };
-}
-
 
 //! \addtogroup stlalgo
 //! \{
@@ -97,14 +35,14 @@ namespace random_shuffle_local
 template <typename Tp_, typename AllocStrategy_, typename SzTp_, typename DiffTp_,
           unsigned BlockSize_, typename PgTp_, unsigned PageSize_, typename RandomNumberGenerator_>
 void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> first,
-                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> beyond,
+                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> last,
                     RandomNumberGenerator_ & rand,
                     unsigned_type M);
 
 
 //! \brief External equivalent of std::random_shuffle
 //! \param first begin of the range to shuffle
-//! \param beyond end of the range to shuffle
+//! \param last end of the range to shuffle
 //! \param rand random number generator object (functor)
 //! \param M number of bytes for internal use
 //! \param AS parallel disk allocation strategy
@@ -117,7 +55,7 @@ template <typename ExtIterator_,
           unsigned PageSize_,
           typename AllocStrategy_>
 void random_shuffle(ExtIterator_ first,
-                    ExtIterator_ beyond,
+                    ExtIterator_ last,
                     RandomNumberGenerator_ & rand,
                     unsigned_type M,
                     AllocStrategy_ AS = STXXL_DEFAULT_ALLOC_STRATEGY())
@@ -130,12 +68,14 @@ void random_shuffle(ExtIterator_ first,
 
     STXXL_VERBOSE1("random_shuffle: Plain Version");
 
-    stxxl::int64 n = beyond - first; // the number of input elements
+    stxxl::int64 n = last - first; // the number of input elements
 
     // make sure we have at least 6 blocks + 1 page
-    if (M < 6 * BlockSize_ + PageSize_ * BlockSize_)
+    if (M < 6 * BlockSize_ + PageSize_ * BlockSize_) {
+        STXXL_ERRMSG("random_shuffle: insufficient memory, " << M << " bytes supplied,");
         M = 6 * BlockSize_ + PageSize_ * BlockSize_;
-
+        STXXL_ERRMSG("random_shuffle: increasing to " << M << " bytes (6 blocks + 1 page)");
+    }
 
     int_type k = M / (3 * BlockSize_); // number of buckets
 
@@ -161,7 +101,7 @@ void random_shuffle(ExtIterator_ first,
 
     ///// Reading input /////////////////////
     typedef typename stream::streamify_traits<ExtIterator_>::stream_type input_stream;
-    input_stream in = stxxl::stream::streamify(first, beyond);
+    input_stream in = stxxl::stream::streamify(first, last);
 
     // distribute input into random buckets
     int_type random_bucket = 0;
@@ -176,11 +116,6 @@ void random_shuffle(ExtIterator_ first,
     w_pool.resize(0);
     p_pool.resize(PageSize_);
 
-    // Set prefetch aggr to PageSize_
-    for (int_type j = 0; j < k; j++) {
-        buckets[j]->set_prefetch_aggr(PageSize_);
-    }
-
     unsigned_type space_left = M - k * BlockSize_ -
                                PageSize_ * BlockSize_; // remaining int space
     ExtIterator_ Writer = first;
@@ -192,6 +127,7 @@ void random_shuffle(ExtIterator_ first,
 
     // shuffle each bucket
     for (i = 0; i < k; i++) {
+        buckets[i]->set_prefetch_aggr(PageSize_);
         size = buckets[i]->size();
 
         // does the bucket fit into memory?
@@ -247,24 +183,24 @@ void random_shuffle(ExtIterator_ first,
             // free memory
             delete temp_vector;
         }
-    }
 
-    // free buckets
-    for (int j = 0; j < k; j++)
-        delete buckets[j];
+        // free bucket
+        delete buckets[i];
+        space_left += BlockSize_;
+    }
 
     delete[] buckets;
 }
 
 //! \brief External equivalent of std::random_shuffle (specialization for stxxl::vector)
 //! \param first begin of the range to shuffle
-//! \param beyond end of the range to shuffle
+//! \param last end of the range to shuffle
 //! \param rand random number generator object (functor)
 //! \param M number of bytes for internal use
 template <typename Tp_, typename AllocStrategy_, typename SzTp_, typename DiffTp_,
           unsigned BlockSize_, typename PgTp_, unsigned PageSize_, typename RandomNumberGenerator_>
 void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> first,
-                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> beyond,
+                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> last,
                     RandomNumberGenerator_ & rand,
                     unsigned_type M)
 {
@@ -277,11 +213,13 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
     STXXL_VERBOSE1("random_shuffle: Vector Version");
 
     // make sure we have at least 6 blocks + 1 page
-    if (M < 6 * BlockSize_ + PageSize_ * BlockSize_)
+    if (M < 6 * BlockSize_ + PageSize_ * BlockSize_) {
+        STXXL_ERRMSG("random_shuffle: insufficient memory, " << M << " bytes supplied,");
         M = 6 * BlockSize_ + PageSize_ * BlockSize_;
+        STXXL_ERRMSG("random_shuffle: increasing to " << M << " bytes (6 blocks + 1 page)");
+    }
 
-
-    stxxl::int64 n = beyond - first;   // the number of input elements
+    stxxl::int64 n = last - first;   // the number of input elements
     int_type k = M / (3 * BlockSize_); // number of buckets
 
     stxxl::int64 i, j, size = 0;
@@ -302,16 +240,35 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
         buckets[j] = new stack_type(p_pool, w_pool, 0);
 
 
+    typedef buf_istream<block_type, typename ExtIterator_::bids_container_iterator> buf_istream_type;
+    typedef buf_ostream<block_type, typename ExtIterator_::bids_container_iterator> buf_ostream_type;
+
+    first.flush();     // flush container
+
+    // create prefetching stream,
+    buf_istream_type in(first.bid(), last.bid() + ((last.block_offset()) ? 1 : 0), 2);
+    // create buffered write stream for blocks
+    buf_ostream_type out(first.bid(), 2);
+
+    ExtIterator_ _cur = first - first.block_offset();
+
+    // leave part of the block before _begin untouched (e.g. copy)
+    for ( ; _cur != first; ++_cur)
+    {
+        typename ExtIterator_::value_type tmp;
+        in >> tmp;
+        out << tmp;
+    }
+
     ///// Reading input /////////////////////
-    typedef typename stream::streamify_traits<ExtIterator_>::stream_type input_stream;
-    input_stream in = stxxl::stream::streamify(first, beyond);
 
     // distribute input into random buckets
     int_type random_bucket = 0;
-    for (i = 0; i < n; ++i) {
+    for (i = 0; i < n; ++i, ++_cur) {
         random_bucket = rand(k);
-        buckets[random_bucket]->push(*in); // reading the current input element
-        ++in;                              // go to the next input element
+	typename ExtIterator_::value_type tmp;
+        in >> tmp;
+        buckets[random_bucket]->push(tmp); // reading the current input element
     }
 
     ///// Processing //////////////////////
@@ -319,16 +276,8 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
     w_pool.resize(0);
     p_pool.resize(PageSize_);
 
-    // Set prefetch aggr to PageSize_
-    for (j = 0; j < k; j++) {
-        buckets[j]->set_prefetch_aggr(PageSize_);
-    }
-
     unsigned_type space_left = M - k * BlockSize_ -
                                PageSize_ * BlockSize_; // remaining int space
-    random_shuffle_local::write_vector<ExtIterator_>
-    Writer(first, 2 * PageSize_);
-    ExtIterator_ it = first;
 
     for (i = 0; i < k; i++) {
         STXXL_VERBOSE1("random_shuffle: bucket no " << i << " contains " << buckets[i]->size() << " elements");
@@ -336,6 +285,7 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
 
     // shuffle each bucket
     for (i = 0; i < k; i++) {
+        buckets[i]->set_prefetch_aggr(PageSize_);
         size = buckets[i]->size();
 
         // does the bucket fit into memory?
@@ -354,14 +304,14 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
 
             // write back
             for (j = 0; j < size; j++) {
-                *Writer = temp_array[j];
-                ++Writer;
+                typename ExtIterator_::value_type tmp;
+                tmp = temp_array[j];
+                out << tmp;
             }
 
             // free memory
             delete[] temp_array;
-        }
-        else {
+        } else {
             STXXL_VERBOSE1("random_shuffle: recursion");
             // copy bucket into temp. stxxl::vector
             temp_vector = new temp_vector_type(size);
@@ -384,36 +334,48 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
 
             // write back
             for (j = 0; j < size; j++) {
-                *Writer = (*temp_vector)[j];
-                ++Writer;
+                typename ExtIterator_::value_type tmp;
+                tmp = (*temp_vector)[j];
+                out << tmp;
             }
 
             // free memory
             delete temp_vector;
         }
-    }
 
-    // free buckets
-    for (int j = 0; j < k; j++)
-        delete buckets[j];
+        // free bucket
+        delete buckets[i];
+        space_left += BlockSize_;
+    }
 
     delete[] buckets;
 
-    Writer.flush(); // flush buffers
+    // leave part of the block after _end untouched
+    if (last.block_offset())
+    {
+        ExtIterator_ _last_block_end = last + (block_type::size - last.block_offset());
+        for ( ; _cur != _last_block_end; ++_cur)
+        {
+            typename ExtIterator_::value_type tmp;
+            in >> tmp;
+            out << tmp;
+        }
+    }
 }
 
 //! \brief External equivalent of std::random_shuffle (specialization for stxxl::vector)
 //! \param first begin of the range to shuffle
-//! \param beyond end of the range to shuffle
+//! \param last end of the range to shuffle
 //! \param M number of bytes for internal use
 template <typename Tp_, typename AllocStrategy_, typename SzTp_, typename DiffTp_,
           unsigned BlockSize_, typename PgTp_, unsigned PageSize_>
+inline
 void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> first,
-                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> beyond,
+                    stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, BlockSize_, PgTp_, PageSize_> last,
                     unsigned_type M)
 {
     stxxl::random_number<> rand;
-    stxxl::random_shuffle(first, beyond, rand, M);
+    stxxl::random_shuffle(first, last, rand, M);
 }
 
 //! \}
@@ -421,3 +383,4 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
 __STXXL_END_NAMESPACE
 
 #endif // !STXXL_RANDOM_SHUFFLE_HEADER
+// vim: et:ts=4:sw=4

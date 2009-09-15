@@ -24,7 +24,7 @@ struct forty_two
 
     forty_two() : counter(0) { }
 
-    bool empty() const { return ! counter < 42; }
+    bool empty() const { return !(counter < 42); }
 
     int operator * ()
     {

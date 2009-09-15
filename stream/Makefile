@@ -51,5 +51,4 @@ test_asynchronous_distribute_gather.$(EXEEXT): test_asynchronous_distribute_gath
 
 
 clean:
-	$(RM) *.$(OBJEXT) test_stream.$(EXEEXT) test_sorted_runs.$(EXEEXT)
-	$(RM) test_push_sort.$(EXEEXT) test_stream1.$(EXEEXT)
+	$(RM) $(CLEAN_TARGETS)
