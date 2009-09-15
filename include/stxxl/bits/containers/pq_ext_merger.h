@@ -49,9 +49,9 @@ namespace priority_queue_local
         // arity_bound / 2  <  arity  <=  arity_bound
         enum { arity = Arity_, arity_bound = 1UL << (LOG2<Arity_>::ceil) };
 
-        block_type * convert_block_pointer(sentinel_block_type * arg)
+        block_type * convert_block_pointer(sentinel_block_type * arg) const
         {
-            return reinterpret_cast<block_type *>(arg);
+            return arg;
         }
 
     protected:
