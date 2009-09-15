@@ -545,10 +545,7 @@ namespace priority_queue_local
 
                 total_size += (seqs[0].second - seqs[0].first);
 
-
-                STXXL_VERBOSE1("first " << *(seqs[0].first));
-                STXXL_VERBOSE1(" last " << *(last[0]));
-                STXXL_VERBOSE1(" block size " << (seqs[0].second - seqs[0].first));
+                STXXL_VERBOSE1("first " << *(seqs[0].first) << " last " << *(last[0]) << " block size " << (seqs[0].second - seqs[0].first));
 
                 for (unsigned_type i = 1; i < seqs.size(); ++i)
                 {
@@ -608,10 +605,7 @@ namespace priority_queue_local
                         {
                             STXXL_VERBOSE1("ext_merger::multi_merge(...) it was the last block in the sequence ");
 
-                            //empty sequence, leave it that way
-/*            delete state.bids;
-        state.bids = NULL;*/
-                            last[i] = &(*(seqs[i].second)); //sentinel
+                            *(last[i]) = cmp.min_value();
                         }
                         else
                         {
@@ -654,10 +648,6 @@ namespace priority_queue_local
                                 assert(false);
                             }
     #endif
-/*            if(seqs[i].first == seqs[i].second)
-            //empty sequence
-            last[i] = &(*(seqs[i].second)); //sentinel
-        else*/
                             last[i] = &(*(seqs[i].second - 1));
                         }
                     }
