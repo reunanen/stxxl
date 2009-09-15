@@ -148,16 +148,16 @@ namespace priority_queue_local
                         STXXL_VERBOSE2("ext_merger sequence_state operator++ there is another block ");
                         bid_type bid = bids->front();
                         bids->pop_front();
+                        merger->pool->hint(bid);
                         if (!(bids->empty()))
                         {
-                            STXXL_VERBOSE2("ext_merger sequence_state operator++ one more block exists in a sequence: " <<
-                                           "flushing this block in write cache (if not written yet) and giving hint to prefetcher");
-                            bid_type next_bid = bids->front();
-                            //Hint next block of sequence.
-                            merger->pool->hint(next_bid);
+                            STXXL_VERBOSE2("ext_merger sequence_state operator++ more blocks exist in a sequence, hinting the next");
+                            merger->pool->hint(bids->front());
                         }
                         merger->pool->read(block, bid)->wait();
                         STXXL_VERBOSE2("first element of read block " << bid << " " << *(block->begin()) << " cached in " << block);
+                        if (!(bids->empty()))
+                            merger->pool->hint(bids->front());  // re-hint, reading might have made a block free
                         block_manager::get_instance()->delete_block(bid);
                         current = 0;
                     }
@@ -615,15 +615,16 @@ namespace priority_queue_local
                             STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) there is another block ");
                             bid_type bid = state.bids->front();
                             state.bids->pop_front();
+                            pool->hint(bid);
                             if (!(state.bids->empty()))
                             {
-                                STXXL_VERBOSE2("seq " << i << ": ext_merger::multi_merge(...) more blocks exist, hinting");
-                                bid_type next_bid = state.bids->front();
-                                //Hint next block of sequence.
-                                pool->hint(next_bid);
+                                STXXL_VERBOSE2("seq " << i << ": ext_merger::multi_merge(...) more blocks exist, hinting the next");
+                                pool->hint(state.bids->front());
                             }
                             pool->read(state.block, bid)->wait();
                             STXXL_VERBOSE1("seq " << i << ": first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
+                            if (!(state.bids->empty()))
+                                pool->hint(state.bids->front());  // re-hint, reading might have made a block free
                             state.current = 0;
                             seqs[i] = std::make_pair(state.block->begin() + state.current, state.block->end());
                             block_manager::get_instance()->delete_block(bid);
