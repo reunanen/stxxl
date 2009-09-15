@@ -10,10 +10,10 @@ test_stream1.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_sorted_runs.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_push_sort.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_stream.$o:			CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
-test_asynchronous_nodes.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
+test_asynchronous_nodes.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
 test_asynchronous_stream_sort.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
-test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
-test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
+test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
+test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
 test_asynchronous_distribute_gather.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_materialize.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -DSTXXL_VERBOSE_MATERIALIZE=STXXL_VERBOSE0
 
