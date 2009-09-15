@@ -462,9 +462,9 @@ namespace priority_queue_local
             return (arity * block_type::raw_size);
         }
 
-        // delete the (length = end-begin) smallest elements and write them to "begin..end"
+        // delete the (length = end-begin) smallest elements and write them to [begin..end)
         // empty segments are deallocated
-        // require:
+        // requires:
         // - there are at least length elements
         // - segments are ended by sentinels
         template <class OutputIterator>
@@ -499,13 +499,12 @@ namespace priority_queue_local
                     continue;
 
                 seqs.push_back(std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end()));
-                *(seqs.back().second) = cmp.min_value();
 
                 orig_seq_index.push_back(i);
 
                 last.push_back(&(*(seqs.back().second - 1))); //corresponding last element, always accessible
 
-    #if STXXL_CHECK_ORDER_IN_SORTS
+#if STXXL_CHECK_ORDER_IN_SORTS
                 if (!is_sentinel(*seqs.back().first) && !stxxl::is_sorted(seqs.back().first, seqs.back().second, inv_cmp))
                 {
                     STXXL_VERBOSE0("length " << i << " " << (seqs.back().second - seqs.back().first));
@@ -522,9 +521,7 @@ namespace priority_queue_local
                     }
                     assert(false);
                 }
-    #endif
-
-                *(seqs.back().second) = cmp.min_value(); //set sentinel
+#endif
 
                 //Hint first non-internal (actually second) block of this sequence.
                 if (states[i].bids != NULL && !states[i].bids->empty())
@@ -591,7 +588,7 @@ namespace priority_queue_local
 
                 //main call
 
-                begin = parallel::multiway_merge_sentinel(seqs.begin(), seqs.end(), begin, inv_cmp, output_size); //sequence iterators are progressed appropriately
+                begin = parallel::multiway_merge(seqs.begin(), seqs.end(), begin, inv_cmp, output_size); //sequence iterators are progressed appropriately
 
                 rest -= output_size;
                 size_ -= output_size;
@@ -662,8 +659,6 @@ namespace priority_queue_local
             last[i] = &(*(seqs[i].second)); //sentinel
         else*/
                             last[i] = &(*(seqs[i].second - 1));
-
-                            *(seqs[i].second) = cmp.min_value(); //set sentinel
                         }
                     }
                 }
