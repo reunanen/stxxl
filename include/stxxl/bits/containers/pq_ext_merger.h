@@ -538,22 +538,22 @@ namespace priority_queue_local
 
             while (rest > 0)
             {
-                value_type min_last;   //minimum of the sequences' last elements
-
-                min_last = *(last[0]); // maybe sentinel
+                value_type min_last = cmp.min_value();   // minimum of the sequences' last elements
                 diff_type total_size = 0;
 
-                total_size += (seqs[0].second - seqs[0].first);
-
-                STXXL_VERBOSE1("first " << *(seqs[0].first) << " last " << *(last[0]) << " block size " << (seqs[0].second - seqs[0].first));
-
-                for (unsigned_type i = 1; i < seqs.size(); ++i)
+                for (unsigned_type i = 0; i < seqs.size(); ++i)
                 {
-                    min_last = inv_cmp(min_last, *(last[i])) ? min_last : *(last[i]);
+                    diff_type seq_i_size = seqs[i].second - seqs[i].first;
+                    if (seq_i_size > 0)
+                    {
+                        total_size += seq_i_size;
+                        if (inv_cmp(*(last[i]), min_last))
+                            min_last = *(last[i]);
 
-                    total_size += seqs[i].second - seqs[i].first;
-
-                    STXXL_VERBOSE1("first " << *(seqs[i].first) << " last " << *(last[i]) << " block size " << (seqs[i].second - seqs[i].first));
+                        STXXL_VERBOSE1("front block of seq " << i << ": front=" << *(seqs[i].first) << " back=" << *(last[i]) << " len=" << seq_i_size);
+                    } else {
+                        STXXL_VERBOSE1("front block of seq " << i << ": empty");
+                    }
                 }
 
                 assert(total_size > 0);
@@ -572,14 +572,14 @@ namespace priority_queue_local
 
                     //no element larger than min_last is merged
 
-                    STXXL_VERBOSE1("" << (position - seqs[i].first) << " greater equal than " << min_last);
+                    STXXL_VERBOSE1("seq " << i << ": " << (position - seqs[i].first) << " greater equal than " << min_last);
 
                     less_equal_than_min_last += (position - seqs[i].first);
                 }
 
-                ptrdiff_t output_size = std::min(less_equal_than_min_last, rest); //at most rest elements
+                ptrdiff_t output_size = STXXL_MIN(less_equal_than_min_last, rest); //at most rest elements
 
-                STXXL_VERBOSE1("output_size " << output_size << " <= " << less_equal_than_min_last << ", <= " << rest);
+                STXXL_VERBOSE1("output_size=" << output_size << " = min(leq_t_ml=" << less_equal_than_min_last << ", rest=" << rest << ")");
 
                 assert(output_size > 0);
 
@@ -603,7 +603,7 @@ namespace priority_queue_local
                         assert(state.current == state.block->size);
                         if (state.bids == NULL || state.bids->empty()) // if there is no next block
                         {
-                            STXXL_VERBOSE1("ext_merger::multi_merge(...) it was the last block in the sequence ");
+                            STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) it was the last block in the sequence ");
 
                             *(last[i]) = cmp.min_value();
                         }
@@ -612,19 +612,18 @@ namespace priority_queue_local
 #if STXXL_CHECK_ORDER_IN_SORTS
                             last_elem = *(seqs[i].first - 1);
 #endif
-                            STXXL_VERBOSE1("ext_merger::multi_merge(...) there is another block ");
+                            STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) there is another block ");
                             bid_type bid = state.bids->front();
                             state.bids->pop_front();
                             if (!(state.bids->empty()))
                             {
-                                STXXL_VERBOSE2("ext_merger::multi_merge(...) one more block exists in a sequence: " <<
-                                               "flushing this block in write cache (if not written yet) and giving hint to prefetcher");
+                                STXXL_VERBOSE2("seq " << i << ": ext_merger::multi_merge(...) more blocks exist, hinting");
                                 bid_type next_bid = state.bids->front();
                                 //Hint next block of sequence.
                                 pool->hint(next_bid);
                             }
                             pool->read(state.block, bid)->wait();
-                            STXXL_VERBOSE1("first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
+                            STXXL_VERBOSE1("seq " << i << ": first element of read block " << bid << " " << *(state.block->begin()) << " cached in " << state.block);
                             state.current = 0;
                             seqs[i] = std::make_pair(state.block->begin() + state.current, state.block->end());
                             block_manager::get_instance()->delete_block(bid);
