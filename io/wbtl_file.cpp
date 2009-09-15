@@ -50,7 +50,7 @@ wbtl_file::~wbtl_file()
     storage = 0;
 }
 
-void wbtl_file::serve(const stxxl::request* req) throw(io_error)
+void wbtl_file::serve(const request * req) throw(io_error)
 {
     assert(req->get_file() == this);
     offset_type offset = req->get_offset();
@@ -125,8 +125,8 @@ void wbtl_file::_add_free_region(offset_type offset, offset_type size)
 {
     // mapping_lock has to be aquired by caller
     STXXL_VERBOSE_WBTL("wbtl:addfre  p" << FMT_A_S(offset, size) << " F <= f" << FMT_A_C(free_bytes, free_space.size()));
-    size_type region_pos = offset;
-    size_type region_size = size;
+    offset_type region_pos = offset;
+    offset_type region_size = size;
     if (!free_space.empty())
     {
         sortseq::iterator succ = free_space.upper_bound(region_pos);

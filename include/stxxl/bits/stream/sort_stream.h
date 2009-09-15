@@ -20,6 +20,7 @@
 
 #include <stxxl/bits/stream/stream.h>
 #include <stxxl/sort>
+#include <stxxl/bits/mng/typed_block.h>
 
 
 __STXXL_BEGIN_NAMESPACE
@@ -65,6 +66,12 @@ namespace stream
 
 
             runs.clear();
+        }
+
+        // returns number of elements in all runs together
+        size_type size() const
+        {
+            return elements;
         }
     };
 
@@ -207,8 +214,8 @@ namespace stream
         if (pos < block_type::size && input.empty()) // small input, do not flush it on the disk(s)
         {
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << pos);
-            result_.small_.resize(pos);
-            std::copy(Blocks1[0].begin(), Blocks1[0].begin() + pos, result_.small_.begin());
+            assert(result_.small_.empty());
+            result_.small_.insert(result_.small_.end(), Blocks1[0].begin(), Blocks1[0].begin() + pos);
             delete[] Blocks1;
             return;
         }
