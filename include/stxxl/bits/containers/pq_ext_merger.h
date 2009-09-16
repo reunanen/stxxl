@@ -576,7 +576,6 @@ namespace priority_queue_local
 
             std::vector<sequence> seqs;
             std::vector<unsigned_type> orig_seq_index;
-            std::vector<value_type *> last; // points to last element in sequence, possibly a sentinel
 
             Cmp_ cmp;
             priority_queue_local::invert_order<Cmp_, value_type, value_type> inv_cmp(cmp);
@@ -587,10 +586,7 @@ namespace priority_queue_local
                     continue;
 
                 seqs.push_back(std::make_pair(states[i].block->begin() + states[i].current, states[i].block->end()));
-
                 orig_seq_index.push_back(i);
-
-                last.push_back(&(*(seqs.back().second - 1))); //corresponding last element, always accessible
 
 #if STXXL_CHECK_ORDER_IN_SORTS
                 if (!is_sentinel(*seqs.back().first) && !stxxl::is_sorted(seqs.back().first, seqs.back().second, inv_cmp))
@@ -635,10 +631,10 @@ namespace priority_queue_local
                     if (seq_i_size > 0)
                     {
                         total_size += seq_i_size;
-                        if (inv_cmp(*(last[i]), min_last))
-                            min_last = *(last[i]);
+                        if (inv_cmp(*(seqs[i].second - 1), min_last))
+                            min_last = *(seqs[i].second - 1);
 
-                        STXXL_VERBOSE1("front block of seq " << i << ": front=" << *(seqs[i].first) << " back=" << *(last[i]) << " len=" << seq_i_size);
+                        STXXL_VERBOSE1("front block of seq " << i << ": front=" << *(seqs[i].first) << " back=" << *(seqs[i].second - 1) << " len=" << seq_i_size);
                     } else {
                         STXXL_VERBOSE1("front block of seq " << i << ": empty");
                     }
@@ -692,13 +688,11 @@ namespace priority_queue_local
                         if (state.bids == NULL || state.bids->empty()) // if there is no next block
                         {
                             STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) it was the last block in the sequence ");
-
-                            *(last[i]) = cmp.min_value();
                         }
                         else
                         {
 #if STXXL_CHECK_ORDER_IN_SORTS
-                            last_elem = *(seqs[i].first - 1);
+                            last_elem = *(seqs[i].second - 1);
 #endif
                             STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) there is another block ");
                             bid_type bid = state.bids->front();
@@ -736,7 +730,6 @@ namespace priority_queue_local
                                 assert(false);
                             }
     #endif
-                            last[i] = &(*(seqs[i].second - 1));
                         }
                     }
                 }
