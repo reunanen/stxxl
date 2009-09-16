@@ -131,16 +131,10 @@ namespace priority_queue_local
         typedef typename block_type::value_type value_type;
         typedef Cmp_ comparator_type;
         typedef AllocStr_ alloc_strategy;
-        typedef block_type sentinel_block_type;
         typedef read_write_pool<block_type> pool_type;
 
         // arity_bound / 2  <  arity  <=  arity_bound
         enum { arity = Arity_, arity_bound = 1UL << (LOG2<Arity_>::ceil) };
-
-        block_type * convert_block_pointer(sentinel_block_type * arg) const
-        {
-            return arg;
-        }
 
     protected:
         comparator_type cmp;
@@ -286,7 +280,7 @@ namespace priority_queue_local
 
         pool_type * pool;
 
-        sentinel_block_type sentinel_block;
+        block_type * sentinel_block;
 
     public:
         ext_merger() :
@@ -309,6 +303,7 @@ namespace priority_queue_local
             {
                 delete states[i].block;
             }
+            delete sentinel_block;
         }
 
         void set_pool(pool_type * pool_)
@@ -322,8 +317,17 @@ namespace priority_queue_local
             STXXL_VERBOSE2("ext_merger::init()");
             assert(!cmp(cmp.min_value(), cmp.min_value())); // verify strict weak ordering
 
-            for (unsigned_type i = 0; i < block_type::size; ++i)
-                sentinel_block[i] = cmp.min_value();
+            sentinel_block = NULL;
+            if (arity < arity_bound)
+            {
+                sentinel_block = new block_type;
+                for (unsigned_type i = 0; i < block_type::size; ++i)
+                    (*sentinel_block)[i] = cmp.min_value();
+                if (arity + 1 == arity_bound) {
+                    // same memory consumption, but smaller merge width, better use arity = arity_bound
+                    STXXL_ERRMSG("inefficient PQ parameters for ext_merger: arity + 1 == arity_bound");
+                }
+            }
 
             for (unsigned_type i = 0; i < arity_bound; ++i)
             {
@@ -331,11 +335,7 @@ namespace priority_queue_local
                 if (i < arity)
                     states[i].block = new block_type;
                 else
-                    states[i].block = convert_block_pointer(&(sentinel_block));
-
-                // why?
-                for (unsigned_type j = 0; j < block_type::size; ++j)
-                    (*(states[i].block))[j] = cmp.min_value();
+                    states[i].block = sentinel_block;
 
                 states[i].make_inf();
             }
@@ -547,7 +547,7 @@ namespace priority_queue_local
     public:
         unsigned_type mem_cons() const // only rough estimation
         {
-            return (arity * block_type::raw_size);
+            return (STXXL_MIN<unsigned_type>(arity + 1, arity_bound) * block_type::raw_size);
         }
 
         // delete the (length = end-begin) smallest elements and write them to [begin..end)
