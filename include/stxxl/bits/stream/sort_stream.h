@@ -138,7 +138,9 @@ namespace stream
         //! \brief Sort a specific run, contained in a sequences of blocks.
         void sort_run(block_type * run, unsigned_type elements)
         {
-            if (block_type::has_filler)
+            if (block_type::has_only_data) {
+                std::sort(run[0].elem, run[0].elem + elements, cmp);
+            } else {
                 std::sort(
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
@@ -147,9 +149,7 @@ namespace stream
                         block_type, typename block_type::value_type, block_type::size
                         >(run, elements),
                     cmp);
-
-            else
-                std::sort(run[0].elem, run[0].elem + elements, cmp);
+            }
         }
 
     protected:
@@ -889,7 +889,9 @@ namespace stream
 
         void sort_run(block_type * run, unsigned_type elements)
         {
-            if (block_type::has_filler)
+            if (block_type::has_only_data) {
+                std::sort(run[0].elem, run[0].elem + elements, cmp);
+            } else {
                 std::sort(
 #if 1
                     ArrayOfSequencesIterator<
@@ -907,10 +909,9 @@ namespace stream
                         >(run, elements),
 #endif
                     cmp);
-
-            else
-                std::sort(run[0].elem, run[0].elem + elements, cmp);
+            }
         }
+
 
         void finish_result()
         {
@@ -961,6 +962,7 @@ namespace stream
                 if (write_reqs[i].get())
                     write_reqs[i]->wait();
         }
+
         void cleanup()
         {
             delete[] write_reqs;
@@ -1516,7 +1518,7 @@ namespace stream
                     for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
                         if ((*seqs)[i].first == (*seqs)[i].second)
-                            continue; //run empty
+                            continue;  // run empty
 
                         if (min_last_element == NULL)
                             min_last_element = &(*((*seqs)[i].second - 1));
@@ -1527,16 +1529,16 @@ namespace stream
                         STXXL_VERBOSE2("" << STXXL_THREAD_ID << " last " << *((*seqs)[i].second - 1) << " sequence length " << std::dec << " " << ((*seqs)[i].second - (*seqs)[i].first));
                     }
 
-                    assert(min_last_element != NULL);           //there must be some element
+                    assert(min_last_element != NULL);           // there must be some element
 
                     STXXL_VERBOSE2("" << STXXL_THREAD_ID << " min_last_element " << *min_last_element << " total size " << total_size + (block_type::size - rest) << typeid(cmp).name());
 
                     diff_type less_equal_than_min_last = 0;
-                    //locate this element in all sequences
+                    // locate this element in all sequences
                     for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
                         if ((*seqs)[i].first == (*seqs)[i].second)
-                            continue; //empty subsequence
+                            continue;  // empty subsequence
 
                         typename block_type::iterator position = std::upper_bound((*seqs)[i].first, (*seqs)[i].second, *min_last_element, cmp);
                         STXXL_VERBOSE2("" << STXXL_THREAD_ID << " greater equal than " << position - (*seqs)[i].first << " elements");
@@ -1548,7 +1550,7 @@ namespace stream
                     assert(less_equal_than_min_last > 0);
 
                     stxxl::parallel::multiway_merge((*seqs).begin(), (*seqs).end(), current_block->end() - rest, cmp, output_size);
-                    //sequence iterators are progressed appropriately
+                    // sequence iterators are progressed appropriately
 
                     rest -= output_size;
 

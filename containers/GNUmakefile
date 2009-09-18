@@ -25,7 +25,8 @@ LIBS_BDB			?= -ldb_cxx
 TPIE_ROOT			?= /usr/local/tpie
 TPIE_ROOT			?= $(HOME)/projects/tpie_091905
 TPIE_ROOT			?= $(HOME)/work/lib/tpie
-CPPFLAGS_TPIE			?= -I$(TPIE_ROOT)/include -DHAVE_CONFIG_H -Wno-error
+TPIE_ROOT			?= $(HOME)/work/lib/$(UNAME_M)/tpie
+CPPFLAGS_TPIE			?= -I$(TPIE_ROOT)/include -DHAVE_CONFIG_H
 LIBS_TPIE			?= -L$(TPIE_ROOT)/lib -ltpie
 
 LEDA_COMPILER			?= g++-2.95
@@ -82,11 +83,14 @@ $(call reduce_optimization,3,0,btree/test_btree,gcc_version_4.2,32-bit,any)
 $(call reduce_optimization,3,0,btree/test_const_scan,gcc_version_4.2,any,any)
 else
 $(call reduce_optimization,3,2,test_map,gcc_version_4.2,64-bit,any)
+$(call reduce_optimization,3,2,test_map,gcc_version_4.2,32-bit,any)
+$(call reduce_optimization,3,2,test_map_random,gcc_version_4.2,64-bit,any)
 $(call reduce_optimization,3,1,btree/test_btree,gcc_version_4.2,64-bit,any)
 $(call reduce_optimization,3,2,btree/test_btree,gcc_version_4.2,32-bit,any)
 $(call reduce_optimization,3,2,btree/test_corr_insert_scan,gcc_version_4.2,32-bit,any)
 $(call reduce_optimization,3,2,btree/test_corr_insert_scan,gcc_version_4.2,64-bit,any)
 $(call reduce_optimization,3,2,btree/test_corr_insert_erase,gcc_version_4.2,64-bit,any)
+$(call reduce_optimization,3,2,btree/test_const_scan,gcc_version_4.2,32-bit,any)
 endif
 
 # ICPC 11.0: internal error: 0_1374 (issue 539748)

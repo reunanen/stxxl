@@ -14,6 +14,7 @@
 #ifndef STXXL_ALIGNED_ALLOC
 #define STXXL_ALIGNED_ALLOC
 
+#include <cstdlib>
 #include <stxxl/bits/common/utils.h>
 
 
@@ -22,6 +23,14 @@
 #endif
 
 __STXXL_BEGIN_NAMESPACE
+
+template <typename must_be_int>
+struct aligned_alloc_settings {
+    static bool may_use_realloc;
+};
+
+template <typename must_be_int>
+bool aligned_alloc_settings<must_be_int>::may_use_realloc = true;
 
 // meta_info_size > 0 is needed for array allocations that have overhead
 //
@@ -38,8 +47,28 @@ template <size_t ALIGNMENT>
 inline void * aligned_alloc(size_t size, size_t meta_info_size = 0)
 {
     STXXL_VERBOSE2("stxxl::aligned_alloc<" << ALIGNMENT << ">(), size = " << size << ", meta info size = " << meta_info_size);
+#if !defined(STXXL_WASTE_MORE_MEMORY_FOR_IMPROVED_ACCESS_AFTER_ALLOCATED_MEMORY_CHECKS)
+    // malloc()/realloc() variant that frees the unused amount of memory
+    // after the data area of size 'size'. realloc() from valgrind does not
+    // preserve the old memory area when shrinking, so out-of-bounds
+    // accesses can't be detected easily.
+    // Overhead: about ALIGNMENT bytes.
     size_t alloc_size = ALIGNMENT + sizeof(char *) + meta_info_size + size;
     char * buffer = (char *)std::malloc(alloc_size);
+#else
+    // More space consuming and memory fragmenting variant using
+    // posix_memalign() instead of malloc()/realloc(). Ensures that the end
+    // of the data area (of size 'size') will match the end of the allocated
+    // block, so no corrections are neccessary and
+    // access-behind-allocated-memory problems can be easily detected by
+    // valgrind. Usually produces an extra memory fragment of about
+    // ALIGNMENT bytes.
+    // Overhead: about 2 * ALIGNMENT bytes.
+    size_t alloc_size = ALIGNMENT * STXXL_DIVRU(sizeof(char *) + meta_info_size, ALIGNMENT) + size;
+    char * buffer;
+    if (posix_memalign((void **)&buffer, ALIGNMENT, alloc_size) != 0)
+        throw std::bad_alloc();
+#endif
     if (buffer == NULL)
         throw std::bad_alloc();
     #ifdef STXXL_ALIGNED_CALLOC
@@ -54,10 +83,18 @@ inline void * aligned_alloc(size_t size, size_t meta_info_size = 0)
     // free unused memory behind the data area
     // so access behind the requested size can be recognized
     size_t realloc_size = (result - buffer) + meta_info_size + size;
-    char * realloced = (char *)std::realloc(buffer, realloc_size);
-    if (buffer != realloced)
-        throw std::bad_alloc();
-    assert(result + size <= buffer + realloc_size);
+    if (realloc_size < alloc_size && aligned_alloc_settings<int>::may_use_realloc) {
+        char * realloced = (char *)std::realloc(buffer, realloc_size);
+        if (buffer != realloced) {
+            // hmm, realloc does move the memory block around while shrinking,
+            // might run under valgrind, so disable realloc and retry
+            STXXL_ERRMSG("stxxl::aligned_alloc: disabling realloc()");
+            std::free(realloced);
+            aligned_alloc_settings<int>::may_use_realloc = false;
+            return aligned_alloc<ALIGNMENT>(size, meta_info_size);
+        }
+        assert(result + size <= buffer + realloc_size);
+    }
 
     *(((char **)result) - 1) = buffer;
     STXXL_VERBOSE2("stxxl::aligned_alloc<" << ALIGNMENT << ">(), allocated at " << (void *)buffer << " returning " << (void *)result);
@@ -74,7 +111,7 @@ aligned_dealloc(void * ptr)
 {
     if (!ptr)
         return;
-    char * buffer = * (((char **)ptr) - 1);
+    char * buffer = *(((char **)ptr) - 1);
     STXXL_VERBOSE_ALIGNED_ALLOC("stxxl::aligned_dealloc<" << ALIGNMENT << ">(), ptr = " << ptr << ", buffer = " << (void *)buffer);
     std::free(buffer);
 }
