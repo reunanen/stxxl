@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_parallel_pipelining_common.h
+ *  stream/test_asynchronous_pipelining_common.h
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *

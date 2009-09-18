@@ -22,7 +22,7 @@
 
 //#define STXXL_VERBOSE_LEVEL 0
 
-#include "test_parallel_pipelining_common.h"
+#include "test_asynchronous_pipelining_common.h"
 #include <vector>
 #include <stxxl/stream>
 #include <stxxl/vector>
