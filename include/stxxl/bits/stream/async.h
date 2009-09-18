@@ -84,7 +84,7 @@ namespace stream
         protected:
 #ifdef STXXL_BOOST_THREADS
             //! \brief Asynchronously pulling thread.
-            boost::thread* puller_thread;
+            boost::thread * puller_thread;
 #else
             //! \brief Asynchronously pulling thread.
             pthread_t puller_thread;
@@ -316,8 +316,8 @@ namespace stream
             virtual ~push_pull()
             {
 #ifndef STXXL_BOOST_THREADS
-                /*check_pthread_call(*/pthread_mutex_destroy(&mutex)/*)*/;
-                /*check_pthread_call(*/pthread_cond_destroy(&cond)/*)*/;
+                /*check_pthread_call(*/ pthread_mutex_destroy(&mutex) /*)*/;
+                /*check_pthread_call(*/ pthread_cond_destroy(&cond) /*)*/;
 #endif
             }
 
@@ -354,11 +354,11 @@ namespace stream
                     if (input_buffer_filled)
                     {
                         swap_buffers();
-                        cond.notify_one();                      //wake up other thread
+                        cond.notify_one();                                              //wake up other thread
                     }
                     else
                         while (!last_swap_done && output_buffer_consumed)               //to be swapped by other thread
-                            cond.wait(mutex);                        //wait for other thread to swap in some input
+                            cond.wait(mutex);                                           //wait for other thread to swap in some input
 
                     mutex.unlock();
 #else
@@ -482,11 +482,11 @@ namespace stream
                     if (output_buffer_consumed)
                     {
                         swap_buffers();
-                        cond.notify_one();                             //wake up other thread
+                        cond.notify_one();                                      //wake up other thread
                     }
                     else
                         while (!last_swap_done && input_buffer_filled)          //to be swapped by other thread
-                            cond.wait(mutex);                              //wait for other thread to take the input
+                            cond.wait(mutex);                                   //wait for other thread to take the input
 
                     mutex.unlock();
 #else
@@ -497,10 +497,10 @@ namespace stream
                     if (output_buffer_consumed)
                     {
                         swap_buffers();
-                        check_pthread_call(pthread_cond_signal(&cond));         //wake up other thread
+                        check_pthread_call(pthread_cond_signal(&cond));                             //wake up other thread
                     }
                     else
-                        while (!last_swap_done && input_buffer_filled)          //to be swapped by other thread
+                        while (!last_swap_done && input_buffer_filled)                              //to be swapped by other thread
                             check_pthread_call(pthread_cond_wait(&cond, &mutex));                   //wait for other thread to take the input
 
                     check_pthread_call(pthread_mutex_unlock(&mutex));
@@ -581,7 +581,7 @@ namespace stream
         protected:
             //! \brief Asynchronously pulling thread.
 #ifdef STXXL_BOOST_THREADS
-            boost::thread* puller_thread;
+            boost::thread * puller_thread;
 #else
             pthread_t puller_thread;
 #endif
@@ -745,7 +745,7 @@ namespace stream
             typedef push_pull<typename StreamOperation::value_type> base;
 #ifdef STXXL_BOOST_THREADS
             //! \brief Asynchronously pushing thread.
-            boost::thread* pusher_thread;
+            boost::thread * pusher_thread;
 #else
             //! \brief Asynchronously pushing thread.
             pthread_t pusher_thread;

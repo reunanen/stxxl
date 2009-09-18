@@ -40,9 +40,16 @@ struct my_type
     my_type(key_type __key) : _key(__key) { }
     my_type(key_type __key, key_type __load) : _key(__key), _load(__load) { }
 
-    void operator = (const key_type & __key) { _key = __key; }
-    void operator = (const my_type & mt) { _key = mt._key;
-                                           _load = mt._load; }
+    void operator = (const key_type & __key)
+    {
+        _key = __key;
+    }
+
+    void operator = (const my_type & mt)
+    {
+        _key = mt._key;
+        _load = mt._load;
+    }
 };
 
 std::ostream & operator << (std::ostream & o, const my_type & obj);
