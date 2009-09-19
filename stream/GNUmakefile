@@ -28,5 +28,7 @@ $(call reduce_optimization,3,1,test_sorted_runs,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,0,test_push_sort,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,0,test_asynchronous_nodes,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,0,test_asynchronous_stream_sort,Version_10.0,32-bit,any)
+$(call reduce_optimization,3,0,test_asynchronous_stream_sort.as,Version_10.0,32-bit,any)
+$(call reduce_optimization,3,0,test_asynchronous_stream_sort.as-ba,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,0,test_asynchronous_distribute_gather,Version_10.0,32-bit,any)
 endif
