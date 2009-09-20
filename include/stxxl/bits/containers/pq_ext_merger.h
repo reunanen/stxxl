@@ -688,6 +688,7 @@ namespace priority_queue_local
                         if (state.bids == NULL || state.bids->empty()) // if there is no next block
                         {
                             STXXL_VERBOSE1("seq " << i << ": ext_merger::multi_merge(...) it was the last block in the sequence ");
+                            state.make_inf();
                         }
                         else
                         {
@@ -743,14 +744,6 @@ namespace priority_queue_local
                     STXXL_VERBOSE1("deallocated " << seg);
                     deallocate_segment(seg);
                 }
-            }
-
-            // compact tree if it got considerably smaller
-            {
-                const unsigned_type num_segments_used = std::min<unsigned_type>(arity, k) - free_segments.size();
-                const unsigned_type num_segments_trigger = k - (3 * k / 5);
-                if (k > 1 && num_segments_used <= num_segments_trigger)
-                    compact_tree();
             }
 
 #else       // STXXL_PARALLEL && STXXL_PARALLEL_PQ_MULTIWAY_MERGE_EXTERNAL
@@ -828,8 +821,8 @@ namespace priority_queue_local
                 break;
             }
 
-
             size_ -= length;
+#endif
 
             // compact tree if it got considerably smaller
             {
@@ -852,7 +845,6 @@ namespace priority_queue_local
                     compact_tree();
                 }
             }
-#endif
         }
 
     private:
