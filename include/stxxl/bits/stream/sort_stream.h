@@ -893,21 +893,12 @@ namespace stream
                 std::sort(run[0].elem, run[0].elem + elements, cmp);
             } else {
                 std::sort(
-#if 1
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(run, 0),
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(run, elements),
-#else
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(run, 0),
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(run, elements),
-#endif
                     cmp);
             }
         }
@@ -1371,25 +1362,12 @@ namespace stream
                 }
             }
             if (!stxxl::is_sorted(
-#if 1
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(blocks, 0),
                     ArrayOfSequencesIterator<
                         block_type, typename block_type::value_type, block_type::size
                         >(blocks, sruns.runs_sizes[irun]),
-#else
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(blocks, 0),
-                    TwoToOneDimArrayRowAdaptor<
-                        block_type, value_type, block_type::size
-                        >(blocks,
-                          //nblocks*block_type::size
-                          //(irun<nruns-1)?(nblocks*block_type::size): (sruns.elements%(nblocks*block_type::size))
-                          sruns.runs_sizes[irun]
-                          ),
-#endif
                     cmp))
             {
                 STXXL_ERRMSG("check_sorted_runs  wrong order in the run");
