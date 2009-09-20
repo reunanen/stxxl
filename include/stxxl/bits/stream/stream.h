@@ -43,6 +43,11 @@
 #endif
 
 
+#ifndef STXXL_VERBOSE_MATERIALIZE
+#define STXXL_VERBOSE_MATERIALIZE STXXL_VERBOSE3
+#endif
+
+
 __STXXL_BEGIN_NAMESPACE
 
 //! \brief Stream package subnamespace
@@ -452,6 +457,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
             in.start_pull();
@@ -491,6 +497,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out, StartMode start_mode)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
         {
@@ -534,6 +541,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
             in.start_pull();
@@ -578,6 +586,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
         if (start_mode == start_deferred)
         {
@@ -611,6 +620,7 @@ namespace stream
     {
     	return materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
+
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
     //! \param in stream to be stored used as source
     //! \param outbegin output \c stxxl::vector iterator used as destination
@@ -632,6 +642,7 @@ namespace stream
                 unsigned_type nbuffers = 0,
                 StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
@@ -710,6 +721,7 @@ namespace stream
                       unsigned_type nbuffers = 0,
                       StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
@@ -797,6 +809,7 @@ namespace stream
                 unsigned_type nbuffers = 0,
                 StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
@@ -876,6 +889,7 @@ namespace stream
                       unsigned_type nbuffers = 0,
                       StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
     {
+        STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
         typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
         typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
         typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
