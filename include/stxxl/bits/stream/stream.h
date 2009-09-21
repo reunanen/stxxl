@@ -84,6 +84,11 @@ namespace stream
     //!
     //! \{
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     STREAMIFY                                                      //
+    ////////////////////////////////////////////////////////////////////////
+
     //! \brief A model of stream that retrieves the data from an input iterator
     //! For convenience use \c streamify function instead of direct instantiation
     //! of \c iterator2stream .
@@ -446,6 +451,11 @@ namespace stream
         return vector_iterator2stream_sr<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
                    (begin, end, nbuffers);
     }
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //     MATERIALIZE                                                    //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Stores consecutively stream content to an output iterator
     //! \param in stream to be stored used as source
@@ -969,6 +979,15 @@ namespace stream
         return out;
     }
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     PULL                                                           //
+    //     FIXME: this is not a good, self-explanatory name
+    //     FIXME: why does it need to call operator * () ?
+    //            add a transform step before the pull if you need
+    //            to do "something" with the steam elements
+    ////////////////////////////////////////////////////////////////////////
+
     //! \brief Pulls from a stream, discards output
     //! \param in stream to be stored used as source
     //! \param num_elements number of elements to pull
@@ -1004,6 +1023,10 @@ namespace stream
         return i;
     }
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     GENERATE                                                       //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief A model of stream that outputs data from an adaptable generator functor
     //! For convenience use \c streamify function instead of direct instantiation
@@ -1067,6 +1090,11 @@ namespace stream
     {
         return generator2stream<Generator_>(gen_);
     }
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM                                                      //
+    ////////////////////////////////////////////////////////////////////////
 
     struct Stopper { };
 
@@ -1198,6 +1226,10 @@ namespace stream
         }
     };
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM (1 input stream)                                     //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Processes an input stream using given operation functor
     //!
@@ -1338,6 +1370,10 @@ namespace stream
     };
 
 
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM (2 input streams)                                    //
+    ////////////////////////////////////////////////////////////////////////
+
     //! \brief Processes 2 input streams using given operation functor
     //!
     //! Template parameters:
@@ -1397,6 +1433,10 @@ namespace stream
         }
     };
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM (3 input streams)                                    //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Processes 3 input streams using given operation functor
     //!
@@ -1462,6 +1502,10 @@ namespace stream
         }
     };
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM (4 input streams)                                    //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Processes 4 input streams using given operation functor
     //!
@@ -1531,6 +1575,10 @@ namespace stream
         }
     };
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     TRANSFORM (5 input streams)                                    //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Processes 5 input streams using given operation functor
     //!
@@ -1605,6 +1653,10 @@ namespace stream
         }
     };
 
+
+    ////////////////////////////////////////////////////////////////////////
+    //     DISTRIBUTE                                                     //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Helper function to call basic_push::push() in a Pthread thread.
     template <class Output_>
@@ -1793,6 +1845,11 @@ namespace stream
             }
         }
     };
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //     ROUND ROBIN                                                    //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Fetch data from different inputs, in a round-robin fashion.
     //!
@@ -2004,6 +2061,11 @@ namespace stream
             return *this;
         }
     };
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //     MAKE TUPLE                                                     //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Creates stream of 6-tuples from 6 input streams
     //!
@@ -2475,6 +2537,10 @@ namespace stream
     };
 
 
+    ////////////////////////////////////////////////////////////////////////
+    //     CHOOSE                                                         //
+    ////////////////////////////////////////////////////////////////////////
+
     template <class Input_, int Which>
     class choose
     { };
@@ -2814,6 +2880,11 @@ namespace stream
             return in.empty();
         }
     };
+
+
+    ////////////////////////////////////////////////////////////////////////
+    //     UNIQUE                                                         //
+    ////////////////////////////////////////////////////////////////////////
 
     //! \brief Equivalent to std::unique algorithms
     //!
