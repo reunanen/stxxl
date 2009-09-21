@@ -214,6 +214,8 @@ namespace stream
 
         const unsigned_type el_in_run; // number of elements in this run
 
+        void compute_result();
+
     public:
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         //! \brief Routine of the second thread, which writes data to disk.
@@ -374,8 +376,6 @@ namespace stream
 #endif
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         }
-
-        void compute_result();
 
         //! \brief Returns the sorted runs object
         //! \return Sorted runs object. The result is computed lazily, i.e. on the first call
@@ -879,7 +879,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
 
-        bool result_finished;     // true after the result() method was called for the first time
+        bool result_computed;     // true after the result() method was called for the first time
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
@@ -922,8 +922,7 @@ namespace stream
             }
         }
 
-
-        void finish_result()
+        void compute_result()
         {
             if (cur_el == 0)
                 return;
@@ -986,7 +985,7 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         runs_creator(Cmp_ c, unsigned_type memory_to_use, bool wait_for_stop = STXXL_WAIT_FOR_STOP_DEFAULT) :
-            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_finished(false),
+            cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false),
             m2(m_ / 2),
             el_in_run(m2 * block_type::size),
             cur_el(0),
@@ -1014,7 +1013,7 @@ namespace stream
             check_pthread_call(pthread_mutex_destroy(&mutex));
             check_pthread_call(pthread_cond_destroy(&cond));
 #endif
-            if (!result_finished)
+            if (!result_computed)
                 cleanup();
         }
 
@@ -1034,7 +1033,7 @@ namespace stream
         //! \param val value to be added
         void push(const value_type & val)
         {
-            assert(result_finished == false);
+            assert(result_computed == false);
             if (cur_el < el_in_run)
             {
                 Blocks1[cur_el.get_block()][cur_el.get_offset()] = val;
@@ -1089,7 +1088,7 @@ namespace stream
         template <class Iterator>
         void push_batch(Iterator batch_begin, Iterator batch_end)
         {
-            assert(result_finished == false);
+            assert(result_computed == false);
             assert((batch_end - batch_begin) > 0);
 
             --batch_end;    //save last element
@@ -1123,10 +1122,10 @@ namespace stream
             STXXL_VERBOSE1("runs_creator use_push " << this << " stops pushing.");
             if (wait_for_stop)
             {
-                if (!result_finished)
+                if (!result_computed)
                 {
-                    finish_result();
-                    result_finished = true;
+                    compute_result();
+                    result_computed = true;
                     cleanup();
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                     STXXL_MSG(*stats::get_instance());
@@ -1168,10 +1167,10 @@ namespace stream
             }
             else
             {
-                if (!result_finished)
+                if (!result_computed)
                 {
-                    finish_result();
-                    result_finished = true;
+                    compute_result();
+                    result_computed = true;
                     cleanup();
 #ifdef STXXL_PRINT_STAT_AFTER_RF
                     STXXL_MSG(*stats::get_instance());
