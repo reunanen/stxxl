@@ -120,8 +120,14 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
         bool result_computed;     // true iff result is already computed (used in 'result' method)
+#if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         bool asynchronous_pull;
+#else
+        static const bool asynchronous_pull = false;
+#endif
+#if STXXL_START_PIPELINE_DEFERRED
         StartMode start_mode;
+#endif
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
@@ -327,13 +333,13 @@ namespace stream
         //! \param c comparator object
         //! \param memory_to_use memory amount that is allowed to used by the sorter in bytes
         basic_runs_creator(Input_ & i, Cmp_ c, unsigned_type memory_to_use, bool asynchronous_pull, StartMode start_mode) :
-            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false),
+            input(i), cmp(c), m_(memory_to_use / BlockSize_ / sort_memory_usage_factor()), result_computed(false)
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            asynchronous_pull(asynchronous_pull),
-#else
-            asynchronous_pull(false),
+            , asynchronous_pull(asynchronous_pull)
 #endif
-            start_mode(start_mode)
+#if STXXL_START_PIPELINE_DEFERRED
+            , start_mode(start_mode)
+#endif
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifdef STXXL_BOOST_THREADS
             , mutex(ul_mutex)
@@ -349,6 +355,9 @@ namespace stream
 #else
             UNUSED(asynchronous_pull);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
+#if !STXXL_START_PIPELINE_DEFERRED
+            UNUSED(start_mode);
+#endif
             assert(m_ > 0);
             assert(el_in_run > 0);
             assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
