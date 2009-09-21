@@ -870,7 +870,7 @@ namespace stream
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
 
-        bool result_finished;    // true after the result() method was called for the first time
+        bool result_finished;     // true after the result() method was called for the first time
 
         const unsigned_type m2;
         const unsigned_type el_in_run;
@@ -1471,7 +1471,7 @@ namespace stream
                 seqs = new std::vector<sequence>(nruns);
                 buffers = new std::vector<block_type *>(nruns);
 
-                for (unsigned_type i = 0; i < nruns; ++i)                                              //initialize sequences
+                for (unsigned_type i = 0; i < nruns; ++i)                                       //initialize sequences
                 {
                     (*buffers)[i] = prefetcher->pull_block();                                   //get first block of each run
                     (*seqs)[i] = std::make_pair((*buffers)[i]->begin(), (*buffers)[i]->end());  //this memory location stays the same, only the data is exchanged

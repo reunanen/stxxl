@@ -174,7 +174,7 @@ namespace stream
 
         void delete_stream()
         {
-            in.reset(); //delete object
+            in.reset();  // delete object
         }
 
     public:
