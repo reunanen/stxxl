@@ -1,5 +1,5 @@
 /***************************************************************************
- *  include/stxxl/bits/algo/sort_base.h
+ *  include/stxxl/bits/msvc_compatibility.h
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -10,20 +10,23 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_SORT_BASE_HEADER
-#define STXXL_SORT_BASE_HEADER
+#ifndef STXXL_MSVC_COMPATIBILITY_H
+#define STXXL_MSVC_COMPATIBILITY_H
 
-#ifndef STXXL_SORT_OPTIMAL_PREFETCHING
-#define STXXL_SORT_OPTIMAL_PREFETCHING 1
+#ifdef STXXL_BOOST_CONFIG
+ #include <boost/config.hpp>
 #endif
 
-#ifndef STXXL_CHECK_ORDER_IN_SORTS
-#define STXXL_CHECK_ORDER_IN_SORTS 0
+#ifdef BOOST_MSVC
+
+#include <cmath>
+
+inline double log2(double x)
+{
+    return (log(x) / log(2.));
+}
+
 #endif
 
-#ifndef STXXL_L2_SIZE
-#define STXXL_L2_SIZE  (512 * 1024)
-#endif
-
-#endif // !STXXL_SORT_BASE_HEADER
+#endif // !STXXL_MSVC_COMPATIBILITY_H
 // vim: et:ts=4:sw=4

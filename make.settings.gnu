@@ -41,7 +41,7 @@ WARNINGS	?= -Wall -w1 -openmp-report0 -vec-report0
 endif
 
 ifeq ($(strip $(USE_PMODE)),yes)
-COMPILER_GCC	?= g++-4.3.x
+COMPILER_GCC	?= g++-4.4.x
 LIBNAME		?= pmstxxl
 endif
 
@@ -286,11 +286,14 @@ CPPUNIT_LINKER_OPTIONS		+= -lcppunit -ldl
 HEADER_FILES_BITS	+= namespace.h noncopyable.h version.h
 HEADER_FILES_BITS	+= compat_hash_map.h compat_hash_set.h
 HEADER_FILES_BITS	+= compat_unique_ptr.h parallel.h singleton.h defines.h
+HEADER_FILES_BITS	+= verbose.h
+HEADER_FILES_BITS	+= msvc_compatibility.h
 
-HEADER_FILES_COMMON	+= aligned_alloc.h mutex.h rand.h semaphore.h state.h
+HEADER_FILES_COMMON	+= aligned_alloc.h new_alloc.h
+HEADER_FILES_COMMON	+= mutex.h rand.h semaphore.h state.h
 HEADER_FILES_COMMON	+= timer.h utils.h error_handling.h simple_vector.h
 HEADER_FILES_COMMON	+= switch.h tmeta.h log.h exceptions.h debug.h tuple.h
-HEADER_FILES_COMMON	+= types.h settings.h seed.h is_sorted.h
+HEADER_FILES_COMMON	+= types.h settings.h seed.h is_sorted.h exithandler.h
 
 HEADER_FILES_IO		+= io.h iostats.h completion_handler.h
 HEADER_FILES_IO		+= request.h request_waiters_impl_basic.h
@@ -306,9 +309,9 @@ HEADER_FILES_IO		+= wbtl_file.h
 
 HEADER_FILES_MNG	+= adaptor.h block_prefetcher.h
 HEADER_FILES_MNG	+= buf_istream.h buf_ostream.h buf_writer.h mng.h
-HEADER_FILES_MNG	+= bid.h typed_block.h diskallocator.h
+HEADER_FILES_MNG	+= bid.h typed_block.h diskallocator.h config.h
 HEADER_FILES_MNG	+= write_pool.h prefetch_pool.h read_write_pool.h
-HEADER_FILES_MNG	+= block_alloc_interleaved.h
+HEADER_FILES_MNG	+= block_alloc.h block_alloc_interleaved.h
 
 HEADER_FILES_CONTAINERS	+= pager.h stack.h vector.h priority_queue.h
 #EADER_FILES_CONTAINERS	+= pq_helpers.h pq_mergers.h pq_ext_merger.h

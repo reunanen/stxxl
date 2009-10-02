@@ -472,7 +472,7 @@ namespace stream
         if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         while (!in.empty())
         {
@@ -515,7 +515,7 @@ namespace stream
             in.start_pull();
         }
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0)
@@ -556,7 +556,7 @@ namespace stream
         if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         while ((!in.empty()) && outend != outbegin)
         {
@@ -604,7 +604,7 @@ namespace stream
             in.start_pull();
         }
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outbegin != outend)
@@ -661,7 +661,7 @@ namespace stream
         if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         while (outbegin.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -677,7 +677,6 @@ namespace stream
         if (nbuffers == 0)
             nbuffers = 2 * config::get_instance()->disks_number();
 
-
         outbegin.flush(); // flush container
 
         // create buffered write stream for blocks
@@ -685,10 +684,18 @@ namespace stream
 
         assert(outbegin.block_offset() == 0);
 
+        // delay calling block_externally_updated() until the block is
+        // completely filled (and written out) in outstream
+        ConstExtIterator prev_block = outbegin;
+
         while (!in.empty() && outend != outbegin)
         {
-            if (outbegin.block_offset() == 0)
-                outbegin.block_externally_updated();
+            if (outbegin.block_offset() == 0) {
+                if (prev_block != outbegin) {
+                    prev_block.block_externally_updated();
+                    prev_block = outbegin;
+                }
+            }
 
             *outstream = *in;
             ++outbegin;
@@ -704,6 +711,10 @@ namespace stream
             ++const_out;
             ++outstream;
         }
+
+        if (prev_block != outbegin)
+            prev_block.block_externally_updated();
+
         outbegin.flush();
 
         return outbegin;
@@ -743,7 +754,7 @@ namespace stream
             in.start_pull();
         }
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
 
         ExtIterator outcurrent = outbegin;
@@ -833,7 +844,7 @@ namespace stream
         if (start_mode == start_deferred)
             in.start_pull();
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -916,7 +927,7 @@ namespace stream
             in.start_pull();
         }
 #else
-        UNUSED(start_mode);
+        STXXL_UNUSED(start_mode);
 #endif
         while (out.block_offset()) //  go to the beginning of the block
         //  of the external vector
@@ -2976,3 +2987,4 @@ namespace stream
 __STXXL_END_NAMESPACE
 
 #endif // !STXXL_STREAM_HEADER
+// vim: et:ts=4:sw=4

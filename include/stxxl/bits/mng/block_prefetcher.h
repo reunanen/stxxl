@@ -60,7 +60,7 @@ protected:
 
     block_type * read_buffers;
     request_ptr * read_reqs;
-    bid_type* read_bids;
+    bid_type * read_bids;
 
     onoff_switch * completed;
     int_type * pref_buffer;
@@ -79,10 +79,10 @@ protected:
         int_type ibuffer = pref_buffer[iblock];
         STXXL_VERBOSE1("block_prefetcher: returning buffer " << ibuffer);
         assert(ibuffer >= 0 && ibuffer < nreadblocks);
-        if(delete_block_after_fetch)
+        if (delete_block_after_fetch)
         {
             STXXL_VERBOSE1("block_prefetcher: deleting block " << read_bids[ibuffer]);
-			block_manager::get_instance()->delete_block(read_bids[ibuffer]);
+            block_manager::get_instance()->delete_block(read_bids[ibuffer]);
         }
         return (read_buffers + ibuffer);
     }
@@ -126,14 +126,16 @@ public:
 
         for (i = 0; i < nreadblocks; ++i)
         {
-            STXXL_VERBOSE1("block_prefetcher: reading block " << i
-                           << " prefetch_seq[" << i << "]=" << prefetch_seq[i]);
             assert(prefetch_seq[i] < int_type(seq_length));
             assert(prefetch_seq[i] >= 0);
-            read_reqs[i] = read_buffers[i].read(
-                *(consume_seq_begin + prefetch_seq[i]),
-                set_switch_handler(*(completed + prefetch_seq[i])));
             read_bids[i] = *(consume_seq_begin + prefetch_seq[i]);
+            STXXL_VERBOSE1("block_prefetcher: reading block " << i
+                           << " prefetch_seq[" << i << "]=" << prefetch_seq[i]
+                           << " @ " << &read_buffers[i]
+                           << " @ " << read_bids[i]);
+            read_reqs[i] = read_buffers[i].read(
+                read_bids[i],
+                set_switch_handler(*(completed + prefetch_seq[i])));
             pref_buffer[prefetch_seq[i]] = i;
         }
     }
@@ -168,11 +170,11 @@ public:
             assert(!completed[next_2_prefetch].is_on());
 
             pref_buffer[next_2_prefetch] = ibuffer;
+            read_bids[ibuffer] = *(consume_seq_begin + next_2_prefetch);
             read_reqs[ibuffer] = read_buffers[ibuffer].read(
-                *(consume_seq_begin + next_2_prefetch),
+                read_bids[ibuffer],
                 set_switch_handler(*(completed + next_2_prefetch))
                 );
-            read_bids[ibuffer] = *(consume_seq_begin + next_2_prefetch);
         }
 
         if (nextconsume >= seq_length)

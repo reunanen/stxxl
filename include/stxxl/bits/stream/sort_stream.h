@@ -355,14 +355,16 @@ namespace stream
             check_pthread_call(pthread_cond_init(&cond, 0));
 #endif
 #else
-            UNUSED(asynchronous_pull);
+            STXXL_UNUSED(asynchronous_pull);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #if !STXXL_START_PIPELINE_DEFERRED
-            UNUSED(start_mode);
+            STXXL_UNUSED(start_mode);
 #endif
             assert(m_ > 0);
             assert(el_in_run > 0);
-            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
+                throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
+            }
             assert(c(c.min_value(), c.max_value()));    //consistency of comparator
         }
 
@@ -1000,7 +1002,9 @@ namespace stream
         {
             assert(m_ > 0);
             assert(m2 > 0);
-            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
+                throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
+            }
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
@@ -1231,6 +1235,8 @@ namespace stream
 
     private:
         typedef typename sorted_runs_type::run_type run_type;
+        typedef offset_allocator<alloc_strategy_type> offset_alloc_strategy_type;
+
         sorted_runs_type result_; // stores the result (sorted runs)
         unsigned_type m_;         // memory for internal use in blocks
         buffered_writer<block_type> writer;
@@ -1238,7 +1244,7 @@ namespace stream
         unsigned_type offset;
         unsigned_type iblock;
         unsigned_type irun;
-        alloc_strategy_type alloc_strategy;
+        offset_alloc_strategy_type alloc_strategy;  // needs to be reset after each run
 
     public:
         //! \brief Creates the object
@@ -1255,7 +1261,9 @@ namespace stream
             irun(0)
         {
             assert(m_ > 0);
-            assert(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use);
+            if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
+                throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
+            }
         }
 
         //! \brief Adds new element to the current run
@@ -1275,8 +1283,9 @@ namespace stream
                 // allocate space for the block
                 result_.runs.resize(irun + 1);
                 result_.runs[irun].resize(iblock + 1);
+                alloc_strategy.set_offset(iblock);
                 bm->new_blocks(
-                    offset_allocator<alloc_strategy_type>(iblock, alloc_strategy),
+                    alloc_strategy,
                     trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
                         result_.runs[irun].begin() + iblock),
                     trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
@@ -1316,8 +1325,9 @@ namespace stream
                 // allocate space for the block
                 result_.runs.resize(irun + 1);
                 result_.runs[irun].resize(iblock + 1);
+                alloc_strategy.set_offset(iblock);
                 bm->new_blocks(
-                    offset_allocator<alloc_strategy_type>(iblock, alloc_strategy),
+                    alloc_strategy,
                     trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
                         result_.runs[irun].begin() + iblock),
                     trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
@@ -1330,6 +1340,7 @@ namespace stream
             else
             { }
 
+            alloc_strategy = offset_alloc_strategy_type();  // reinitialize block allocator for the next run
             iblock = 0;
             ++irun;
         }
@@ -1429,7 +1440,7 @@ namespace stream
         typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
         typedef sort_local::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
-        typedef loser_tree<run_cursor_type, run_cursor2_cmp_type, block_type::size> loser_tree_type;
+        typedef loser_tree<run_cursor_type, run_cursor2_cmp_type> loser_tree_type;
 
         typedef stxxl::int64 diff_type;
         typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
@@ -1502,6 +1513,7 @@ namespace stream
 
         void fill_current_block()
         {
+            STXXL_VERBOSE1("fill_current_block");
             if (do_parallel_merge())
             {
 #if STXXL_PARALLEL_MULTIWAY_MERGE
@@ -1595,10 +1607,11 @@ namespace stream
             {
 // begin of native merging procedure
 
-                losers->multi_merge(current_block->elem);
+                losers->multi_merge(current_block->elem, current_block->elem + block_type::size);
 
 // end of native merging procedure
             }
+            STXXL_VERBOSE1("current block filled");
         }
 
     public:
@@ -2267,7 +2280,7 @@ void sort(RandomAccessIterator begin,
           unsigned_type MemSize,
           AllocStr AS)
 {
-    UNUSED(AS);
+    STXXL_UNUSED(AS);
 #ifdef BOOST_MSVC
     typedef typename streamify_traits<RandomAccessIterator>::stream_type InputType;
 #else

@@ -94,7 +94,7 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 #if SYMMETRIC
         typedef PUSH_PULL<my_type> runs_creator_stream_node1_type;
         runs_creator_stream_node1_type runs_creator_stream_node1(buffer_size, start_mode);        //9
-        stxxl::UNUSED(wait_for_stop);
+        stxxl::STXXL_UNUSED(wait_for_stop);
 #else
         typedef runs_creator<use_push<my_type>, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream1_type;
         runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size, asynchronous_pull, wait_for_stop);       //10a

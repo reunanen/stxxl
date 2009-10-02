@@ -36,6 +36,10 @@ pipefail	?= set -o pipefail;
 
 $(foreach d,$(DISKS_1by1),$(eval DISKS_$d ?= $d))
 
+ifeq ($(SHELL),/bin/sh)
+SHELL		 = bash
+endif
+
 define do-some-disks
 	-$(pipefail) \
 	$(if $(IOSTAT_PLOT_RECORD_DATA),$(IOSTAT_PLOT_RECORD_DATA) -p $(@:.log=)) \
@@ -129,9 +133,11 @@ PLOTXMAX	?= 475
 PLOTYMAX	?= 120
 AVGPLOTYMAX	?= $(PLOTYMAX)
 
+format_block_size = $(or $(if $(filter 2560000B,$1),2.5),$(if $(filter 12800000B,$1),12.5),$(strip $1))MiB
+
 $(HOST).gnuplot: $(MAKEFILE_LIST) $(wildcard *.log)
 	$(RM) $@
-	echo 'set title "STXXL Disk Benchmark $(DISKNAME) B=$(strip $(BATCH_SIZE))x$(strip $(BLOCK_SIZE))MiB @ $(HOST)"' >> $@
+	echo 'set title "STXXL Disk Benchmark $(DISKNAME) B=$(strip $(BATCH_SIZE))x$(call format_block_size,$(BLOCK_SIZE)) @ $(HOST)"' >> $@
 	echo 'set xlabel "Disk offset [GiB]"' >> $@
 	echo 'set ylabel "Bandwidth per disk [MiB/s]"' >> $@
 	echo '' >> $@
@@ -160,8 +166,8 @@ $(HOST).gnuplot: $(MAKEFILE_LIST) $(wildcard *.log)
 	echo '' >> $@
 	echo 'pause -1' >> $@
 	echo '' >> $@
-	echo 'set title "STXXL Disk Benchmark $(DISKNAME) B=$(strip $(BATCH_SIZE))x$(strip $(BLOCK_SIZE))MiB \\@ $(subst _,\\_,$(HOST))"' >> $@
-	echo 'set term postscript enhanced color solid' >> $@
+	echo 'set title "STXXL Disk Benchmark $(DISKNAME) B=$(strip $(BATCH_SIZE))x$(call format_block_size,$(BLOCK_SIZE)) \\@ $(subst _,\\_,$(HOST))"' >> $@
+	echo 'set term postscript enhanced color solid 10' >> $@
 	echo 'set output "$(HOST).ps"' >> $@
 	echo 'replot' >> $@
 

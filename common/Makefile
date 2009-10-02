@@ -6,7 +6,7 @@ tools: $(UTIL_BINARIES)
 tests: $(TESTS)
 #tests: $(TESTS_NON_MSVC)
 
-lib: debug.$(OBJEXT) rand.$(OBJEXT) version.$(OBJEXT) seed.$(OBJEXT)
+lib: debug.$(OBJEXT) rand.$(OBJEXT) version.$(OBJEXT) seed.$(OBJEXT) exithandler.$(OBJEXT) verbose.$(OBJEXT) log.$(OBJEXT)
 
 
 debug.$(OBJEXT): debug.cpp
@@ -20,6 +20,15 @@ version.$(OBJEXT): version.cpp
 	
 seed.$(OBJEXT): seed.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c seed.cpp
+
+exithandler.$(OBJEXT): exithandler.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c exithandler.cpp
+
+verbose.$(OBJEXT): verbose.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c verbose.cpp
+
+log.$(OBJEXT): log.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c log.cpp
 
 
 DEPENDENCIES = $(COMMON_FILES) $(IO_LAYER_FILES) $(MNG_LAYER_FILES) $(CONTAINER_FILES) $(ALGO_FILES)

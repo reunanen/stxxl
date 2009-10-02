@@ -102,7 +102,10 @@ COMMON_FILES	 = \
 	$(HEADER_PATH)/parallel.h \
 	$(HEADER_PATH)/singleton.h \
 	$(HEADER_PATH)/defines.h \
+	$(HEADER_PATH)/verbose.h \
+	$(HEADER_PATH)/msvc_compatibility.h \
 	$(HEADER_PATH)/common/aligned_alloc.h \
+	$(HEADER_PATH)/common/new_alloc.h \
 	$(HEADER_PATH)/common/mutex.h \
 	$(HEADER_PATH)/common/rand.h \
 	$(HEADER_PATH)/common/semaphore.h \
@@ -120,7 +123,8 @@ COMMON_FILES	 = \
 	$(HEADER_PATH)/common/types.h \
 	$(HEADER_PATH)/common/settings.h \
 	$(HEADER_PATH)/common/seed.h  \
-	$(HEADER_PATH)/common/is_sorted.h 
+	$(HEADER_PATH)/common/is_sorted.h \
+	$(HEADER_PATH)/common/exithandler.h
 
 IO_LAYER_FILES	 = \
 	$(HEADER_PATH)/io/io.h \
@@ -149,6 +153,7 @@ IO_LAYER_FILES	 = \
 
 MNG_LAYER_FILES	 = \
 	$(HEADER_PATH)/mng/adaptor.h \
+	$(HEADER_PATH)/mng/block_alloc.h \
 	$(HEADER_PATH)/mng/block_alloc_interleaved.h \
 	$(HEADER_PATH)/mng/block_prefetcher.h \
 	$(HEADER_PATH)/mng/buf_istream.h \
@@ -158,6 +163,7 @@ MNG_LAYER_FILES	 = \
 	$(HEADER_PATH)/mng/bid.h \
 	$(HEADER_PATH)/mng/typed_block.h \
 	$(HEADER_PATH)/mng/diskallocator.h \
+	$(HEADER_PATH)/mng/config.h \
 	$(HEADER_PATH)/mng/write_pool.h \
 	$(HEADER_PATH)/mng/prefetch_pool.h \
 	$(HEADER_PATH)/mng/read_write_pool.h

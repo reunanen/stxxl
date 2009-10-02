@@ -744,7 +744,7 @@ public:
     typedef const value_type * const_pointer;
 
     typedef PgTp_ pager_type;
-    typedef AllocStr_ alloc_strategy;
+    typedef AllocStr_ alloc_strategy_type;
 
     enum {
         block_size = BlkSize_,
@@ -753,12 +753,12 @@ public:
         on_disk = -1
     };
 
-    typedef vector_iterator<value_type, alloc_strategy, size_type,
+    typedef vector_iterator<value_type, alloc_strategy_type, size_type,
                             difference_type, block_size, pager_type, page_size> iterator;
-    friend class vector_iterator<value_type, alloc_strategy, size_type, difference_type, block_size, pager_type, page_size>;
-    typedef const_vector_iterator<value_type, alloc_strategy,
+    friend class vector_iterator<value_type, alloc_strategy_type, size_type, difference_type, block_size, pager_type, page_size>;
+    typedef const_vector_iterator<value_type, alloc_strategy_type,
                                   size_type, difference_type, block_size, pager_type, page_size> const_iterator;
-    friend class const_vector_iterator<value_type, alloc_strategy, size_type, difference_type, block_size, pager_type, page_size>;
+    friend class const_vector_iterator<value_type, alloc_strategy_type, size_type, difference_type, block_size, pager_type, page_size>;
     typedef std::reverse_iterator<iterator> reverse_iterator;
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
@@ -771,7 +771,9 @@ public:
     typedef typed_block<BlkSize_, Tp_> block_type;
 
 private:
-    alloc_strategy _alloc_strategy;
+    typedef offset_allocator<alloc_strategy_type> offset_alloc_strategy_type;
+
+    offset_alloc_strategy_type alloc_strategy;
     size_type _size;
     bids_container_type _bids;
     mutable pager_type pager;
@@ -831,14 +833,13 @@ public:
         for (i = 0; i < n_pages; ++i)
             _free_slots.push(i);
 
-
-        bm->new_blocks(_alloc_strategy, _bids.begin(),
-                       _bids.end());
+        alloc_strategy.set_offset(0);
+        bm->new_blocks(alloc_strategy, _bids.begin(), _bids.end());
     }
 
     void swap(vector & obj)
     {
-        std::swap(_alloc_strategy, obj._alloc_strategy);
+        std::swap(alloc_strategy, obj.alloc_strategy);
         std::swap(_size, obj._size);
         std::swap(_bids, obj._bids);
         std::swap(pager, obj.pager);
@@ -873,9 +874,10 @@ public:
 
         _bids.resize(new_bids_size);
         if (_from == NULL)
-            bm->new_blocks(offset_allocator<alloc_strategy>(old_bids_size, _alloc_strategy),
-                           _bids.begin() + old_bids_size, _bids.end());
-
+        {
+            alloc_strategy.set_offset(old_bids_size);
+            bm->new_blocks(alloc_strategy, _bids.begin() + old_bids_size, _bids.end());
+        }
         else
         {
             size_type offset = size_type(old_bids_size) * size_type(block_type::raw_size);
@@ -1051,9 +1053,8 @@ public:
         for (i = 0; i < n_pages; ++i)
             _free_slots.push(i);
 
-
-        bm->new_blocks(_alloc_strategy, _bids.begin(),
-                       _bids.end());
+        alloc_strategy.set_offset(0);
+        bm->new_blocks(alloc_strategy, _bids.begin(), _bids.end());
 
         const_iterator inbegin = obj.begin();
         const_iterator inend = obj.end();
@@ -1219,7 +1220,6 @@ public:
     template <typename ForwardIterator>
     void set_content(const ForwardIterator & bid_begin, const ForwardIterator & bid_end, size_type n)
     {
-        assert(_size == 0 && _bids.size() == 0);
         unsigned_type new_bids_size = STXXL_DIVRU(n, block_type::size);
         _bids.resize(new_bids_size);
         std::copy(bid_begin, bid_end, _bids.begin());
@@ -1615,3 +1615,4 @@ namespace std
 }
 
 #endif // !STXXL_VECTOR_HEADER
+// vim: et:ts=4:sw=4

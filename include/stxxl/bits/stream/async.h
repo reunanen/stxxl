@@ -920,7 +920,7 @@ namespace stream
             dummy_pull(unsigned_type buffer_size, StreamOperation & so, bool deferred = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
                 so(so), deferred(deferred)
             {
-                UNUSED(buffer_size);
+                STXXL_UNUSED(buffer_size);
                 if (!deferred)
                     start_pull();
             }

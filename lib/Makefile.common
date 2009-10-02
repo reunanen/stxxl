@@ -20,6 +20,9 @@ LIB_OBJECTS = \
 	../common/debug.$(OBJEXT) \
 	../common/rand.$(OBJEXT) \
 	../common/seed.$(OBJEXT) \
+	../common/exithandler.$(OBJEXT) \
+	../common/verbose.$(OBJEXT) \
+	../common/log.$(OBJEXT) \
 	../common/version.$(OBJEXT)
 
 LIB_OBJECTS_NON_MSVC = \

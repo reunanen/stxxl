@@ -501,15 +501,14 @@ namespace ksort_local
         run_cursor2_cmp<block_type, prefetcher_type, key_extractor> cmp(keyobj);
         loser_tree<
             run_cursor_type,
-            run_cursor2_cmp<block_type, prefetcher_type, key_extractor>,
-            block_type::size> losers(&prefetcher, nruns, cmp);
-
+            run_cursor2_cmp<block_type, prefetcher_type, key_extractor> >
+                losers(&prefetcher, nruns, cmp);
 
         block_type * out_buffer = writer.get_free_block();
 
         for (i = 0; i < out_run_size; i++)
         {
-            losers.multi_merge(out_buffer->elem);
+            losers.multi_merge(out_buffer->elem, out_buffer->elem + block_type::size);
             (*out_run)[i].key = keyobj(out_buffer->elem[0]);
             out_buffer = writer.write(out_buffer, (*out_run)[i].bid);
         }
@@ -640,7 +639,7 @@ namespace ksort_local
                 runs_left -= runs2merge;
             }
             // allocate blocks in the new runs
-            if (cur_out_run == 1 && blocks_in_new_run == int_type(_n) && (input_bids->storage->get_id() == -1))
+            if (cur_out_run == 1 && blocks_in_new_run == int_type(_n) && !input_bids->is_managed())
             {
                 // if we sort a file we can reuse the input bids for the output
                 input_bid_iterator cur = input_bids;
@@ -650,18 +649,18 @@ namespace ksort_local
                 }
 
                 bid_type & firstBID = (*new_runs[0])[0].bid;
-                if (firstBID.storage->get_id() != -1)
+                if (firstBID.is_managed())
                 {
                     // the first block does not belong to the file
                     // need to reallocate it
-                    mng->new_blocks(FR(), &firstBID, (&firstBID) + 1);
+                    mng->new_block(FR(), firstBID);
                 }
                 bid_type & lastBID = (*new_runs[0])[_n - 1].bid;
-                if (lastBID.storage->get_id() != -1)
+                if (lastBID.is_managed())
                 {
                     // the first block does not belong to the file
                     // need to reallocate it
-                    mng->new_blocks(FR(), &lastBID, (&lastBID) + 1);
+                    mng->new_block(FR(), lastBID);
                 }
             }
             else
@@ -701,7 +700,7 @@ namespace ksort_local
                       after_runs_creation - begin << " s");
         STXXL_VERBOSE("Time in I/O wait(rf): " << io_wait_after_rf << " s");
         STXXL_VERBOSE(*stats::get_instance());
-        UNUSED(begin + io_wait_after_rf);
+        STXXL_UNUSED(begin + io_wait_after_rf);
 
         return result;
     }
@@ -783,8 +782,8 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 request_ptr req;
 
                 req = first_block->read(*first_.bid());
-                mng->new_blocks(FR(), &first_bid, (&first_bid) + 1);                // try to overlap
-                mng->new_blocks(FR(), &last_bid, (&last_bid) + 1);
+                mng->new_block(FR(), first_bid);                // try to overlap
+                mng->new_block(FR(), last_bid);
                 req->wait();
 
 
@@ -821,7 +820,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 run_type * out =
                     ksort_local::ksort_blocks<
                         typename ExtIterator_::block_type,
-                        typename ExtIterator_::vector_type::alloc_strategy,
+                        typename ExtIterator_::vector_type::alloc_strategy_type,
                         typename ExtIterator_::bids_container_iterator,
                         KeyExtractor_>
                         (first_.bid(), n, M__ / block_type::raw_size, keyobj);
@@ -894,7 +893,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 request_ptr req;
 
                 req = first_block->read(*first_.bid());
-                mng->new_blocks(FR(), &first_bid, (&first_bid) + 1);                // try to overlap
+                mng->new_block(FR(), first_bid);                // try to overlap
                 req->wait();
 
 
@@ -917,7 +916,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 run_type * out =
                     ksort_local::ksort_blocks<
                         typename ExtIterator_::block_type,
-                        typename ExtIterator_::vector_type::alloc_strategy,
+                        typename ExtIterator_::vector_type::alloc_strategy_type,
                         typename ExtIterator_::bids_container_iterator,
                         KeyExtractor_>
                         (first_.bid(), n, M__ / block_type::raw_size, keyobj);
@@ -976,7 +975,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 unsigned_type i;
 
                 req = last_block->read(*last_.bid());
-                mng->new_blocks(FR(), &last_bid, (&last_bid) + 1);
+                mng->new_block(FR(), last_bid);
                 req->wait();
 
                 for (i = last_.block_offset(); i < block_type::size; i++)
@@ -997,7 +996,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 run_type * out =
                     ksort_local::ksort_blocks<
                         typename ExtIterator_::block_type,
-                        typename ExtIterator_::vector_type::alloc_strategy,
+                        typename ExtIterator_::vector_type::alloc_strategy_type,
                         typename ExtIterator_::bids_container_iterator,
                         KeyExtractor_>
                         (first_.bid(), n, M__ / block_type::raw_size, keyobj);
@@ -1046,7 +1045,7 @@ void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsign
                 run_type * out =
                     ksort_local::ksort_blocks<
                         typename ExtIterator_::block_type,
-                        typename ExtIterator_::vector_type::alloc_strategy,
+                        typename ExtIterator_::vector_type::alloc_strategy_type,
                         typename ExtIterator_::bids_container_iterator,
                         KeyExtractor_>
                         (first_.bid(), n, M__ / block_type::raw_size, keyobj);

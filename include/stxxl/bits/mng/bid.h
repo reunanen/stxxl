@@ -40,17 +40,32 @@ struct BID
         size = SIZE,         //!< Block size
         t_size = SIZE        //!< Blocks size, given by the parameter
     };
+
     file * storage;          //!< pointer to the file of the block
     stxxl::int64 offset;     //!< offset within the file of the block
-    BID() : storage(NULL), offset(0) { }
+
+    BID() : storage(NULL), offset(0)
+    { }
+
     bool valid() const
     {
         return storage;
     }
-    BID(file * s, stxxl::int64 o) : storage(s), offset(o) { }
-    BID(const BID & obj) : storage(obj.storage), offset(obj.offset) { }
+
+    BID(file * s, stxxl::int64 o) : storage(s), offset(o)
+    { }
+
+    BID(const BID & obj) : storage(obj.storage), offset(obj.offset)
+    { }
+
     template <unsigned BlockSize>
-    explicit BID(const BID<BlockSize> & obj) : storage(obj.storage), offset(obj.offset) { }
+    explicit BID(const BID<BlockSize> & obj) : storage(obj.storage), offset(obj.offset)
+    { }
+
+    bool is_managed() const
+    {
+        return storage->get_id() != -1;
+    }
 };
 
 
@@ -63,12 +78,18 @@ struct BID<0>
     file * storage;          //!< pointer to the file of the block
     stxxl::int64 offset;     //!< offset within the file of the block
     unsigned size;           //!< size of the block in bytes
+
     enum
     {
         t_size = 0           //!< Blocks size, given by the parameter
     };
-    BID() : storage(NULL), offset(0), size(0) { }
-    BID(file * f, stxxl::int64 o, unsigned s) : storage(f), offset(o), size(s) { }
+
+    BID() : storage(NULL), offset(0), size(0)
+    { }
+
+    BID(file * f, stxxl::int64 o, unsigned s) : storage(f), offset(o), size(s)
+    { }
+
     bool valid() const
     {
         return storage;
@@ -98,7 +119,7 @@ std::ostream & operator << (std::ostream & s, const BID<blk_sz> & bid)
         s << bid.storage->get_id();
     else
         s << "?";
-    s << "]0x" << std::hex << std::setfill('0') << std::setw(8) << bid.offset << "/0x" << std::setw(8) << bid.size;
+    s << "]0x" << std::hex << std::setfill('0') << std::setw(8) << bid.offset << "/0x" << std::setw(8) << bid.size << std::dec;
     return s;
 }
 
@@ -123,12 +144,15 @@ public:
     typedef BID<BLK_SIZE> & reference;
     typedef BID<BLK_SIZE> * iterator;
     typedef const BID<BLK_SIZE> * const_iterator;
+
     BIDArray() : _size(0), array(NULL)
     { }
+
     iterator begin()
     {
         return array;
     }
+
     iterator end()
     {
         return array + _size;
@@ -138,14 +162,17 @@ public:
     {
         array = new BID<BLK_SIZE>[size];
     }
+
     unsigned_type size() const
     {
         return _size;
     }
+
     reference operator [] (int_type i)
     {
         return array[i];
     }
+
     void resize(unsigned_type newsize)
     {
         if (array)
@@ -164,6 +191,7 @@ public:
             _size = newsize;
         }
     }
+
     ~BIDArray()
     {
         if (array)
@@ -174,7 +202,6 @@ public:
 //! \}
 
 __STXXL_END_NAMESPACE
-
 
 #endif // !STXXL_BID_HEADER
 // vim: et:ts=4:sw=4
