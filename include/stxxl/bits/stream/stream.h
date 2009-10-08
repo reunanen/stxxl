@@ -781,11 +781,19 @@ namespace stream
 
         assert(outcurrent.block_offset() == 0);
 
+        // delay calling block_externally_updated() until the block is
+        // completely filled (and written out) in outstream
+        ConstExtIterator prev_block = outcurrent;
+
         unsigned_type length;
         while ((length = in.batch_length()) > 0 && outend != outcurrent)
         {
-            if (outcurrent.block_offset() == 0)
-                outcurrent.block_externally_updated();
+            if (outcurrent.block_offset() == 0) {
+                if (prev_block != outcurrent) {
+                    prev_block.block_externally_updated();
+                    prev_block = outcurrent;
+                }
+            }
 
             length = STXXL_MIN<unsigned_type>(length, STXXL_MIN<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
@@ -807,6 +815,10 @@ namespace stream
             ++const_out;
             ++outstream;
         }
+
+        if (prev_block != outcurrent)
+            prev_block.block_externally_updated();
+
         outcurrent.flush();
 
         return outcurrent;
@@ -964,11 +976,20 @@ namespace stream
 
         assert(out.block_offset() == 0);
 
+        // delay calling block_externally_updated() until the block is
+        // completely filled (and written out) in outstream
+        ConstExtIterator prev_block = out;
+
         unsigned_type length;
         while ((length = in.batch_length()) > 0)
         {
-            if (out.block_offset() == 0)
-                out.block_externally_updated();
+            if (out.block_offset() == 0) {
+                if (prev_block != out) {
+                    prev_block.block_externally_updated();
+                    prev_block = out;
+                }
+            }
+
             length = STXXL_MIN<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
             for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
             {
@@ -998,6 +1019,10 @@ namespace stream
             ++const_out;                         // contains data beyond out
             ++outstream;
         }
+
+        if (prev_block != out)
+            prev_block.block_externally_updated();
+
         out.flush();
 
         return out;
