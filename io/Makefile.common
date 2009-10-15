@@ -20,4 +20,5 @@ LIB_SRC			 = \
 	boostfd_file.cpp \
 	fileperblock_file.cpp \
 	wbtl_file.cpp \
+	trim_file.cpp \
 	mem_file.cpp

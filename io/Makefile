@@ -47,6 +47,9 @@ mem_file.$(OBJEXT): mem_file.cpp
 fileperblock_file.$(OBJEXT): fileperblock_file.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c fileperblock_file.cpp
 
+trim_file.$(OBJEXT): trim_file.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c trim_file.cpp
+
 request.$(OBJEXT): request.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request.cpp
 

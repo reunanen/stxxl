@@ -15,6 +15,7 @@ LIB_OBJECTS = \
 	../io/mem_file.$(OBJEXT) \
 	../io/fileperblock_file.$(OBJEXT) \
  	../io/wbtl_file.$(OBJEXT) \
+ 	../io/trim_file.$(OBJEXT) \
 	../mng/mng.$(OBJEXT) \
 	../algo/async_schedule.$(OBJEXT) \
 	../common/debug.$(OBJEXT) \

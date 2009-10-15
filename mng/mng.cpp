@@ -223,6 +223,14 @@ file * FileCreator::create(const std::string & io_impl,
         return result;
     }
 #endif
+#if STXXL_HAVE_TRIM_FILE
+    else if (io_impl == "trim")
+    {
+        ufs_file_base * result = new trim_file(filename, options, disk);
+        result->lock();
+        return result;
+    }
+#endif
 
     STXXL_THROW(std::runtime_error, "FileCreator::create", "Unsupported disk I/O implementation " <<
                 io_impl << " .");
@@ -257,6 +265,7 @@ block_manager::~block_manager()
     for (unsigned i = 0; i < ndisks; i++)
     {
         delete disk_allocators[i];
+        disk_files[i]->discard(0, disk_files[i]->size());
         delete disk_files[i];
     }
     delete[] disk_allocators;
