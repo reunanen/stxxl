@@ -39,25 +39,41 @@ trim_file::trim_file(
 {
     // find LBA offset
     struct stat st;
-	char path[PATH_MAX];
+    char path[PATH_MAX];
     const int verbose = 1;
 
+    *path = '\0';
     if (fstat(this->file_des, &st) == 0) {
-	    if (hdparm::find_dev_in_directory(st.st_dev, "/dev", path, verbose) == 0) {
+        if (hdparm::find_dev_in_directory(st.st_dev, "/dev", path, verbose) == 0) {
             int fd = -1;
             fd = open(path, O_RDONLY|O_NONBLOCK);
             if (fd != -1) {
                 __u64 start_lba;
                 if (hdparm::get_dev_geometry(fd, NULL, NULL, NULL, &start_lba, NULL) == 0) {
                     start_lba_bytes = start_lba << 9;
-                    can_trim = true;
+                    if (start_lba != 0) {
+                        // we are on a partition, look for the disk device
+                        if (hdparm::find_dev_in_directory(makedev(major(st.st_dev), minor(st.st_dev) & ~15), "/dev", path, verbose) == 0) {
+                            close(fd);
+                            fd = open(path, O_RDONLY|O_NONBLOCK);
+                            if (fd != -1) {
+                                if (hdparm::get_dev_geometry(fd, NULL, NULL, NULL, &start_lba, NULL) == 0) {
+                                    if (start_lba == 0)
+                                        can_trim = true;
+                                }
+                            }
+                        }
+                    } else {
+                        can_trim = true;
+                    }
                 }
-                close(fd);
+                if (fd != -1)
+                    close(fd);
             }
         }
     }
 
-    STXXL_VERBOSE("trim_file  raw=" << path << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
+    STXXL_VERBOSE("trim_file " << filename << "  raw=" << path << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
 }
 
 void trim_file::discard(offset_type offset, offset_type size)
