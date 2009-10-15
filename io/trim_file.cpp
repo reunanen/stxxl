@@ -20,6 +20,10 @@
 
 __STXXL_BEGIN_NAMESPACE
 
+namespace hdparm
+{
+#include "geom.c"
+}
 
 #define NUMEXTENTS 16
 struct fiemap_request {
@@ -31,8 +35,21 @@ struct fiemap_request {
 trim_file::trim_file(
         const std::string & filename,
         int mode,
-        int disk) : syscall_file(filename, mode, disk)
+        int disk) : syscall_file(filename, mode, disk), can_trim(true), start_lba_bytes(0)
 {
+    // find LBA offset
+    struct stat st;
+    if (fstat(this->file_des, &st) != 0) {
+        can_trim = false;
+    }
+    __u64 start_lba;
+    if (can_trim && hdparm::get_dev_t_geometry(st.st_dev, NULL, NULL, NULL, &start_lba, NULL) != 0) {
+        can_trim = false;
+    } else {
+        start_lba_bytes = start_lba << 9;
+    }
+
+    STXXL_VERBOSE("trim_file" << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
 }
 
 void trim_file::discard(offset_type offset, offset_type size)

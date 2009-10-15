@@ -34,6 +34,9 @@ __STXXL_BEGIN_NAMESPACE
 //! \brief Implementation of file based on UNIX syscalls
 class trim_file : public syscall_file
 {
+    bool can_trim;
+    offset_type start_lba_bytes;
+
 public:
     //! \brief constructs file object
     //! \param filename path of file
