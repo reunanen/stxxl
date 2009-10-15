@@ -145,14 +145,14 @@ enum {
 	SG_CDB2_CHECK_COND	= 1 << 5,
 };
 
-static void dump_bytes (const char *prefix, unsigned char *p, int len)
+static void dump_bytes (const char *prefix, void *p, int len)
 {
 	int i;
 
 	if (prefix)
 		fprintf(stderr, "%s: ", prefix);
 	for (i = 0; i < len; ++i)
-		fprintf(stderr, " %02x", p[i]);
+		fprintf(stderr, " %02x", ((unsigned char *)p)[i]);
 	fprintf(stderr, "\n");
 }
 
