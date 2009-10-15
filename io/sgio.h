@@ -1,3 +1,6 @@
+#ifndef HDPARM_SGIO_H
+#define HDPARM_SGIO_H
+
 /* prototypes and stuff for ATA command ioctls */
 
 #include <linux/types.h>
@@ -230,3 +233,5 @@ int do_taskfile_cmd (int fd, struct hdio_taskfile *r, unsigned int timeout_secs)
 int dev_has_sgio (int fd);
 void init_hdio_taskfile (struct hdio_taskfile *r, __u8 ata_op, int rw, int force_lba48,
 				__u64 lba, unsigned int nsect, int data_bytes);
+
+#endif  // !HDPARM_SGIO_H

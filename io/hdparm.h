@@ -1,3 +1,6 @@
+#ifndef HDPARM_HDPARM_H
+#define HDPARM_HDPARM_H
+
 /* Some prototypes for extern functions. */
 
 //#undef __KERNEL_STRICT_NAMES
@@ -85,3 +88,4 @@ enum {	/* ioctl() numbers */
 #endif
 #define BLKGETSIZE64 _IOR(0x12,114,__u64)
 
+#endif  // !HDPARM_HDPARM_H
