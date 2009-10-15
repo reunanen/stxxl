@@ -23,6 +23,8 @@ __STXXL_BEGIN_NAMESPACE
 namespace hdparm
 {
 #include "geom.c"
+#include "sgio.c"
+#include "hdparm-trim.c"
 }
 
 #define NUMEXTENTS 16
@@ -129,6 +131,15 @@ void trim_file::discard(offset_type offset, offset_type size)
             if (fs.fm_extents[i].fe_logical + fs.fm_extents[i].fe_length > end)
                 phy_end -= fs.fm_extents[i].fe_logical + fs.fm_extents[i].fe_length - end;
             STXXL_VERBOSE0("physical location: 0x" << std::hex << phy_start << "  length: 0x" << phy_end - phy_start);
+            hdparm::sector_range_s srange;
+            srange.lba = (start_lba_bytes + phy_start) >> 9;
+            srange.nsectors = (phy_end - phy_start) >> 9;
+            if (can_trim) {
+                STXXL_VERBOSE0("DSM TRIM lba: " << srange.lba << "  nsectors: " << srange.nsectors);
+                if (do_trim_sector_ranges(raw_fd, NULL, 1, &srange) != 0)
+                    can_trim = false;
+            }
+
             if (fs.fm_extents[i].fe_flags & FIEMAP_EXTENT_LAST) {
                 start = end;
                 break;
