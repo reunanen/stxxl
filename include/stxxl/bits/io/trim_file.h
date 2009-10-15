@@ -36,6 +36,7 @@ class trim_file : public syscall_file
 {
     bool can_trim;
     offset_type start_lba_bytes;
+    int raw_fd;  // the raw disk device that will receive trim requests
 
 public:
     //! \brief constructs file object
@@ -47,6 +48,8 @@ public:
         const std::string & filename,
         int mode,
         int disk = -1);
+
+    ~trim_file();
 
     void discard(offset_type offset, offset_type size);
     const char * io_type() const;

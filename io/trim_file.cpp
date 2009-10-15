@@ -35,7 +35,7 @@ struct fiemap_request {
 trim_file::trim_file(
         const std::string & filename,
         int mode,
-        int disk) : syscall_file(filename, mode, disk), can_trim(false), start_lba_bytes(0)
+        int disk) : syscall_file(filename, mode, disk), can_trim(false), start_lba_bytes(0), raw_fd(-1)
 {
     // find LBA offset
     struct stat st;
@@ -72,13 +72,26 @@ trim_file::trim_file(
             }
         }
     }
+    if (*path) {
+        if ((raw_fd = open(path, O_RDONLY|O_NONBLOCK)) == -1)
+            can_trim = false;
+    }
 
     STXXL_VERBOSE("trim_file " << filename << "  raw=" << path << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
+}
+
+trim_file::~trim_file()
+{
+    if (raw_fd != -1)
+        close(raw_fd);
 }
 
 void trim_file::discard(offset_type offset, offset_type size)
 {
     STXXL_VERBOSE("trim_file::discard(0x" << std::hex << offset << ", 0x" << size << ")");
+    if (!can_trim)
+        return;
+
     // get LBA blocks for the requested range
     offset_type start = offset;
     offset_type end = start + size;
