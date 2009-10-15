@@ -21,6 +21,7 @@
 
 #include "hdparm.h"
 
+#if 0
 static int get_sector_count (int fd, __u64 *nsectors)
 {
 	int		err;
@@ -44,6 +45,7 @@ static int get_sector_count (int fd, __u64 *nsectors)
 	}
 	return err;
 }
+#endif
 
 int get_dev_geometry (int fd, __u32 *cyls, __u32 *heads, __u32 *sects,
 				__u64 *start_lba, __u64 *nsectors)
@@ -53,11 +55,16 @@ int get_dev_geometry (int fd, __u32 *cyls, __u32 *heads, __u32 *sects,
 	int err = 0;
 
 	if (nsectors) {
+#if 0
 		err = get_sector_count(fd, nsectors);
 		if (err)
 			return err;
+#else
+		return -1;
+#endif
 	}
 
+#if 0
 	if (start_lba) {
 		/*
 		 * HDIO_GETGEO uses 32-bit fields on 32-bit architectures,
@@ -69,6 +76,7 @@ int get_dev_geometry (int fd, __u32 *cyls, __u32 *heads, __u32 *sects,
 			start_lba = NULL;
 		}
 	}
+#endif
 
 	if (cyls || heads || sects || start_lba) {
 		if (!ioctl(fd, HDIO_GETGEO_BIG, &bg)) {
