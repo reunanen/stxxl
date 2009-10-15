@@ -35,21 +35,29 @@ struct fiemap_request {
 trim_file::trim_file(
         const std::string & filename,
         int mode,
-        int disk) : syscall_file(filename, mode, disk), can_trim(true), start_lba_bytes(0)
+        int disk) : syscall_file(filename, mode, disk), can_trim(false), start_lba_bytes(0)
 {
     // find LBA offset
     struct stat st;
-    if (fstat(this->file_des, &st) != 0) {
-        can_trim = false;
-    }
-    __u64 start_lba;
-    if (can_trim && hdparm::get_dev_t_geometry(st.st_dev, NULL, NULL, NULL, &start_lba, NULL) != 0) {
-        can_trim = false;
-    } else {
-        start_lba_bytes = start_lba << 9;
+	char path[PATH_MAX];
+    const int verbose = 1;
+
+    if (fstat(this->file_des, &st) == 0) {
+	    if (hdparm::find_dev_in_directory(st.st_dev, "/dev", path, verbose) == 0) {
+            int fd = -1;
+            fd = open(path, O_RDONLY|O_NONBLOCK);
+            if (fd != -1) {
+                __u64 start_lba;
+                if (hdparm::get_dev_geometry(fd, NULL, NULL, NULL, &start_lba, NULL) == 0) {
+                    start_lba_bytes = start_lba << 9;
+                    can_trim = true;
+                }
+                close(fd);
+            }
+        }
     }
 
-    STXXL_VERBOSE("trim_file" << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
+    STXXL_VERBOSE("trim_file  raw=" << path << std::hex << "  start_lba_bytes=0x" << start_lba_bytes << "  can_trim=" << can_trim);
 }
 
 void trim_file::discard(offset_type offset, offset_type size)
