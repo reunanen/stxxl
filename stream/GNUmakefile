@@ -10,10 +10,10 @@ test_stream1.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_sorted_runs.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_push_sort.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_stream.$o:			CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
-test_asynchronous_nodes.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
+test_asynchronous_nodes.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_asynchronous_stream_sort.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
-test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
-test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -Wno-error
+test_asynchronous_stream_sort.as.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
+test_asynchronous_stream_sort.as-ba.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_asynchronous_distribute_gather.$o:	CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0
 test_materialize.$o:		CPPFLAGS += -DSTXXL_VERBOSE_LEVEL=0 -DSTXXL_VERBOSE_MATERIALIZE=STXXL_VERBOSE0
 
@@ -32,3 +32,17 @@ $(call reduce_optimization,3,0,test_asynchronous_stream_sort.as,Version_10.0,32-
 $(call reduce_optimization,3,0,test_asynchronous_stream_sort.as-ba,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,0,test_asynchronous_distribute_gather,Version_10.0,32-bit,any)
 endif
+
+ifneq (,$(filter yes,$(USE_PMODE)))
+# PR40146: g++ 4.4: warning: '<anonymous>' is used uninitialized in this function
+# when using g++-4.4 -fopenmp -O3. Fixed in g++-4.5
+$(call reduce_optimization,3,1,test_stream,gcc_version_4.4,any,any)
+endif
+
+# PR40695: g++ 4.4: warning: '<anonymous>' may be used uninitialized in this function
+ifneq (,$(filter yes,$(USE_PMODE)))
+$(call reduce_optimization,3,2,test_asynchronous_stream_sort,gcc_version_4.4,any,any)
+endif
+$(call reduce_optimization,3,2,test_asynchronous_nodes,gcc_version_4.4,any,any)
+$(call reduce_optimization,3,2,test_asynchronous_stream_sort.as,gcc_version_4.4,any,any)
+$(call reduce_optimization,3,2,test_asynchronous_stream_sort.as-ba,gcc_version_4.4,any,any)

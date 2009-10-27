@@ -38,3 +38,9 @@ $(call reduce_optimization,3,1,sort_file,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,1,test_random_shuffle,Version_10.0,32-bit,any)
 $(call reduce_optimization,3,1,test_parallel_sort,Version_10.0,32-bit,any)
 endif
+
+ifneq (,$(filter yes,$(USE_PMODE)))
+# PR40146: g++ 4.4: warning: '<anonymous>' is used uninitialized in this function
+# when using g++-4.4 -fopenmp -O3. Fixed in g++-4.5
+$(call reduce_optimization,3,1,test_parallel_sort,gcc_version_4.4,any,any)
+endif
