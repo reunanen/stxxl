@@ -476,9 +476,7 @@ namespace stream
         request_ptr * write_reqs = new request_ptr[m2];
         run_type run;
 
-
-        unsigned_type cur_run_size = STXXL_DIVRU(blocks1_length, block_type::size); // in blocks
-
+        unsigned_type cur_run_size = div_ceil(blocks1_length, block_type::size); // in blocks
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -556,7 +554,7 @@ namespace stream
             bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
 
-            cur_run_size = STXXL_DIVRU(result_.elements, block_type::size);
+            cur_run_size = div_ceil(result_.elements, block_type::size);
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -605,7 +603,7 @@ namespace stream
 
         sort_run(Blocks2, blocks2_length);
 
-        cur_run_size = STXXL_DIVRU(blocks2_length, block_type::size); // in blocks, XXX
+        cur_run_size = div_ceil(blocks2_length, block_type::size); // in blocks, XXX
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -639,7 +637,7 @@ namespace stream
             if(!asynchronous_pull)
                 blocks1_length = fetch(Blocks1, 0, el_in_run);
             sort_run(Blocks1, blocks1_length);
-            cur_run_size = STXXL_DIVRU(blocks1_length, block_type::size); // in blocks
+            cur_run_size = div_ceil(blocks1_length, block_type::size); // in blocks
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -941,7 +939,7 @@ namespace stream
                 return;
             }
 
-            const unsigned_type cur_run_size = STXXL_DIVRU(cur_el_reg, block_type::size);     // in blocks
+            const unsigned_type cur_run_size = div_ceil(cur_el_reg, block_type::size);     // in blocks
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(),
@@ -1052,7 +1050,7 @@ namespace stream
             sort_run(Blocks1, el_in_run);
             result_.elements += el_in_run;
 
-            const unsigned_type cur_run_size = STXXL_DIVRU(el_in_run, block_type::size);    // in blocks
+            const unsigned_type cur_run_size = div_ceil(el_in_run, block_type::size);    // in blocks
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(),
@@ -1498,7 +1496,7 @@ namespace stream
 
 // end of STL-style merging
 #else
-                assert(false);
+                STXXL_THROW_UNREACHABLE();
 #endif //STXXL_PARALLEL_MULTIWAY_MERGE
             }
             else
@@ -1600,7 +1598,7 @@ namespace stream
 
 // end of STL-style merging
 #else
-                assert(false);
+                STXXL_THROW_UNREACHABLE();
 #endif //STXXL_PARALLEL_MULTIWAY_MERGE
             }
             else
@@ -1708,7 +1706,7 @@ namespace stream
             unsigned_type i;
             /*
                const unsigned_type out_run_size =
-                  STXXL_DIVRU(elements_remaining,size_type(block_type::size));
+                  div_ceil(elements_remaining, block_type::size);
              */
             unsigned_type prefetch_seq_size = 0;
             for (i = 0; i < nruns; ++i)
@@ -1898,12 +1896,11 @@ namespace stream
         unsigned_type nwrite_buffers = 2 * ndisks;
 
         unsigned_type nruns = sruns.runs.size();
-        const unsigned_type merge_factor =
-            static_cast<unsigned_type>(ceil(pow(nruns, 1. / ceil(log(double(nruns)) / log(double(m_))))));
+        const unsigned_type merge_factor = optimal_merge_factor(nruns, m_);
         assert(merge_factor <= m_);
         while (nruns > m_)
         {
-            unsigned_type new_nruns = STXXL_DIVRU(nruns, merge_factor);
+            unsigned_type new_nruns = div_ceil(nruns, merge_factor);
             STXXL_VERBOSE("Starting new merge phase: nruns: " << nruns <<
                           " opt_merge_factor: " << merge_factor << " m:" << m_ << " new_nruns: " << new_nruns);
 
@@ -1928,7 +1925,7 @@ namespace stream
                     elements_in_new_run += sruns.runs_sizes[i];
                     //blocks_in_new_run += sruns.runs[i].size();
                 }
-                const unsigned_type blocks_in_new_run1 = STXXL_DIVRU(elements_in_new_run, block_type::size);
+                const unsigned_type blocks_in_new_run1 = div_ceil(elements_in_new_run, block_type::size);
                 //assert(blocks_in_new_run1 == blocks_in_new_run);
 
                 new_runs.runs_sizes[cur_out_run] = elements_in_new_run;
