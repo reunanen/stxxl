@@ -1610,6 +1610,9 @@ namespace stream
 // end of native merging procedure
             }
             STXXL_VERBOSE1("current block filled");
+
+            if (elements_remaining <= block_type::size)
+                deallocate_prefetcher();
         }
 
     public:
@@ -1762,12 +1765,8 @@ namespace stream
             initialize_current_block();
             fill_current_block();
 
-
             current_value = current_block->elem[0];
             buffer_pos = 1;
-
-            if (elements_remaining <= block_type::size)
-                deallocate_prefetcher();
         }
 
     public:
@@ -1817,8 +1816,6 @@ namespace stream
                     current_value = current_block->elem[0];
                     buffer_pos = 1;
                 }
-                if (elements_remaining <= block_type::size)
-                    deallocate_prefetcher();
             }
 
 
@@ -1877,9 +1874,6 @@ namespace stream
 
             if (current_block)
                 delete current_block;
-
-            // free blocks in runs , (or the user should do it?)
-            sruns.deallocate_blocks();
         }
 
     private:
