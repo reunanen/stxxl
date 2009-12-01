@@ -629,9 +629,7 @@ namespace sort_local
         unsigned_type nruns = full_runs + partial_runs;
         unsigned_type i;
 
-        config * cfg = config::get_instance();
         block_manager * mng = block_manager::get_instance();
-        const unsigned_type ndisks = cfg->disks_number();
 
         //STXXL_VERBOSE ("n=" << _n << " nruns=" << nruns << "=" << full_runs << "+" << partial_runs);
 
@@ -649,8 +647,7 @@ namespace sort_local
 
         for (i = 0; i < nruns; ++i)
         {
-            // FIXME: why has an alloc_strategy to take two arguments disk_index.begin(), disk_index.end() ???
-            mng->new_blocks(alloc_strategy(0, ndisks),
+            mng->new_blocks(alloc_strategy(),
                             trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(runs[i]->begin()),
                             trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(runs[i]->end()));
         }
@@ -719,7 +716,7 @@ namespace sort_local
             }
             else
             {
-                mng->new_blocks(interleaved_alloc_strategy(new_nruns, 0, ndisks),
+                mng->new_blocks(interleaved_alloc_strategy(new_nruns, alloc_strategy()),
                                 RunsToBIDArrayAdaptor2<block_type::raw_size, run_type>(new_runs, 0, new_nruns, blocks_in_new_run),
                                 RunsToBIDArrayAdaptor2<block_type::raw_size, run_type>(new_runs, _n, new_nruns, blocks_in_new_run));
             }
