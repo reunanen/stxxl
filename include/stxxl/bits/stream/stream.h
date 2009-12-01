@@ -56,7 +56,7 @@ namespace stream
     enum StartMode { start_deferred, start_immediately };
 
     #ifndef STXXL_START_PIPELINE_DEFERRED_DEFAULT
-    #define STXXL_START_PIPELINE_DEFERRED_DEFAULT start_immediately
+    #define STXXL_START_PIPELINE_DEFERRED_DEFAULT stxxl::stream::start_immediately
     #endif
 
     //! \weakgroup streampack Stream package
