@@ -16,7 +16,7 @@
 
 struct forty_two
 {
-	typedef int* const_iterator;
+    typedef int * const_iterator;
 
     unsigned counter;
 
@@ -45,17 +45,17 @@ struct forty_two
         return *this;
     }
 
-    int* batch_begin()
+    int * batch_begin()
     {
-    	return &ft;
+        return &ft;
     }
 
     int batch_length()
     {
-    	return 1;
+        return 1;
     }
 
-    void operator+=(int)
+    void operator += (int)
     { }
 };
 

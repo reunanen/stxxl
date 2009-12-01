@@ -148,13 +148,13 @@ public:
     }
 
     //! \brief Batched stream method
-    buf_istream& operator +=(unsigned_type length)
+    buf_istream & operator += (unsigned_type length)
     {
         assert(0 < length && length <= batch_length());
-        if(length > 0)
+        if (length > 0)
         {
             current_elem += length - 1;
-            operator++();
+            operator ++ ();
         }
 
         return *this;
@@ -168,16 +168,16 @@ public:
     }
 
     //! \brief Batched stream method
-    value_type* batch_begin() const
+    value_type * batch_begin() const
     {
-      return current_blk->elem + current_elem;
+        return current_blk->elem + current_elem;
     }
 
     //! \brief Batched stream method
-    value_type& operator[](unsigned_type index) const
+    value_type & operator [] (unsigned_type index) const
     {
-      assert(current_elem + index < block_type::size);
-      return current_blk->elem[current_elem + index];
+        assert(current_elem + index < block_type::size);
+        return current_blk->elem[current_elem + index];
     }
 
     //! \brief Frees used internal objects

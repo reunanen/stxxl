@@ -203,7 +203,7 @@ namespace stream
             }
         }
 
-        vector_iterator2stream(const Self_ & a) : 
+        vector_iterator2stream(const Self_ & a) :
             current_(a.current_), end_(a.end_), in(a.in.release()) { }
 
         //! \brief Standard stream method
@@ -493,7 +493,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ out)
     {
-    	return materialize(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+        return materialize(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
 
@@ -535,7 +535,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ out)
     {
-    	return materialize_batch(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+        return materialize_batch(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
     //! \brief Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
@@ -579,7 +579,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
-    	return materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+        return materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
 
@@ -628,7 +628,7 @@ namespace stream
     template <class OutputIterator_, class StreamAlgorithm_>
     OutputIterator_ materialize_batch(StreamAlgorithm_ & in, OutputIterator_ outbegin, OutputIterator_ outend)
     {
-    	return materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
+        return materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
     }
 
     //! \brief Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
@@ -1775,9 +1775,9 @@ namespace stream
         void stop_push() const
         {
             STXXL_VERBOSE0("distribute " << this << " stops push.");
-			
+
 #ifdef STXXL_BOOST_THREADS
-            boost::thread ** threads = new boost::thread*[num_outputs];
+            boost::thread ** threads = new boost::thread *[num_outputs];
 #else
             pthread_t * threads = new pthread_t[num_outputs];
 #endif
@@ -1938,7 +1938,7 @@ namespace stream
                         already_empty[pos] = true;
                         ++empty_count;
                         if (empty_count >= num_inputs)
-                            break; //empty() == true
+                            break;  //empty() == true
                     }
                 }
                 else
