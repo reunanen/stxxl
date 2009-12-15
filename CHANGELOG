@@ -1,3 +1,14 @@
+Version x.y.z (unreleased)
+
+* I/O subsystem
+  - separate the disk number of a file (which queue to put requests in)
+    from the fact that blocks for this file are allocated via the block
+    manager (disk number -1 otherwise).
+  - support POSIX asynchronous I/O
+    (new file types "aio" and "fileperblock_aio"),
+    disable/enable with the define USE_LIBAIO 0/1
+
+------------------------------------------
 Version 1.2.2 (unreleased)
 
 * fix possible race condition while creating singleton instances
