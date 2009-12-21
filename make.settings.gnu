@@ -285,7 +285,7 @@ CPPUNIT_LINKER_OPTIONS		+= -lcppunit -ldl
 #### DEPENDENCIES ################################################
 
 HEADER_FILES_BITS	+= namespace.h noncopyable.h version.h
-HEADER_FILES_BITS	+= compat_hash_map.h compat_hash_set.h
+HEADER_FILES_BITS	+= compat_hash_map.h
 HEADER_FILES_BITS	+= compat_unique_ptr.h parallel.h singleton.h defines.h
 HEADER_FILES_BITS	+= verbose.h unused.h compat_type_traits.h
 HEADER_FILES_BITS	+= msvc_compatibility.h
@@ -325,7 +325,7 @@ HEADER_FILES_CONTAINERS_BTREE	+= btree.h iterator_map.h leaf.h node_cache.h
 HEADER_FILES_CONTAINERS_BTREE	+= root_node.h node.h btree_pager.h iterator.h
 
 HEADER_FILES_ALGO	+= adaptor.h inmemsort.h intksort.h run_cursor.h sort.h
-HEADER_FILES_ALGO	+= async_schedule.h ksort.h sort_base.h
+HEADER_FILES_ALGO	+= async_schedule.h ksort.h sort_base.h sort_helper.h
 HEADER_FILES_ALGO	+= losertree.h scan.h stable_ksort.h random_shuffle.h
 
 HEADER_FILES_STREAM	+= stream.h sort_stream.h
