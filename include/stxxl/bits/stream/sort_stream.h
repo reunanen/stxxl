@@ -1803,7 +1803,7 @@ namespace stream
 
             if (buffer_pos != out_block_type::size)
             {
-//              printf("single %lld\n", block_type::size - buffer_pos);
+//              printf("single %lld\n", out_block_type::size - buffer_pos);
                 current_value = current_block->elem[buffer_pos];
                 ++buffer_pos;
             }
@@ -1838,7 +1838,7 @@ namespace stream
         //! \brief Batched stream method.
         unsigned_type batch_length()
         {
-            return STXXL_MIN<unsigned_type>(block_type::size - buffer_pos + 1, elements_remaining);
+            return STXXL_MIN<unsigned_type>(out_block_type::size - buffer_pos + 1, elements_remaining);
         }
 
         //! \brief Batched stream method.
@@ -1863,7 +1863,7 @@ namespace stream
             buffer_pos += (length - 1);
 
             assert(elements_remaining > 0);
-            assert(buffer_pos <= block_type::size);
+            assert(buffer_pos <= out_block_type::size);
 
             operator ++ ();
 
