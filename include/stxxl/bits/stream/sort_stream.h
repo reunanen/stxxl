@@ -1464,6 +1464,7 @@ namespace stream
 #if STXXL_PARALLEL_MULTIWAY_MERGE
         std::vector<sequence> * seqs;
         std::vector<block_type *> * buffers;
+        diff_type num_currently_mergeable;
 #endif
 
 #if STXXL_CHECK_ORDER_IN_SORTS
@@ -1504,42 +1505,32 @@ namespace stream
 
                 do                                                      //while rest > 0 and still elements available
                 {
-                    value_type * min_last_element = NULL;       // no element found yet
-                    diff_type total_size = 0;
-
-                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
+                    if (num_currently_mergeable == 0)
                     {
-                        if ((*seqs)[i].first == (*seqs)[i].second)
-                            continue;  // run empty
-
-                        if (min_last_element == NULL)
-                            min_last_element = &(*((*seqs)[i].second - 1));
+                        if (!prefetcher || prefetcher->empty())
+                        {
+                            // anything remaining is already in memory
+                            num_currently_mergeable = elements_remaining;
+                        }
                         else
-                            min_last_element = cmp(*min_last_element, *((*seqs)[i].second - 1)) ? min_last_element : &(*((*seqs)[i].second - 1));
+                        {
+                            value_type * first_external_element = &(consume_seq[prefetcher->pos()].value);
 
-                        total_size += (*seqs)[i].second - (*seqs)[i].first;
-                        STXXL_VERBOSE2("" << STXXL_THREAD_ID << " last " << *((*seqs)[i].second - 1) << " sequence length " << std::dec << " " << ((*seqs)[i].second - (*seqs)[i].first));
+                            STXXL_VERBOSE1("first_external_element " << first_external_element);
+
+                            // locate this element in all sequences
+                            for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
+                            {
+                                typename block_type::iterator position = std::upper_bound((*seqs)[i].first, (*seqs)[i].second, *first_external_element, cmp);
+                                STXXL_VERBOSE2("" << STXXL_THREAD_ID << " greater equal than " << position - (*seqs)[i].first << " elements");
+                                num_currently_mergeable += position - (*seqs)[i].first;
+                            }
+
+                            STXXL_VERBOSE1("finished loop");
+                        }
                     }
 
-                    assert(min_last_element != NULL);           // there must be some element
-
-                    STXXL_VERBOSE2("" << STXXL_THREAD_ID << " min_last_element " << *min_last_element << " total size " << total_size + (out_block_type::size - rest) << typeid(cmp).name());
-
-                    diff_type less_equal_than_min_last = 0;
-                    // locate this element in all sequences
-                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
-                    {
-                        if ((*seqs)[i].first == (*seqs)[i].second)
-                            continue;  // empty subsequence
-
-                        typename block_type::iterator position = std::upper_bound((*seqs)[i].first, (*seqs)[i].second, *min_last_element, cmp);
-                        STXXL_VERBOSE2("" << STXXL_THREAD_ID << " greater equal than " << position - (*seqs)[i].first << " elements");
-                        less_equal_than_min_last += position - (*seqs)[i].first;
-                    }
-
-                    ptrdiff_t output_size = STXXL_MIN(less_equal_than_min_last, rest);   // at most rest elements
-
-                    assert(less_equal_than_min_last > 0);
+                    diff_type output_size = STXXL_MIN(num_currently_mergeable, rest);     // at most rest elements
 
                     STXXL_VERBOSE1("before merge " << output_size);
 
@@ -1547,6 +1538,9 @@ namespace stream
                     // sequence iterators are progressed appropriately
 
                     rest -= output_size;
+                    num_currently_mergeable -= output_size;
+
+                    STXXL_VERBOSE1("after merge");
 
                     for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
@@ -1557,6 +1551,7 @@ namespace stream
                                 (*seqs)[i].first = (*buffers)[i]->begin();                // reset iterator
                                 (*seqs)[i].second = (*buffers)[i]->end();
                                 STXXL_VERBOSE2("block ran empty " << i);
+                                num_currently_mergeable = 0;                              // recompute
                             }
                             else
                             {
@@ -1616,7 +1611,8 @@ namespace stream
             losers(NULL)
 #if STXXL_PARALLEL_MULTIWAY_MERGE
             , seqs(NULL),
-            buffers(NULL)
+            buffers(NULL),
+            num_currently_mergeable(0)
 #endif
 #if STXXL_CHECK_ORDER_IN_SORTS
             , last_element(cmp.min_value())
@@ -1639,7 +1635,8 @@ namespace stream
             losers(NULL)
 #if STXXL_PARALLEL_MULTIWAY_MERGE
             , seqs(NULL),
-            buffers(NULL)
+            buffers(NULL),
+            num_currently_mergeable(0)
 #endif
 #if STXXL_CHECK_ORDER_IN_SORTS
             , last_element(cmp.min_value())
