@@ -1629,7 +1629,7 @@ namespace stream
         //! \brief Creates a runs merger object
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
-        basic_runs_merger(value_cmp c, unsigned_type memory_to_use) :
+        basic_runs_merger(value_cmp c) :
             cmp(c),
             elements_remaining(0),
             current_block(NULL),
@@ -2062,7 +2062,7 @@ namespace stream
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
         runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
-            base(c, memory_to_use),
+            base(c),
             memory_to_use(memory_to_use),
             sruns(r)
         {
@@ -2105,7 +2105,7 @@ namespace stream
         //! \param c Comparison object.
         //! \param memory_to_use Amount of memory available for the merger in bytes.
         startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
-            base(c, memory_to_use),
+            base(c),
             memory_to_use(memory_to_use),
             rc(rc)
         {
