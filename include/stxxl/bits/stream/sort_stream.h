@@ -1621,7 +1621,7 @@ namespace stream
 #endif //STXXL_CHECK_ORDER_IN_SORTS
         {
             assert(m_ > 0);
-            initialize(r);
+            initialize(r, memory_to_use);
         }
 
     protected:
@@ -1647,7 +1647,7 @@ namespace stream
             assert(m_ > 0);
         }
 
-        void initialize(const sorted_runs_type & r)
+        void initialize(const sorted_runs_type & r, unsigned_type memory_to_use)
         {
             sruns = r;
             elements_remaining = r.elements;
@@ -2051,6 +2051,7 @@ namespace stream
         typedef typename base::value_cmp value_cmp;
         typedef typename base::block_type block_type;
 
+        unsigned_type memory_to_use;
         const sorted_runs_type & sruns;
 
     public:
@@ -2060,16 +2061,17 @@ namespace stream
         //! \param memory_to_use amount of memory available for the merger in bytes
         runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
             base(c, memory_to_use),
+            memory_to_use(memory_to_use),
             sruns(r)
         {
             if (start_mode == start_immediately)
-                base::initialize(r);
+                base::initialize(r, memory_to_use);
         }
 
         void start_pull()
         {
             STXXL_VERBOSE0("runs_merger " << this << " starts.");
-            base::initialize(sruns);
+            base::initialize(sruns, memory_to_use);
             STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
         }
     };
@@ -2092,6 +2094,7 @@ namespace stream
         typedef typename base::value_cmp value_cmp;
         typedef typename base::block_type block_type;
 
+        unsigned_type memory_to_use;
         RunsCreator_ & rc;
 
     public:
@@ -2101,16 +2104,17 @@ namespace stream
         //! \param memory_to_use Amount of memory available for the merger in bytes.
         startable_runs_merger(RunsCreator_ & rc, value_cmp c, unsigned_type memory_to_use, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) :
             base(c, memory_to_use),
+            memory_to_use(memory_to_use),
             rc(rc)
         {
             if (start_mode == start_immediately)
-                base::initialize(rc.result());
+                base::initialize(rc.result(), memory_to_use);
         }
 
         void start_pull()
         {
             STXXL_VERBOSE1("runs_merger " << this << " starts.");
-            base::initialize(rc.result());
+            base::initialize(rc.result(), memory_to_use);
             STXXL_VERBOSE1("runs_merger " << this << " run formation done.");
         }
     };
