@@ -1452,7 +1452,6 @@ namespace stream
         sorted_runs_type sruns;
         unsigned_type m_; //  blocks to use - 1
         value_cmp cmp;
-        unsigned_type nruns;
         size_type elements_remaining;
 
         out_block_type * current_block;
@@ -1607,7 +1606,6 @@ namespace stream
             sruns(r),
             m_(memory_to_use / block_type::raw_size /* - 1 */),
             cmp(c),
-            nruns(sruns.runs.size()),
             elements_remaining(sruns.elements),
             current_block(NULL),
             buffer_pos(0),
@@ -1631,7 +1629,6 @@ namespace stream
         basic_runs_merger(value_cmp c, unsigned_type memory_to_use) :
             m_(memory_to_use / block_type::raw_size /* - 1 */),
             cmp(c),
-            nruns(0),
             elements_remaining(0),
             current_block(NULL),
             buffer_pos(0),
@@ -1651,7 +1648,6 @@ namespace stream
         {
             sruns = r;
             elements_remaining = r.elements;
-            nruns = sruns.runs.size();
 
             if (empty())
                 return;
@@ -1674,6 +1670,8 @@ namespace stream
 #endif //STXXL_CHECK_ORDER_IN_SORTS
 
             disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
+
+            unsigned_type nruns = sruns.runs.size();
 
             if (m_ < nruns)
             {
