@@ -1629,9 +1629,17 @@ namespace stream
         //! \param c comparison object
         //! \param memory_to_use amount of memory available for the merger in bytes
         basic_runs_merger(value_cmp c, unsigned_type memory_to_use) :
-            m_(memory_to_use / block_type::raw_size / sort_memory_usage_factor() /* - 1 */), cmp(c),
+            m_(memory_to_use / block_type::raw_size /* - 1 */),
+            cmp(c),
+            nruns(0),
+            elements_remaining(0),
             current_block(NULL),
-            prefetcher(NULL)
+            buffer_pos(0),
+            prefetch_seq(NULL),
+            prefetcher(NULL),
+            losers(NULL),
+            seqs(NULL),
+            buffers(NULL)
 #if STXXL_CHECK_ORDER_IN_SORTS
             , last_element(cmp.min_value())
 #endif //STXXL_CHECK_ORDER_IN_SORTS
@@ -1643,6 +1651,7 @@ namespace stream
         {
             sruns = r;
             elements_remaining = r.elements;
+            nruns = sruns.runs.size();
 
             if (empty())
                 return;
