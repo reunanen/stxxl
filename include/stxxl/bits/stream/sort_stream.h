@@ -1510,7 +1510,7 @@ namespace stream
 
                 do                                                      //while rest > 0 and still elements available
                 {
-                    if (num_currently_mergeable == 0)
+                    if (num_currently_mergeable < rest)
                     {
                         if (!prefetcher || prefetcher->empty())
                         {
@@ -1519,19 +1519,8 @@ namespace stream
                         }
                         else
                         {
-                            value_type * first_external_element = &(consume_seq[prefetcher->pos()].value);
-
-                            STXXL_VERBOSE1("first_external_element " << first_external_element);
-
-                            // locate this element in all sequences
-                            for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
-                            {
-                                typename block_type::iterator position = std::upper_bound((*seqs)[i].first, (*seqs)[i].second, *first_external_element, cmp);
-                                STXXL_VERBOSE2("" << STXXL_THREAD_ID << " greater equal than " << position - (*seqs)[i].first << " elements");
-                                num_currently_mergeable += position - (*seqs)[i].first;
-                            }
-
-                            STXXL_VERBOSE1("finished loop");
+                            num_currently_mergeable = sort_helper::count_elements_less_equal(
+                                    *seqs, consume_seq[prefetcher->pos()].value, cmp);
                         }
                     }
 
@@ -1547,26 +1536,7 @@ namespace stream
 
                     STXXL_VERBOSE1("after merge");
 
-                    for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
-                    {
-                        if ((*seqs)[i].first == (*seqs)[i].second)                        // run empty
-                        {
-                            if (prefetcher->block_consumed((*buffers)[i]))
-                            {
-                                (*seqs)[i].first = (*buffers)[i]->begin();                // reset iterator
-                                (*seqs)[i].second = (*buffers)[i]->end();
-                                STXXL_VERBOSE2("block ran empty " << i);
-                                num_currently_mergeable = 0;                              // recompute
-                            }
-                            else
-                            {
-                                (*seqs).erase((*seqs).begin() + i);                       // remove this sequence
-                                (*buffers).erase((*buffers).begin() + i);
-                                STXXL_VERBOSE2("seq removed " << i);
-                                --i;                                                      // don't skip the next sequence
-                            }
-                        }
-                    }
+                    sort_helper::refill_or_remove_empty_sequences(*seqs, *buffers, *prefetcher);
                 } while (rest > 0 && (*seqs).size() > 0);
 
 #if STXXL_CHECK_ORDER_IN_SORTS
