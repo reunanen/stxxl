@@ -403,6 +403,7 @@ namespace sort_local
  #if STXXL_CHECK_ORDER_IN_SORTS
             value_type last_elem = cmp.min_value();
  #endif
+            diff_type num_currently_mergeable = 0;
 
             for (int_type j = 0; j < out_run_size; ++j)                 // for the whole output run, out_run_size is in blocks
             {
@@ -410,75 +411,34 @@ namespace sort_local
 
                 STXXL_VERBOSE1("output block " << j);
                 do {
-                    value_type * min_last_element = NULL;               // no element found yet
-                    diff_type total_size = 0;
-
-                    for (seqs_size_type i = 0; i < seqs.size(); i++)
+                    if (num_currently_mergeable < rest)
                     {
-                        if (seqs[i].first == seqs[i].second)
-                            continue;  // run empty
-
-                        if (min_last_element == NULL)
-                            min_last_element = &(*(seqs[i].second - 1));
+                        if (prefetcher.empty())
+                        {
+                            // anything remaining is already in memory
+                            num_currently_mergeable = (out_run_size - j) * block_type::size
+                                                      - (block_type::size - rest);
+                        }
                         else
-                            min_last_element = cmp(*min_last_element, *(seqs[i].second - 1)) ? min_last_element : &(*(seqs[i].second - 1));
-
-                        total_size += seqs[i].second - seqs[i].first;
-                        STXXL_VERBOSE1("last " << *(seqs[i].second - 1) << " block size " << (seqs[i].second - seqs[i].first));
+                        {
+                            num_currently_mergeable = sort_helper::count_elements_less_equal(
+                                    seqs, consume_seq[prefetcher.pos()].value, cmp);
+                        }
                     }
 
-                    assert(min_last_element != NULL);           // there must be some element
-
-                    STXXL_VERBOSE1("min_last_element " << min_last_element << " total size " << total_size + (block_type::size - rest));
-
-                    diff_type less_equal_than_min_last = 0;
-                    // locate this element in all sequences
-                    for (seqs_size_type i = 0; i < seqs.size(); i++)
-                    {
-                        if (seqs[i].first == seqs[i].second)
-                            continue;  // empty subsequence
-
-                        typename block_type::iterator position = std::upper_bound(seqs[i].first, seqs[i].second, *min_last_element, cmp);
-                        STXXL_VERBOSE1("greater equal than " << position - seqs[i].first);
-                        less_equal_than_min_last += position - seqs[i].first;
-                    }
-
-                    STXXL_VERBOSE1("finished loop");
-
-                    ptrdiff_t output_size = STXXL_MIN(less_equal_than_min_last, rest);   // at most rest elements
+                    diff_type output_size = STXXL_MIN(num_currently_mergeable, rest);   // at most rest elements
 
                     STXXL_VERBOSE1("before merge " << output_size);
 
                     stxxl::parallel::multiway_merge(seqs.begin(), seqs.end(), out_buffer->end() - rest, cmp, output_size);
                     // sequence iterators are progressed appropriately
 
+                    rest -= output_size;
+                    num_currently_mergeable -= output_size;
+
                     STXXL_VERBOSE1("after merge");
 
-                    (*out_run)[j].value = (*out_buffer)[0];                              // save smallest value
-
-                    rest -= output_size;
-
-                    STXXL_VERBOSE1("so long");
-
-                    for (seqs_size_type i = 0; i < seqs.size(); i++)
-                    {
-                        if (seqs[i].first == seqs[i].second)                             // run empty
-                        {
-                            if (prefetcher.block_consumed(buffers[i]))
-                            {
-                                seqs[i].first = buffers[i]->begin();                     // reset iterator
-                                seqs[i].second = buffers[i]->end();
-                                STXXL_VERBOSE1("block ran empty " << i);
-                            }
-                            else
-                            {
-                                seqs.erase(seqs.begin() + i);                            // remove this sequence
-                                buffers.erase(buffers.begin() + i);
-                                STXXL_VERBOSE1("seq removed " << i);
-                                --i;                                                     // don't skip the next sequence
-                            }
-                        }
-                    }
+                    sort_helper::refill_or_remove_empty_sequences(seqs, buffers, prefetcher);
                 } while (rest > 0 && seqs.size() > 0);
 
  #if STXXL_CHECK_ORDER_IN_SORTS
@@ -498,6 +458,7 @@ namespace sort_local
                 last_elem = (*out_buffer)[block_type::size - 1];
  #endif
 
+                (*out_run)[j].value = (*out_buffer)[0];                              // save smallest value
 
                 out_buffer = writer.write(out_buffer, (*out_run)[j].bid);
             }
