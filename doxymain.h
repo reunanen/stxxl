@@ -101,8 +101,7 @@
  *
  * - Questions concerning use and development of the \c S<small>TXXL</small>
  * library and bug reports should be posted to the
- * <b><a href="http://sourceforge.net/forum/?group_id=131632">FORUMS</a></b>
- * or mailed to <A href="http://i10www.ira.uka.de/dementiev/">Roman Dementiev</A>.
+ * <b><a href="http://sourceforge.net/forum/?group_id=131632">FORUMS</a></b>.
  *
  * - \link FAQ FAQ - Frequently Asked Questions \endlink
  *
@@ -154,6 +153,49 @@
  * that distribute data evenly between the disks but ignore the availability of free space on them. 
  *
  *
+ * \section q4 STXXL in a Microsoft CLR Library
+ *
+ * From STXXL user Christian, posted in the <a href="https://sourceforge.net/projects/stxxl/forums/forum/446474/topic/3407329">forum</a>:
+ *
+ * Precondition: I use STXXL in a Microsoft CLR Library (a special DLL). That means that managed code and native code (e.g. STXXL) have to co-exist in your library.
+ *
+ * Symptom: Application crashes at process exit, when the DLL is unloaded.
+ *
+ * Cause: STXXL's singleton classes use the \c atexit() function to destruct themselves at process exit. The exit handling will cause the process to crash at exit (still unclear if it's a bug or a feature of the MS runtime).
+ *
+ * Solution:
+ *
+ * 1.) Compiled STXXL static library with \c STXXL_NON_DEFAULT_EXIT_HANDLER defined.
+ *
+ * 2.) For cleanup, \c stxxl::run_exit_handlers() has now to be called manually. To get this done automatically:
+ *
+ * Defined a CLI singleton class "Controller":
+ *
+ * \verbatim
+public ref class Controller {
+private: 
+    static Controller^ instance = gcnew Controller;
+    Controller();
+};
+\endverbatim
+ *
+ *     Registered my own cleanup function in Controller's constructor which will manage to call \c stxxl::run_exit_handlers():
+ *
+ * \verbatim
+#pragma managed(push, off)
+static int myexitfn()
+{
+    stxxl::run_exit_handlers();
+    return 0;
+}
+#pragma managed(pop)
+
+Controller::Controller()
+{
+    onexit(myexitfn);
+}
+\endverbatim
+ *
  */
 
 
@@ -179,8 +221,8 @@
  * - Change to \c stxxl directory: \c cd \c stxxl-x.y.z ,
  * - Run: \verbatim make config_gnu \endverbatim to create a template \c make.settings.local file.
  *   Note: this will produce some warnings and abort with an error, which is intended.
- * - Change the \c make.settings.local file according to your system configuration:
- *   - \c S<small>TXXL</small> root directory \c STXXL_ROOT variable
+ * - (optionally) change the \c make.settings.local file according to your system configuration:
+ *   - (optionally) set \c STXXL_ROOT variable to \c S<small>TXXL</small> root directory
  *     ( \c directory_where_you_unpacked_the_tar_ball/stxxl-x.y.z )
  *   - if you want \c S<small>TXXL</small> to use <A href="http://www.boost.org">Boost</A> libraries
  *     (you should have the Boost libraries already installed)
@@ -265,6 +307,10 @@ my_example.bin: my_example.o
  * we also recommend to add the following options to the \c mkfs.xfs command to gain maximum performance:
  * \verbatim -d agcount=1 -l size=512b \endverbatim
  *
+ * The following filesystems have been reported not to support Direct I/O: \c tmpfs , \c glusterfs .
+ * Since Direct I/O is enabled by default, you may recompile \c S<small>TXXL</small>
+ * with \c STXXL_DIRECT_IO_OFF defined to access files on these file systems.
+ *
  *
  * \section configuration Disk configuration file
  *
@@ -317,28 +363,31 @@ my_example.bin: my_example.o
 
 
 /*!
- * \page installation_msvc Installation (Windows/MS Visual C++ 8.0 - Stxxl from version 0.9)
+ * \page installation_msvc Installation (Windows/MS Visual C++ 8.0/9.0 - Stxxl from version 1.3)
  *
  * \section download Download and library compilation
  *
  * - Install the <a href="http://www.boost.org">Boost</a> libraries (required).
  * - Download the latest \c Stxxl zip file from
  *   <A href="http://sourceforge.net/project/showfiles.php?group_id=131632&package_id=144407">SourceForge</A>.
- * - Unpack the zip file in some directory (e.g. \c 'c:\\' ),
- * - Change to \c stxxl directory: \c cd \c stxxl-x.y.z ,
- * - Change \c make.settings.msvc file according to your system configuration:
- *   - \c S<small>TXXL</small> root directory \c STXXL_ROOT variable
- *     ( \c directory_where_you_unpacked_the_zipfile\\stxxl-x.y.z , e.g. \c 'c:\\stxxl' )
- *   - change \c BOOST_ROOT variable according to the Boost root path
+ * - Unpack the zip file in some directory (e.&nbsp;g. \c 'C:\\' ),
+ * - Change to \c stxxl base directory: \c cd \c stxxl-x.y.z ,
+ * - Create \c make.settings.local in the base directory according to your system configuration:
+ *   - set \c BOOST_ROOT variable according to the Boost root path, e.&nbsp;g.
+ *     BOOST_ROOT = "C:\Program Files (x86)\boost\boost_1_40_0"#
+ *   - (optionally) set \c STXXL_ROOT variable to \c S<small>TXXL</small> root directory
  *   - (optionally) set \c OPT variable to \c /O2 or other VC++ optimization level you like
- *   - set \c DEBUG variable to \c /MDd for debug version of the \c Stxxl library
+ *   - (optionally) set \c DEBUG variable to \c /MDd for debug version of the \c Stxxl library
  *     or to \c /MD for the version without debugging information in object files
- * - Open the \c stxxl.vcproj file (VS Solution Object) in Visual Studio .NET.
+ * - Open the \c stxxl.vcproj file (VS Solution Object) in Visual Studio.
  *   The file is located in the \c STXXL_ROOT directory
- * - Press F7 to build the library.
+ *   Press F7 to build the library.
  *   The library file (libstxxl.lib) should appear in \c STXXL_ROOT\\lib directory
  *   Or build the library and the \c stxxl test programs by pressing Ctrl-Alt-F7
  *   (or choosing from 'Build' drop-down menu Rebuild Solution)
+ * - (alternatively) Compile the library by executing \c nmake \c library_msvc
+ *   and the tests by executing \c nmake \c tests_msvc,
+ *   with all the appropriate environment set (e.&nbsp;by using the VS Command Shell)
  *
  *
  * \section compile_apps Application compilation
@@ -358,7 +407,7 @@ my_example.bin: my_example.o
  *
  * <BR>
  * If you use make files you can
- * include \c make.settings file in your make files and use \c STXXL_COMPILER_OPTIONS and
+ * include the \c make.settings file in your make files and use \c STXXL_COMPILER_OPTIONS and
  * \c STXXL_LINKER_OPTIONS variables, defined therein.
  *
  * For example: <BR>
