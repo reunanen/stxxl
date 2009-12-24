@@ -113,7 +113,7 @@ namespace stream
         typedef typename Input_::value_type value_type;
         typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
 
     private:
@@ -871,7 +871,7 @@ namespace stream
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
         typedef sorted_runs_type result_type;
 
@@ -1223,7 +1223,7 @@ namespace stream
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
         typedef AllocStr_ alloc_strategy_type;
         Cmp_ cmp;
 
@@ -1438,7 +1438,7 @@ namespace stream
         typedef typename block_type::bid_type bid_type;
         typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
-        typedef sort_local::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
+        typedef sort_helper::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
         typedef loser_tree<run_cursor_type, run_cursor2_cmp_type> loser_tree_type;
         typedef stxxl::int64 diff_type;
         typedef std::pair<typename block_type::iterator, typename block_type::iterator> sequence;
@@ -1545,7 +1545,7 @@ namespace stream
 
                     for (seqs_size_type i = 0; i < (*seqs).size(); ++i)
                     {
-                        if ((*seqs)[i].first == (*seqs)[i].second)                                            //run empty
+                        if ((*seqs)[i].first == (*seqs)[i].second)                        // run empty
                         {
                             if (prefetcher->block_consumed((*buffers)[i]))
                             {
@@ -1719,7 +1719,7 @@ namespace stream
             }
 
             std::stable_sort(consume_seq.begin(), consume_seq.end(),
-                             sort_local::trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
+                             sort_helper::trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
 
             const unsigned_type n_prefetch_buffers = STXXL_MAX(min_prefetch_buffers, input_buffers - nruns);
 
@@ -2252,7 +2252,7 @@ namespace stream
     {
         typedef ValueType_ value_type;
         typedef BID<BlockSize_> bid_type;
-        typedef sort_local::trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
 
     public:
         typedef sorted_runs<value_type, trigger_entry_type> result;

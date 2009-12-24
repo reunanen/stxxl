@@ -24,6 +24,8 @@
 #include <stxxl/bits/common/switch.h>
 #include <stxxl/bits/common/settings.h>
 #include <stxxl/bits/mng/block_alloc_interleaved.h>
+#include <stxxl/bits/algo/sort_base.h>
+#include <stxxl/bits/algo/sort_helper.h>
 #include <stxxl/bits/algo/intksort.h>
 #include <stxxl/bits/algo/adaptor.h>
 #include <stxxl/bits/algo/async_schedule.h>
@@ -33,7 +35,6 @@
 #include <stxxl/bits/algo/losertree.h>
 #include <stxxl/bits/algo/inmemsort.h>
 #include <stxxl/bits/parallel.h>
-#include <stxxl/bits/algo/sort_base.h>
 #include <stxxl/bits/common/is_sorted.h>
 
 
@@ -47,57 +48,6 @@ __STXXL_BEGIN_NAMESPACE
  */
 namespace sort_local
 {
-    template <typename BIDTp_, typename ValTp_>
-    struct trigger_entry
-    {
-        typedef BIDTp_ bid_type;
-        typedef ValTp_ value_type;
-
-        bid_type bid;
-        value_type value;
-
-        operator bid_type ()
-        {
-            return bid;
-        }
-    };
-
-    template <typename BIDTp_, typename ValTp_, typename ValueCmp_>
-    struct trigger_entry_cmp : public std::binary_function<trigger_entry<BIDTp_, ValTp_>, trigger_entry<BIDTp_, ValTp_>, bool>
-    {
-        typedef trigger_entry<BIDTp_, ValTp_> trigger_entry_type;
-        ValueCmp_ cmp;
-        trigger_entry_cmp(ValueCmp_ c) : cmp(c) { }
-        trigger_entry_cmp(const trigger_entry_cmp & a) : cmp(a.cmp) { }
-        bool operator () (const trigger_entry_type & a, const trigger_entry_type & b) const
-        {
-            return cmp(a.value, b.value);
-        }
-    };
-
-    template <typename block_type,
-              typename prefetcher_type,
-              typename value_cmp>
-    struct run_cursor2_cmp
-    {
-        typedef run_cursor2<block_type, prefetcher_type> cursor_type;
-        value_cmp cmp;
-
-        run_cursor2_cmp(value_cmp c) : cmp(c) { }
-        run_cursor2_cmp(const run_cursor2_cmp & a) : cmp(a.cmp) { }
-        inline bool operator () (const cursor_type & a, const cursor_type & b)
-        {
-            if (UNLIKELY(b.empty()))
-                return true;
-            // sentinel emulation
-            if (UNLIKELY(a.empty()))
-                return false;
-            // sentinel emulation
-
-            return (cmp(a.current(), b.current()));
-        }
-    };
-
     template <typename block_type, typename bid_type>
     struct read_next_after_write_completed
     {
@@ -106,7 +56,7 @@ namespace sort_local
         request_ptr * req;
         void operator () (request * /*completed_req*/)
         {
-            * req = block->read(bid);
+            *req = block->read(bid);
         }
     };
 
@@ -373,7 +323,7 @@ namespace sort_local
         typedef typename block_type::value_type value_type;
         typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
-        typedef run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
+        typedef sort_helper::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
 
         run_type consume_seq(out_run->size());
 
@@ -390,7 +340,7 @@ namespace sort_local
         }
 
         std::stable_sort(consume_seq.begin(), consume_seq.end(),
-                         trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
+                         sort_helper::trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
 
         int_type disks_number = config::get_instance()->disks_number();
 
@@ -611,7 +561,7 @@ namespace sort_local
               typename alloc_strategy,
               typename input_bid_iterator,
               typename value_cmp>
-    simple_vector<trigger_entry<typename block_type::bid_type, typename block_type::value_type> > *
+    simple_vector<sort_helper::trigger_entry<typename block_type::bid_type, typename block_type::value_type> > *
     sort_blocks(input_bid_iterator input_bids,
                 unsigned_type _n,
                 unsigned_type _m,
@@ -620,7 +570,7 @@ namespace sort_local
     {
         typedef typename block_type::value_type type;
         typedef typename block_type::bid_type bid_type;
-        typedef trigger_entry<bid_type, type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<bid_type, type> trigger_entry_type;
         typedef simple_vector<trigger_entry_type> run_type;
         typedef typename interleaved_alloc_traits<alloc_strategy>::strategy interleaved_alloc_strategy;
 
@@ -768,7 +718,7 @@ namespace sort_local
 template <typename ExtIterator_, typename StrictWeakOrdering_>
 void sort(ExtIterator_ first, ExtIterator_ last, StrictWeakOrdering_ cmp, unsigned_type M)
 {
-    typedef simple_vector<sort_local::trigger_entry<typename ExtIterator_::bid_type,
+    typedef simple_vector<sort_helper::trigger_entry<typename ExtIterator_::bid_type,
                                                     typename ExtIterator_::vector_type::value_type> > run_type;
 
     typedef typename ExtIterator_::vector_type::value_type value_type;
