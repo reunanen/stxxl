@@ -101,7 +101,9 @@
  *
  * - Questions concerning use and development of the \c S<small>TXXL</small>
  * library and bug reports should be posted to the
- * <b><a href="http://sourceforge.net/forum/?group_id=131632">FORUMS</a></b>.
+ * <b><a href="http://sourceforge.net/projects/stxxl/forums">FORUMS</a></b>.
+ * Please search the forum before posting,
+ * your question may have been answered before.
  *
  * - \link FAQ FAQ - Frequently Asked Questions \endlink
  *
@@ -138,7 +140,20 @@
  * <br>
  *
  *
- * \section q2 Thread-Safety
+ * \section q2 Parameterizing STXXL Containers
+ *
+ * STXXL container types like stxxl::vector can be parameterized only with a value type that is a
+ * <a href="http://en.wikipedia.org/wiki/Plain_old_data_structures">POD</a>
+ * (i. e. no virtual functions, no user-defined copy assignment/destructor, etc.)
+ * and does not contain references (including pointers) to internal memory.
+ * Usually, "complex" data types do not satisfy this requirements.
+ *
+ * This is why stxxl::vector<std::vector<T> > and stxxl::vector<stxxl::vector<T> > are invalid.
+ * If appropriate, use std::vector<stxxl::vector<T> >, or emulate a two-dimensional array by
+ * doing index calculation.
+ *
+ *
+ * \section q3 Thread-Safety
  *
  * The I/O and block management layers are thread-safe (since release 1.1.1).
  * The user layer data structures are not thread-safe.<br>
@@ -147,13 +162,13 @@
  * This is a design choice, having the data structures thread-safe would mean a significant performance loss.
  *
  *
- * \section q3 I have configured several disks to use with STXXL. Why does STXXL fail complaining about the lack of space? According to my calclulations, the space on the disks should be sufficient.
+ * \section q4 I have configured several disks to use with STXXL. Why does STXXL fail complaining about the lack of space? According to my calclulations, the space on the disks should be sufficient.
  *
  * This may happen if the disks have different size. With the default parameters \c S<small>TXXL</small> containers use randomized block-to-disk allocation strategies
  * that distribute data evenly between the disks but ignore the availability of free space on them. 
  *
  *
- * \section q4 STXXL in a Microsoft CLR Library
+ * \section q5 STXXL in a Microsoft CLR Library
  *
  * From STXXL user Christian, posted in the <a href="https://sourceforge.net/projects/stxxl/forums/forum/446474/topic/3407329">forum</a>:
  *
@@ -197,7 +212,7 @@ Controller::Controller()
 \endverbatim
  *
  *
- * \section q5 How can I credit STXXL, and thus foster its development?
+ * \section q6 How can I credit STXXL, and thus foster its development?
  *
  * - For all users:  Sign up at Ohloh and add yourself as an STXXL user / rate STXXL: http://www.ohloh.net/p/stxxl
  *
@@ -225,7 +240,7 @@ Controller::Controller()
  * \section download Download and library compilation
  *
  * - Download the latest gzipped tarball from
- *   <A href="http://sourceforge.net/project/showfiles.php?group_id=131632&package_id=144407">SourceForge</A>.
+ *   <a href="http://sourceforge.net/projects/stxxl/files/stxxl/">SourceForge</a>.
  * - Unpack in some directory executing: \c tar \c zfxv \c stxxl-x.y.z.tgz ,
  * - Change to \c stxxl directory: \c cd \c stxxl-x.y.z ,
  * - Run: \verbatim make config_gnu \endverbatim to create a template \c make.settings.local file.
@@ -233,11 +248,11 @@ Controller::Controller()
  * - (optionally) change the \c make.settings.local file according to your system configuration:
  *   - (optionally) set \c STXXL_ROOT variable to \c S<small>TXXL</small> root directory
  *     ( \c directory_where_you_unpacked_the_tar_ball/stxxl-x.y.z )
- *   - if you want \c S<small>TXXL</small> to use <A href="http://www.boost.org">Boost</A> libraries
+ *   - if you want \c S<small>TXXL</small> to use <a href="http://www.boost.org">Boost</a> libraries
  *     (you should have the Boost libraries already installed)
  *     - change \c USE_BOOST variable to \c yes
  *     - change \c BOOST_ROOT variable according to the Boost root path
- *   - if you want \c S<small>TXXL</small> to use the <A href="http://algo2.iti.uni-karlsruhe.de/singler/mcstl/">MCSTL</A>
+ *   - if you want \c S<small>TXXL</small> to use the <a href="http://algo2.iti.uni-karlsruhe.de/singler/mcstl/">MCSTL</a>
  *     library (you should have the MCSTL library already installed)
  *     - change \c MCSTL_ROOT variable according to the MCSTL root path
  *     - use the targets \c library_g++_mcstl and \c tests_g++_mcstl
@@ -307,7 +322,7 @@ my_example.bin: my_example.o
  * Our library take benefit of direct user memory - disk transfers (direct access) which avoids
  * superfluous copies.
  * We recommend to use the
- * \c XFS file system (<A href="http://oss.sgi.com/projects/xfs/">link</A>) that
+ * \c XFS file system (<a href="http://oss.sgi.com/projects/xfs/">link</a>) that
  * gives good read and write performance for large files.
  * Note that file creation speed of \c XFS is slow, so that disk
  * files should be precreated.
@@ -378,7 +393,7 @@ my_example.bin: my_example.o
  *
  * - Install the <a href="http://www.boost.org">Boost</a> libraries (required).
  * - Download the latest \c Stxxl zip file from
- *   <A href="http://sourceforge.net/project/showfiles.php?group_id=131632&package_id=144407">SourceForge</A>.
+ *   <a href="http://sourceforge.net/projects/stxxl/files/stxxl/">SourceForge</a>.
  * - Unpack the zip file in some directory (e.&nbsp;g. \c 'C:\\' ),
  * - Change to \c stxxl base directory: \c cd \c stxxl-x.y.z ,
  * - Create \c make.settings.local in the base directory according to your system configuration:
@@ -494,13 +509,13 @@ my_example.bin: my_example.o
  * \section download Download and library compilation
  *
  * - Download the latest gzipped tarball from
- *   <A href="http://sourceforge.net/project/showfiles.php?group_id=131632&package_id=144407">SourceForge</A>.
+ *   <a href="http://sourceforge.net/projects/stxxl/files/stxxl/">SourceForge</a>.
  * - Unpack in some directory executing: \c tar \c zfxv \c stxxl-x.y.z.tgz ,
  * - Change to \c stxxl directory: \c cd \c stxxl-x.y.z ,
  * - Change \c make.settings.gnu or \c make.settings.local file according to your system configuration:
  *   - \c S<small>TXXL</small> root directory \c STXXL_ROOT variable
  *     ( \c directory_where_you_unpacked_the_tar_ball/stxxl-x.y.z )
- *   - if you want \c S<small>TXXL</small> to use <A href="http://www.boost.org">Boost</A> libraries
+ *   - if you want \c S<small>TXXL</small> to use <a href="http://www.boost.org">Boost</a> libraries
  *     (you should have the Boost libraries already installed)
  *     - change \c USE_BOOST variable to \c yes
  *     - change \c BOOST_ROOT variable according to the Boost root path
@@ -610,7 +625,7 @@ my_example.bin: my_example.o
  * \section download Download and library compilation
  *
  * - Download stxxl_0.77.tgz from
- *   <A href="http://sourceforge.net/project/showfiles.php?group_id=131632&package_id=144407&release_id=541515">SourceForge</A>.
+ *   <a href="http://sourceforge.net/projects/stxxl/files/stxxl/0.77/">SourceForge</a>.
  * - Unpack in some directory executing: \c tar \c zfxv \c stxxl_0.77.tgz ,
  * - Change to \c stxxl directory: \c cd \c stxxl ,
  * - Change file \c compiler.make according to your system configuration
@@ -651,7 +666,7 @@ my_example.bin: my_example.o
  * superfluous copies. This method has some disadvantages when accessing files on \c ext2 partitions.
  * Namely one requires one byte of internal memory per each accessed kilobyte of file space. For external
  * memory applications with large inputs this could be not proper. Therefore we recommend to use the
- * \c XFS file system <A href="http://oss.sgi.com/projects/xfs/">link</A> which does not have this overhead but
+ * \c XFS file system <a href="http://oss.sgi.com/projects/xfs/">link</a> which does not have this overhead but
  * gives the same read and write performance. Note that file creation speed of \c XFS is slow, so that disk
  * files must be precreated.
  *

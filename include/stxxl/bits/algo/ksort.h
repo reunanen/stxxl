@@ -405,14 +405,9 @@ namespace ksort_local
                         return false;
                     }
                 }
-                if (!stxxl::is_sorted(
-                        ArrayOfSequencesIterator<
-                            block_type, typename block_type::value_type, block_type::size
-                            >(blocks, 0),
-                        ArrayOfSequencesIterator<
-                            block_type, typename block_type::value_type, block_type::size
-                            >(blocks, nelements),
-                        key_comparison<value_type, key_ext_>()))
+                if (!stxxl::is_sorted(make_element_iterator(blocks, 0),
+                                      make_element_iterator(blocks, nelements),
+                                      key_comparison<value_type, key_ext_>()))
                 {
                     STXXL_MSG("check_sorted_runs  wrong order in the run " << irun);
                     STXXL_MSG("Data in blocks:");
@@ -739,12 +734,11 @@ namespace ksort_local
  */
 
 
-//! \brief External sorting routine for records with keys
+//! \brief Sort records with integer keys
 //! \param first_ object of model of \c ext_random_access_iterator concept
 //! \param last_ object of model of \c ext_random_access_iterator concept
 //! \param keyobj \link key_extractor key extractor \endlink object
 //! \param M__ amount of memory for internal use (in bytes)
-//! \remark Implements external merge sort described in [Dementiev & Sanders'03]
 //! \remark Order in the result is non-stable
 template <typename ExtIterator_, typename KeyExtractor_>
 void ksort(ExtIterator_ first_, ExtIterator_ last_, KeyExtractor_ keyobj, unsigned_type M__)
@@ -1084,11 +1078,10 @@ struct ksort_defaultkey
 };
 
 
-//! \brief External sorting routine for records with keys
+//! \brief Sort records with integer keys
 //! \param first_ object of model of \c ext_random_access_iterator concept
 //! \param last_ object of model of \c ext_random_access_iterator concept
 //! \param M__ amount of buffers for internal use
-//! \remark Implements external merge sort described in [Dementiev & Sanders'03]
 //! \remark Order in the result is non-stable
 /*!
    Record's type must:
