@@ -185,7 +185,7 @@ namespace stream
         typedef const value_type * const_iterator;
 
         vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0) :
-            current_(begin), end_(end), in(NULL)
+            current_(begin), end_(end), in(static_cast<buf_istream_type *>(NULL))
         {
             begin.flush();     // flush container
             typename InputIterator_::bids_container_iterator end_iter = end.bid() + ((end.block_offset()) ? 1 : 0);
