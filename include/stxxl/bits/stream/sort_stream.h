@@ -345,6 +345,7 @@ namespace stream
 #endif
             , el_in_run((m_ / 2) * block_type::size)
         {
+            sort_helper::verify_sentinel_strict_weak_ordering(cmp);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
@@ -356,12 +357,11 @@ namespace stream
 #if !STXXL_START_PIPELINE_DEFERRED
             STXXL_UNUSED(start_mode);
 #endif
-            assert(m_ > 0);
             assert(el_in_run > 0);
             if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
                 throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
             }
-            assert(c(c.min_value(), c.max_value()));    //consistency of comparator
+            assert(m_ > 0);
         }
 
         //! \brief Destructor.
@@ -400,8 +400,7 @@ namespace stream
     //!
     //! This is the main routine of this class.
     template <class Input_, class Cmp_, unsigned BlockSize_, class AllocStr_>
-    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::
-    compute_result()
+    void basic_runs_creator<Input_, Cmp_, BlockSize_, AllocStr_>::compute_result()
     {
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
@@ -985,11 +984,13 @@ namespace stream
             , mutex(ul_mutex)
 #endif
         {
+            sort_helper::verify_sentinel_strict_weak_ordering(cmp);
             assert(m_ > 0);
             assert(m2 > 0);
             if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
                 throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
             }
+            assert(m2 > 0);
 #ifndef STXXL_BOOST_THREADS
             check_pthread_call(pthread_mutex_init(&mutex, 0));
             check_pthread_call(pthread_cond_init(&cond, 0));
@@ -1244,6 +1245,7 @@ namespace stream
             iblock(0),
             irun(0)
         {
+            sort_helper::verify_sentinel_strict_weak_ordering(cmp);
             assert(m_ > 0);
             if (!(2 * BlockSize_ * sort_memory_usage_factor() <= memory_to_use)) {
                 throw bad_parameter("stxxl::runs_creator<>:runs_creator(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
@@ -1349,6 +1351,7 @@ namespace stream
     template <class RunsType_, class Cmp_>
     bool check_sorted_runs(RunsType_ & sruns, Cmp_ cmp)
     {
+        sort_helper::verify_sentinel_strict_weak_ordering(cmp);
         typedef typename RunsType_::block_type block_type;
         typedef typename block_type::value_type value_type;
         STXXL_VERBOSE1("Elements: " << sruns.elements);
@@ -1598,6 +1601,8 @@ namespace stream
 
         void initialize(const sorted_runs_type & r, unsigned_type memory_to_use)
         {
+            sort_helper::verify_sentinel_strict_weak_ordering(cmp);
+
             sruns = r;
             elements_remaining = r.elements;
 
@@ -1750,7 +1755,7 @@ namespace stream
         }
 
         //! \brief Standard stream method
-        basic_runs_merger & operator ++ () // preincrement operator
+        basic_runs_merger & operator ++ ()  // preincrement operator
         {
             assert(!empty());
 
@@ -2116,7 +2121,9 @@ namespace stream
             c(c),
             memory_to_use_m(memory_to_use),
             input(in)
-        { }
+        {
+            sort_helper::verify_sentinel_strict_weak_ordering(c);
+        }
 
         //! \brief Creates the object
         //! \param in input stream
@@ -2129,7 +2136,9 @@ namespace stream
             c(c),
             memory_to_use_m(memory_to_use_m),
             input(in)
-        { }
+        {
+            sort_helper::verify_sentinel_strict_weak_ordering(c);
+        }
 
         //! \brief Standard stream method
         void start_pull()
