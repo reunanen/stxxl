@@ -441,7 +441,7 @@ namespace stream
 #endif //STXXL_SMALL_INPUT_PSORT_OPT
 
         blocks1_length = fetch(Blocks1, blocks1_length, el_in_run); //fetch rest, first block already in place
-        bool already_empty_after_1_block = input.empty();
+        bool already_empty_after_1_run = input.empty();
 
         block_type * Blocks2 = Blocks1 + m2;                        //second half
 
@@ -454,7 +454,7 @@ namespace stream
         sort_run(Blocks1, blocks1_length);
         result_.elements = blocks1_length;
 
-        if (blocks1_length < block_type::size && already_empty_after_1_block) // small input, do not flush it on the disk(s)
+        if (blocks1_length < block_type::size && already_empty_after_1_run)  // small input, do not flush it on the disk(s)
         {
             STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
             assert(result_.small_.empty());
@@ -496,19 +496,19 @@ namespace stream
         result_.runs_sizes.push_back(blocks1_length);
         result_.runs.push_back(run); // #
 
-        bool already_empty_after_2_blocks = false;  //will be set correctly
+        bool already_empty_after_2_runs = false;  // will be set correctly
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         if (asynchronous_pull)
         {
             blocks2_length = wait_write_read();
 
-            already_empty_after_2_blocks = input.empty();
+            already_empty_after_2_runs = input.empty();
             start_write_read(write_reqs, Blocks1, cur_run_size, m2);
         }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
-        if (already_empty_after_1_block)
+        if (already_empty_after_1_run)
         {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         if (asynchronous_pull)
@@ -530,12 +530,12 @@ namespace stream
         if (!asynchronous_pull)
         {
             blocks2_length = fetch(Blocks2, 0, el_in_run);
-            already_empty_after_2_blocks = input.empty();
+            already_empty_after_2_runs = input.empty();
         }
 
         result_.elements += blocks2_length;
 
-        if (already_empty_after_2_blocks)
+        if (already_empty_after_2_runs)
         {                                        //optimization if whole set fits into both halves
             // (re)sort internally and return
             sort_run(Blocks1, result_.elements); // sort first an second run together
