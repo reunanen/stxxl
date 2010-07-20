@@ -156,6 +156,20 @@ namespace stream
 #endif
 
 
+        void fill_with_max_value(block_type * blocks, unsigned_type num_blocks, unsigned_type first_idx)
+        {
+            unsigned_type last_idx = num_blocks * block_type::size;
+            if (first_idx < last_idx) {
+                typename element_iterator_traits<block_type>::element_iterator curr =
+                    make_element_iterator(blocks, first_idx);
+                while (first_idx != last_idx) {
+                    *curr = cmp.max_value();
+                    ++curr;
+                    ++first_idx;
+                }
+            }
+        }
+
         //! \brief Sort a specific run, contained in a sequences of blocks.
         void sort_run(block_type * run, unsigned_type elements)
         {
@@ -405,11 +419,12 @@ namespace stream
         unsigned_type i = 0;
         unsigned_type m2 = m_ / 2;
         assert(m2 > 0);
-        STXXL_VERBOSE1("runs_creator::compute_result m2=" << m2);
+        STXXL_VERBOSE1("basic_runs_creator::compute_result m2=" << m2);
         blocked_index<block_type::size> blocks1_length = 0, blocks2_length = 0;
+        block_type * Blocks1 = NULL;
 
 #ifndef STXXL_SMALL_INPUT_PSORT_OPT
-        block_type * Blocks1 = new block_type[m2 * 2];
+        Blocks1 = new block_type[m2 * 2];
 #else
 
         //read first block
@@ -420,17 +435,15 @@ namespace stream
             ++blocks1_length;
         }
 
-        block_type * Blocks1;
-
         if (blocks1_length == block_type::size && !input.empty())
-        {      // enlarge/reallocate Blocks1 array
+        {
             Blocks1 = new block_type[m2 * 2];
             std::copy(result_.small_.begin(), result_.small_.end(), Blocks1[0].begin());
             result_.small_.clear();
         }
         else
         {   // whole input fits into one block
-            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
+            STXXL_VERBOSE1("basic_runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
             std::sort(result_.small_.begin(), result_.small_.end(), cmp);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -440,7 +453,8 @@ namespace stream
         }
 #endif //STXXL_SMALL_INPUT_PSORT_OPT
 
-        blocks1_length = fetch(Blocks1, blocks1_length, el_in_run); //fetch rest, first block already in place
+        // fetch rest, first block may already in place
+        blocks1_length = fetch(Blocks1, blocks1_length, el_in_run);
         bool already_empty_after_1_run = input.empty();
 
         block_type * Blocks2 = Blocks1 + m2;                        //second half
@@ -452,13 +466,14 @@ namespace stream
 
         // sort first run
         sort_run(Blocks1, blocks1_length);
-        result_.elements = blocks1_length;
 
-        if (blocks1_length < block_type::size && already_empty_after_1_run)  // small input, do not flush it on the disk(s)
+        if (blocks1_length < block_type::size && already_empty_after_1_run)
         {
-            STXXL_VERBOSE1("runs_creator: Small input optimization, input length: " << blocks1_length);
+            // small input, do not flush it on the disk(s)
+            STXXL_VERBOSE1("basic_runs_creator: Small input optimization, input length: " << blocks1_length);
             assert(result_.small_.empty());
             result_.small_.insert(result_.small_.end(), Blocks1[0].begin(), Blocks1[0].begin() + blocks1_length);
+            result_.elements = blocks1_length;
             delete[] Blocks1;
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             join_waiting_and_fetching();
@@ -466,12 +481,11 @@ namespace stream
             return;
         }
 
-
         block_manager * bm = block_manager::get_instance();
         request_ptr * write_reqs = new request_ptr[m2];
         run_type run;
 
-        unsigned_type cur_run_size = div_ceil(blocks1_length, block_type::size); // in blocks
+        unsigned_type cur_run_size = div_ceil(blocks1_length, block_type::size);  // in blocks
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -480,10 +494,8 @@ namespace stream
 
         disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
-
         // fill the rest of the last block with max values
-        for (blocked_index<block_type::size> rest = blocks1_length; rest != el_in_run; ++rest)
-            Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
+        fill_with_max_value(Blocks1, cur_run_size, blocks1_length);
 
         //write first run
         for (i = 0; i < cur_run_size; ++i)
@@ -492,9 +504,9 @@ namespace stream
             write_reqs[i] = Blocks1[i].write(run[i].bid);
             //STXXL_MSG("BID: "<<run[i].bid<<" val: "<<run[i].value);
         }
-
+        result_.runs.push_back(run);
         result_.runs_sizes.push_back(blocks1_length);
-        result_.runs.push_back(run); // #
+        result_.elements += blocks1_length;
 
         bool already_empty_after_2_runs = false;  // will be set correctly
 
@@ -533,12 +545,12 @@ namespace stream
             already_empty_after_2_runs = input.empty();
         }
 
-        result_.elements += blocks2_length;
-
         if (already_empty_after_2_runs)
-        {                                        //optimization if whole set fits into both halves
+        {
+            // optimization if the whole set fits into both halves
             // (re)sort internally and return
-            sort_run(Blocks1, result_.elements); // sort first an second run together
+            blocks2_length += el_in_run;
+            sort_run(Blocks1, blocks2_length);  // sort first an second run together
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             if (asynchronous_pull)
                 wait_write_read();                   //for Blocks1
@@ -549,7 +561,7 @@ namespace stream
             bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
 
-            cur_run_size = div_ceil(result_.elements, block_type::size);
+            cur_run_size = div_ceil(blocks2_length, block_type::size);
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -557,8 +569,7 @@ namespace stream
                            );
 
             // fill the rest of the last block with max values
-            for (blocked_index<block_type::size> rest = result_.elements; rest != 2 * el_in_run; ++rest)
-                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
+            fill_with_max_value(Blocks1, cur_run_size, blocks2_length);
 
             assert(cur_run_size > m2);
 
@@ -580,6 +591,8 @@ namespace stream
 
             result_.runs_sizes[0] = result_.elements;
             result_.runs[0] = run;
+            result_.runs_sizes[0] = blocks2_length;
+            result_.elements = blocks2_length;
 
             wait_all(write_reqs, write_reqs + m2);
             delete[] write_reqs;
@@ -594,11 +607,11 @@ namespace stream
             return;
         }
 
-        //more than 2 runs can be filled, i. e. the general case
+        // more than 2 runs can be filled, i. e. the general case
 
         sort_run(Blocks2, blocks2_length);
 
-        cur_run_size = div_ceil(blocks2_length, block_type::size); // in blocks, XXX
+        cur_run_size = div_ceil(blocks2_length, block_type::size);  // in blocks
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(),
                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -623,8 +636,9 @@ namespace stream
             start_write_read(write_reqs, Blocks2, cur_run_size, m2);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
-        result_.runs_sizes.push_back(blocks2_length);
         result_.runs.push_back(run);
+        result_.runs_sizes.push_back(blocks2_length);
+        result_.elements += blocks2_length;
 
         while ((asynchronous_pull && blocks1_length > 0) ||
                (!asynchronous_pull && !input.empty()))
@@ -632,7 +646,7 @@ namespace stream
             if(!asynchronous_pull)
                 blocks1_length = fetch(Blocks1, 0, el_in_run);
             sort_run(Blocks1, blocks1_length);
-            cur_run_size = div_ceil(blocks1_length, block_type::size); // in blocks
+            cur_run_size = div_ceil(blocks1_length, block_type::size);  // in blocks
             run.resize(cur_run_size);
             bm->new_blocks(AllocStr_(),
                            trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
@@ -640,8 +654,7 @@ namespace stream
                            );
 
             // fill the rest of the last block with max values (occurs only on the last run)
-            for (blocked_index<block_type::size> rest = blocks1_length; rest != el_in_run; ++rest)
-                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
+            fill_with_max_value(Blocks1, cur_run_size, blocks1_length);
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
             if (asynchronous_pull)
@@ -661,9 +674,9 @@ namespace stream
                 start_write_read(write_reqs, Blocks1, cur_run_size, m2);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 
+            result_.runs.push_back(run);
             result_.runs_sizes.push_back(blocks1_length);
             result_.elements += blocks1_length;
-            result_.runs.push_back(run); // #
 
             std::swap(Blocks1, Blocks2);
             std::swap(blocks1_length, blocks2_length);
