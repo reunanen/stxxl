@@ -502,7 +502,6 @@ namespace stream
         {
             run[i].value = Blocks1[i][0];
             write_reqs[i] = Blocks1[i].write(run[i].bid);
-            //STXXL_MSG("BID: "<<run[i].bid<<" val: "<<run[i].value);
         }
         result_.runs.push_back(run);
         result_.runs_sizes.push_back(blocks1_length);
@@ -1362,7 +1361,7 @@ namespace stream
     //! \param cmp comparison object used for checking the order of elements in runs
     //! \return \c true if runs are sorted, \c false otherwise
     template <class RunsType_, class Cmp_>
-    bool check_sorted_runs(RunsType_ & sruns, Cmp_ cmp)
+    bool check_sorted_runs(const RunsType_ & sruns, Cmp_ cmp)
     {
         sort_helper::verify_sentinel_strict_weak_ordering(cmp);
         typedef typename RunsType_::block_type block_type;
@@ -1552,9 +1551,7 @@ namespace stream
             else
             {
 // begin of native merging procedure
-
                 losers->multi_merge(current_block->elem, current_block->elem + STXXL_MIN<size_type>(out_block_type::size, elements_remaining));
-
 // end of native merging procedure
             }
             STXXL_VERBOSE1("current block filled");
@@ -1622,11 +1619,12 @@ namespace stream
             if (empty())
                 return;
 
-            if (!sruns.small_.empty()) // we have a small input < B,
+            if (!sruns.small_.empty())  // we have a small input <= B,
             // that is kept in the main memory
             {
                 STXXL_VERBOSE1("basic_runs_merger: small input optimization, input length: " << elements_remaining);
                 assert(elements_remaining == size_type(sruns.small_.size()));
+                assert(sruns.small_.size() <= out_block_type::size);
                 current_block = new out_block_type;
                 std::copy(sruns.small_.begin(), sruns.small_.end(), current_block->begin());
                 current_value = current_block->elem[0];
@@ -1650,15 +1648,20 @@ namespace stream
             {
                 // can not merge runs in one pass
                 // merge recursively:
-                STXXL_ERRMSG("The implementation of sort requires more than one merge pass, therefore for a better");
-                STXXL_ERRMSG("efficiency decrease block size of run storage (a parameter of the run_creator)");
-                STXXL_ERRMSG("or increase the amount memory dedicated to the merger.");
-                STXXL_ERRMSG("m = " << input_buffers << " nruns=" << nruns << " prefetch_blocks=" << min_prefetch_buffers);
+                STXXL_WARNMSG_RECURSIVE_SORT("The implementation of sort requires more than one merge pass, therefore for a better");
+                STXXL_WARNMSG_RECURSIVE_SORT("efficiency decrease block size of run storage (a parameter of the run_creator)");
+                STXXL_WARNMSG_RECURSIVE_SORT("or increase the amount memory dedicated to the merger.");
+                STXXL_WARNMSG_RECURSIVE_SORT("m=" << input_buffers << " nruns=" << nruns << " prefetch_blocks=" << min_prefetch_buffers);
 
-                // insufficient memory, can not merge at all
-                if (input_buffers < min_prefetch_buffers + 2) {
-                    STXXL_ERRMSG("The merger requires memory to store at least two blocks internally. Aborting.");
-                    abort();
+                // check whether we have enough memory to merge recursively
+                unsigned_type recursive_merge_buffers = memory_to_use / block_type::raw_size;
+                if (recursive_merge_buffers < 2 * min_prefetch_buffers + 1 + 2) {
+                    // recursive merge uses min_prefetch_buffers for input buffering and min_prefetch_buffers output buffering
+                    // as well as 1 current output block and at least 2 input blocks
+                    STXXL_ERRMSG("There are only m=" << recursive_merge_buffers << " blocks available for recursive merging, but "
+                                 << min_prefetch_buffers << "+" << min_prefetch_buffers << "+1 are needed read-ahead/write-back/output, and");
+                    STXXL_ERRMSG("the merger requires memory to store at least two input blocks internally. Aborting.");
+                    throw bad_parameter("basic_runs_merger::sort(): INSUFFICIENT MEMORY provided, please increase parameter 'memory_to_use'");
                 }
 
                 merge_recursively(memory_to_use);
@@ -1692,7 +1695,6 @@ namespace stream
 
             const unsigned_type n_prefetch_buffers = STXXL_MAX(min_prefetch_buffers, input_buffers - nruns);
 
-
 #if STXXL_SORT_OPTIMAL_PREFETCHING
             // heuristic
             const int_type n_opt_prefetch_buffers = min_prefetch_buffers + (3 * (n_prefetch_buffers - min_prefetch_buffers)) / 10;
@@ -1725,7 +1727,6 @@ namespace stream
                     (*buffers)[i] = prefetcher->pull_block();                                   //get first block of each run
                     (*seqs)[i] = std::make_pair((*buffers)[i]->begin(), (*buffers)[i]->end());  //this memory location stays the same, only the data is exchanged
                 }
-
 // end of STL-style merging
 #else
                 STXXL_THROW_UNREACHABLE();
@@ -1734,7 +1735,6 @@ namespace stream
             else
             {
 // begin of native merging procedure
-
                 losers = new loser_tree_type(prefetcher, nruns, run_cursor2_cmp_type(cmp));
 // end of native merging procedure
             }
@@ -1763,8 +1763,7 @@ namespace stream
         //! \brief Standard stream method
         const value_type * operator -> () const
         {
-            assert(!empty());
-            return &current_value;
+            return &(operator * ());
         }
 
         //! \brief Standard stream method
@@ -1795,7 +1794,6 @@ namespace stream
                 }
             }
 
-
 #if STXXL_CHECK_ORDER_IN_SORTS
             if (!empty())
             {
@@ -1806,7 +1804,6 @@ namespace stream
 
             return *this;
         }
-
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
@@ -1848,9 +1845,7 @@ namespace stream
         virtual ~basic_runs_merger()
         {
             deallocate_prefetcher();
-
-            if (current_block)
-                delete current_block;
+            delete current_block;
         }
     };
 
@@ -1912,7 +1907,6 @@ namespace stream
                 bm->new_blocks(alloc_strategy(),
                                trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].begin()),
                                trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].end()));
-
 
             // merge all
             runs_left = nruns;
@@ -2185,7 +2179,6 @@ namespace stream
             ++merger;
             return *this;
         }
-
 
         //! \brief Batched stream method.
         unsigned_type batch_length()
