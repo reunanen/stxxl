@@ -32,28 +32,28 @@ class aio_request : public request_impl_basic
     template <class base_file_type>
     friend class fileperblock_file;
 
-    aiocb64 cb;	//control block
+    aiocb64 cb;                          // control block
 
     void fill_control_block();
 
 public:
     aio_request(
-        const completion_handler& on_cmpl,
-        file* f,
-        void* buf,
+        const completion_handler & on_cmpl,
+        file * f,
+        void * buf,
         offset_type off,
         size_type b,
         request_type t) :
-        	request_impl_basic(on_cmpl, f, buf, off, b, t)
+        request_impl_basic(on_cmpl, f, buf, off, b, t)
     {
-       	assert(dynamic_cast<aio_file*>(file_));
+        assert(dynamic_cast<aio_file *>(file_));
     }
 
     bool post();
     bool cancel();
     void completed();
 
-    aiocb64* get_cb() { return &cb; }	//must be initialized by post
+    aiocb64 * get_cb() { return &cb; }   // must be initialized by post
 
 public:
     const char * io_type() const;
