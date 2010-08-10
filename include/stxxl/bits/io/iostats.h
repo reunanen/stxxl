@@ -26,6 +26,7 @@
 #include <stxxl/bits/common/timer.h>
 #include <stxxl/bits/common/types.h>
 #include <stxxl/bits/common/utils.h>
+#include <stxxl/bits/unused.h>
 #include <stxxl/bits/singleton.h>
 
 
@@ -386,11 +387,11 @@ public:
     _STXXL_DEPRECATED(void _reset_io_wait_time());
 
     // for library use
-    void write_started(unsigned_type size_);
+    void write_started(unsigned_type size_, double now = 0.0);
     void write_canceled(unsigned_type size_);
     void write_finished();
     void write_cached(unsigned_type size_);
-    void read_started(unsigned_type size_);
+    void read_started(unsigned_type size_, double now = 0.0);
     void read_canceled(unsigned_type size_);
     void read_finished();
     void read_cached(unsigned_type size_);
@@ -399,12 +400,22 @@ public:
 };
 
 #if !STXXL_IO_STATS
-inline void stats::write_started(unsigned_type size_)
+inline void stats::write_started(unsigned_type size_, double now)
+{
+    STXXL_UNUSED(size_);
+    STXXL_UNUSED(now);
+}
+inline void stats::write_cached(unsigned_type size_)
 {
     STXXL_UNUSED(size_);
 }
 inline void stats::write_finished() { }
-inline void stats::read_started(unsigned_type size_)
+inline void stats::read_started(unsigned_type size_, double now)
+{
+    STXXL_UNUSED(size_);
+    STXXL_UNUSED(now);
+}
+inline void stats::read_cached(unsigned_type size_)
 {
     STXXL_UNUSED(size_);
 }
