@@ -57,6 +57,11 @@ namespace stream
 
         sorted_runs() : elements(0) { }
 
+        const small_run_type & small_run() const
+        {
+            return small_;
+        }
+
         //! \brief Deallocates the blocks which the runs occupy
         //!
         //! \remark Usually there is no need in calling this method,
