@@ -66,10 +66,9 @@ namespace stream
     public:
         typedef Cmp_ cmp_type;
         typedef typename Input_::value_type value_type;
-        typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
-        typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
+        typedef sort_helper::trigger_entry<block_type> trigger_entry_type;
+        typedef sorted_runs<trigger_entry_type> sorted_runs_type;
 
     private:
         typedef typename sorted_runs_type::run_type run_type;
@@ -438,10 +437,7 @@ namespace stream
 
         unsigned_type cur_run_size = div_ceil(blocks1_length, block_type::size);  // in blocks
         run.resize(cur_run_size);
-        bm->new_blocks(AllocStr_(),
-                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                       );
+        bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
         disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
@@ -508,15 +504,11 @@ namespace stream
 #else
                 wait_all(write_reqs, write_reqs + cur_run_size);
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
-            bm->delete_blocks(trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                              trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end()));
+            bm->delete_blocks(make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
             cur_run_size = div_ceil(blocks2_length, block_type::size);
             run.resize(cur_run_size);
-            bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                           );
+            bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
             // fill the rest of the last block with max values
             fill_with_max_value(Blocks1, cur_run_size, blocks2_length);
@@ -563,10 +555,7 @@ namespace stream
 
         cur_run_size = div_ceil(blocks2_length, block_type::size);  // in blocks
         run.resize(cur_run_size);
-        bm->new_blocks(AllocStr_(),
-                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                       trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                       );
+        bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         if (asynchronous_pull)
@@ -598,10 +587,7 @@ namespace stream
             sort_run(Blocks1, blocks1_length);
             cur_run_size = div_ceil(blocks1_length, block_type::size);  // in blocks
             run.resize(cur_run_size);
-            bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                           );
+            bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
             // fill the rest of the last block with max values (occurs only on the last run)
             fill_with_max_value(Blocks1, cur_run_size, blocks1_length);
@@ -826,10 +812,9 @@ namespace stream
     public:
         typedef Cmp_ cmp_type;
         typedef ValueType_ value_type;
-        typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
-        typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
+        typedef sort_helper::trigger_entry<block_type> trigger_entry_type;
+        typedef sorted_runs<trigger_entry_type> sorted_runs_type;
         typedef sorted_runs_type result_type;
 
     private:
@@ -891,10 +876,7 @@ namespace stream
             const unsigned_type cur_run_size = div_ceil(cur_el_reg, block_type::size);     // in blocks
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
-            bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                           );
+            bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
             disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
@@ -1004,10 +986,7 @@ namespace stream
             const unsigned_type cur_run_size = div_ceil(el_in_run, block_type::size);    // in blocks
             run.resize(cur_run_size);
             block_manager * bm = block_manager::get_instance();
-            bm->new_blocks(AllocStr_(),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.begin()),
-                           trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(run.end())
-                           );
+            bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
             disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
 
@@ -1171,15 +1150,14 @@ namespace stream
         : private noncopyable
     {
         typedef ValueType_ value_type;
-        typedef BID<BlockSize_> bid_type;
         typedef typed_block<BlockSize_, value_type> block_type;
-        typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
+        typedef sort_helper::trigger_entry<block_type> trigger_entry_type;
         typedef AllocStr_ alloc_strategy_type;
         Cmp_ cmp;
 
     public:
         typedef Cmp_ cmp_type;
-        typedef sorted_runs<value_type, trigger_entry_type> sorted_runs_type;
+        typedef sorted_runs<trigger_entry_type> sorted_runs_type;
         typedef sorted_runs_type result_type;
 
     private:
@@ -1234,10 +1212,8 @@ namespace stream
                 result_.runs[irun].resize(iblock + 1);
                 bm->new_blocks(
                     alloc_strategy,
-                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                        result_.runs[irun].begin() + iblock),
-                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                        result_.runs[irun].end()),
+                    make_bid_iterator(result_.runs[irun].begin() + iblock),
+                    make_bid_iterator(result_.runs[irun].end()),
                     iblock
                     );
 
@@ -1276,10 +1252,8 @@ namespace stream
                 result_.runs[irun].resize(iblock + 1);
                 bm->new_blocks(
                     alloc_strategy,
-                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                        result_.runs[irun].begin() + iblock),
-                    trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                        result_.runs[irun].end()),
+                    make_bid_iterator(result_.runs[irun].begin() + iblock),
+                    make_bid_iterator(result_.runs[irun].end()),
                     iblock
                     );
 
@@ -1382,7 +1356,7 @@ namespace stream
         typedef typename sorted_runs_type::run_type run_type;
         typedef typename sorted_runs_type::block_type block_type;
         typedef block_type out_block_type;
-        typedef typename block_type::bid_type bid_type;
+        typedef typename run_type::value_type trigger_entry_type;
         typedef block_prefetcher<block_type, typename run_type::iterator> prefetcher_type;
         typedef run_cursor2<block_type, prefetcher_type> run_cursor_type;
         typedef sort_helper::run_cursor2_cmp<block_type, prefetcher_type, value_cmp> run_cursor2_cmp_type;
@@ -1642,7 +1616,7 @@ namespace stream
             }
 
             std::stable_sort(consume_seq.begin(), consume_seq.end(),
-                             sort_helper::trigger_entry_cmp<bid_type, value_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
+                             sort_helper::trigger_entry_cmp<trigger_entry_type, value_cmp>(cmp) _STXXL_SORT_TRIGGER_FORCE_SEQUENTIAL);
 
             const unsigned_type n_prefetch_buffers = STXXL_MAX(min_prefetch_buffers, input_buffers - nruns);
 
@@ -1855,9 +1829,7 @@ namespace stream
 
             // allocate blocks for the new runs
             for (unsigned_type i = 0; i < new_runs.runs.size(); ++i)
-                bm->new_blocks(alloc_strategy(),
-                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].begin()),
-                               trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(new_runs.runs[i].end()));
+                bm->new_blocks(alloc_strategy(), make_bid_iterator(new_runs.runs[i].begin()), make_bid_iterator(new_runs.runs[i].end()));
 
             // merge all
             runs_left = nruns;
@@ -1924,10 +1896,8 @@ namespace stream
                 else
                 {
                     bm->delete_blocks(
-                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                            new_runs.runs.back().begin()),
-                        trigger_entry_iterator<typename run_type::iterator, block_type::raw_size>(
-                            new_runs.runs.back().end()));
+                        make_bid_iterator(new_runs.runs.back().begin()),
+                        make_bid_iterator(new_runs.runs.back().end()));
 
                     assert(cur_runs.runs.size() == 1);
 
@@ -2172,7 +2142,7 @@ namespace stream
         typedef sort_helper::trigger_entry<bid_type, value_type> trigger_entry_type;
 
     public:
-        typedef sorted_runs<value_type, trigger_entry_type> result;
+        typedef sorted_runs<trigger_entry_type> result;
     };
 
 //! \}
