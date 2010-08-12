@@ -849,6 +849,20 @@ namespace stream
         pthread_cond_t cond;
 #endif
 
+        void fill_with_max_value(block_type * blocks, unsigned_type num_blocks, unsigned_type first_idx)
+        {
+            unsigned_type last_idx = num_blocks * block_type::size;
+            if (first_idx < last_idx) {
+                typename element_iterator_traits<block_type>::element_iterator curr =
+                    make_element_iterator(blocks, first_idx);
+                while (first_idx != last_idx) {
+                    *curr = cmp.max_value();
+                    ++curr;
+                    ++first_idx;
+                }
+            }
+        }
+
         void sort_run(block_type * run, unsigned_type elements)
         {
             std::sort(make_element_iterator(run, 0),
@@ -883,9 +897,7 @@ namespace stream
             result_.runs_sizes.push_back(cur_el_reg);
 
             // fill the rest of the last block with max values
-            for (blocked_index<block_type::size> rest = cur_el_reg; rest != el_in_run; ++rest)
-                Blocks1[rest.get_block()][rest.get_offset()] = cmp.max_value();
-
+            fill_with_max_value(Blocks1, cur_run_size, cur_el_reg);
 
             unsigned_type i = 0;
             for ( ; i < cur_run_size; ++i)
