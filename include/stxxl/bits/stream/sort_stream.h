@@ -47,11 +47,10 @@ namespace stream
 
     //! \brief Forms sorted runs of data from a stream
     //!
-    //! Template parameters:
-    //! - \c Input_ type of the input stream
-    //! - \c Cmp_ type of comparison object used for sorting the runs
-    //! - \c BlockSize_ size of blocks used to store the runs (in bytes)
-    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    //! \tparam Input_ type of the input stream
+    //! \tparam Cmp_ type of comparison object used for sorting the runs
+    //! \tparam BlockSize_ size of blocks used to store the runs (in bytes)
+    //! \tparam AllocStr_ functor that defines allocation strategy for the runs
     template <
         class Input_,
         class Cmp_,
@@ -666,11 +665,10 @@ namespace stream
 
     //! \brief Forms sorted runs of data from a stream
     //!
-    //! Template parameters:
-    //! - \c Input_ type of the input stream
-    //! - \c Cmp_ type of omparison object used for sorting the runs
-    //! - \c BlockSize_ size of blocks used to store the runs
-    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    //! \tparam Input_ type of the input stream
+    //! \tparam Cmp_ type of omparison object used for sorting the runs
+    //! \tparam BlockSize_ size of blocks used to store the runs
+    //! \tparam AllocStr_ functor that defines allocation strategy for the runs
     template <
         class Input_,
         class Cmp_,
@@ -790,11 +788,10 @@ namespace stream
     //! allows to create sorted runs
     //! data structure usable for \c runs_merger from
     //! elements passed in sorted push() method. <BR>
-    //! Template parameters:
-    //! - \c ValueType_ type of values (parameter for \c use_push strategy)
-    //! - \c Cmp_ type of comparison object used for sorting the runs
-    //! - \c BlockSize_ size of blocks used to store the runs
-    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    //! \tparam ValueType_ type of values (parameter for \c use_push strategy)
+    //! \tparam Cmp_ type of comparison object used for sorting the runs
+    //! \tparam BlockSize_ size of blocks used to store the runs
+    //! \tparam AllocStr_ functor that defines allocation strategy for the runs
     template <
         class ValueType_,
         class Cmp_,
@@ -1144,11 +1141,10 @@ namespace stream
     //! allows to create sorted runs
     //! data structure usable for \c runs_merger from
     //! sequences of elements in sorted order. <BR>
-    //! Template parameters:
-    //! - \c ValueType_ type of values (parameter for \c from_sorted_sequences strategy)
-    //! - \c Cmp_ type of comparison object used for sorting the runs
-    //! - \c BlockSize_ size of blocks used to store the runs
-    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    //! \tparam ValueType_ type of values (parameter for \c from_sorted_sequences strategy)
+    //! \tparam Cmp_ type of comparison object used for sorting the runs
+    //! \tparam BlockSize_ size of blocks used to store the runs
+    //! \tparam AllocStr_ functor that defines allocation strategy for the runs
     template <
         class ValueType_,
         class Cmp_,
@@ -1350,10 +1346,9 @@ namespace stream
 
     //! \brief Merges sorted runs
     //!
-    //! Template parameters:
-    //! - \c RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
-    //! - \c Cmp_ type of comparison object used for merging
-    //! - \c AllocStr_ allocation strategy used to allocate the blocks for
+    //! \tparam RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
+    //! \tparam Cmp_ type of comparison object used for merging
+    //! \tparam AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
     template <class RunsType_,
               class Cmp_,
@@ -1723,7 +1718,7 @@ namespace stream
                     fill_current_block();
 
 #if STXXL_CHECK_ORDER_IN_SORTS
-                    assert(stxxl::is_sorted(current_block->elem, current_block->elem + current_block->size, cmp));
+                    assert(stxxl::is_sorted(current_block->elem, current_block->elem + STXXL_MIN<size_type>(elements_remaining, current_block->size), cmp));
                     assert(!cmp(current_block->elem[0], current_value));
 #endif //STXXL_CHECK_ORDER_IN_SORTS
                     current_value = current_block->elem[0];
@@ -1931,10 +1926,9 @@ namespace stream
 
     //! \brief Merges sorted runs
     //!
-    //! Template parameters:
-    //! - \c RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
-    //! - \c Cmp_ type of comparison object used for merging
-    //! - \c AllocStr_ allocation strategy used to allocate the blocks for
+    //! \tparam RunsType_ type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
+    //! \tparam Cmp_ type of comparison object used for merging
+    //! \tparam AllocStr_ allocation strategy used to allocate the blocks for
     //! storing intermediate results if several merge passes are required
     template <class RunsType_,
               class Cmp_,
@@ -2022,11 +2016,10 @@ namespace stream
 
     //! \brief Produces sorted stream from input stream
     //!
-    //! Template parameters:
-    //! - \c Input_ type of the input stream
-    //! - \c Cmp_ type of comparison object used for sorting the runs
-    //! - \c BlockSize_ size of blocks used to store the runs
-    //! - \c AllocStr_ functor that defines allocation strategy for the runs
+    //! \tparam Input_ type of the input stream
+    //! \tparam Cmp_ type of comparison object used for sorting the runs
+    //! \tparam BlockSize_ size of blocks used to store the runs
+    //! \tparam AllocStr_ functor that defines allocation strategy for the runs
     //! \remark Implemented as the composition of \c runs_creator and \c runs_merger .
     template <class Input_,
               class Cmp_,
@@ -2141,9 +2134,8 @@ namespace stream
 
     //! \brief Computes sorted runs type from value type and block size
     //!
-    //! Template parameters
-    //! - \c ValueType_ type of values ins sorted runs
-    //! - \c BlockSize_ size of blocks where sorted runs stored
+    //! \tparam ValueType_ type of values ins sorted runs
+    //! \tparam BlockSize_ size of blocks where sorted runs stored
     template <
         class ValueType_,
         unsigned BlockSize_>

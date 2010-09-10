@@ -34,6 +34,11 @@ test_materialize.$(EXEEXT): test_materialize.cpp $(DEPENDENCIES)
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c test_materialize.cpp -DSTXXL_VERBOSE_LEVEL=1
 	$(LINKER)  test_materialize.$(OBJEXT) $(OUT)test_materialize.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
 
+test_transpose: test_transpose.$(EXEEXT)
+test_transpose.$(EXEEXT): test_transpose.cpp $(DEPENDENCIES)
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c test_transpose.cpp
+	$(LINKER) test_transpose.$(OBJEXT) $(OUT)test_transpose.$(EXEEXT) $(STXXL_LINKER_OPTIONS)
+
 test_asynchronous_nodes: test_asynchronous_nodes.$(EXEEXT)
 test_asynchronous_nodes.$(EXEEXT): test_asynchronous_nodes.cpp $(DEPENDENCIES)
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c test_asynchronous_nodes.cpp -DSTXXL_VERBOSE_LEVEL=1

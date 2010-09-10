@@ -50,6 +50,8 @@ const char * get_version_string()
 #endif
 #ifdef STXXL_VERSION_STRING_PHASE
            " (" STXXL_VERSION_STRING_PHASE ")"
+#else
+           " (prerelease)"
 #endif
 #ifdef STXXL_VERSION_STRING_COMMENT
            " (" STXXL_VERSION_STRING_COMMENT ")"
