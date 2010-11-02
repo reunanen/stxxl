@@ -1,3 +1,5 @@
+* introduce pushing_transform in order to call stop_push() only on appropriate ops.
+
 * replace build system, something with '$LIBNAME-config --libs --cflags ...' would be nice
 
 * if the stxxl disk files have been enlarged because more external memory
@@ -52,4 +54,8 @@
 * overhead: stream::sorted_runs (which may be rather big) is copied into stream_runs_merger
 
 * overhead: stream::sorted_runs is copy-initialized from locally created runs
+
+* retry incomplete I/Os for all file types (currently only syscall)
+
+* iostats: add support for splitting I/Os and truncating reads at EOF
 

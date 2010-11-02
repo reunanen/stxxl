@@ -1352,11 +1352,6 @@ namespace stream
         bool empty() const
         {
             bool is_empty = i1.empty();
-            if (is_empty)
-            {
-                STXXL_VERBOSE0("transform " << this << " stops pushing.");
-                op.stop_push();
-            }
             return is_empty;
         }
 
@@ -1364,11 +1359,6 @@ namespace stream
         unsigned_type batch_length() const
         {
             unsigned_type batch_length = i1.batch_length();
-            if (batch_length == 0)
-            {
-                STXXL_VERBOSE0("transform " << this << " stops pushing.");
-                op.stop_push();
-            }
             return batch_length;
         }
 
