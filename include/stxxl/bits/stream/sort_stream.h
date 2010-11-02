@@ -1964,11 +1964,6 @@ namespace stream
             base::initialize(sruns, memory_to_use);
             STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
         }
-
-        void stop_push()
-        {
-        	assert(false); //should never be called, but might have to be compiled
-        }
     };
 
 
@@ -2083,11 +2078,6 @@ namespace stream
         {
             STXXL_VERBOSE1("sort " << this << " starts.");
             merger.start_pull();
-        }
-
-        void stop_push()
-        {
-        	assert(false); //should never be called, but might have to be compiled
         }
 
         //! \brief Standard stream method
