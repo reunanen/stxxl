@@ -164,6 +164,9 @@ int main()
 #if PIPELINED
     std::cout << "PIPELINED" << std::endl;
 #endif
+#if INTERMEDIATE
+    std::cout << "INTERMEDIATE" << std::endl;
+#endif
 #if BATCHED
     std::cout << "BATCHED" << std::endl;
 #endif

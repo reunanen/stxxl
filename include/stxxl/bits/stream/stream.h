@@ -1385,6 +1385,7 @@ namespace stream
         }
     };
 
+    //! \brief push value to secondary stream before passing it on
     template <class Output_>
     class Pusher
     {
@@ -1408,7 +1409,7 @@ namespace stream
             return val;
         }
 
-        void stop_push()
+        void stop_push() const
         {
             STXXL_VERBOSE0("pusher " << this << " stops push.");
             output.stop_push();
@@ -1418,13 +1419,33 @@ namespace stream
     template <class Input_, class Output_>
     class pusher : public transform<Pusher<Output_>, Input_>
     {
+    	typedef transform<Pusher<Output_>, Input_> base;
+
         Pusher<Output_> p;
 
     public:
         pusher(Input_ & input, Output_ & output) :
-            transform<Pusher<Output_>, Input_>(p, input),
+            base(p, input),
             p(output)
         { }
+
+        //! \brief Standard stream method
+        bool empty() const
+        {
+            bool is_empty = base::empty();
+            if (is_empty)
+            	p.stop_push();
+            return is_empty;
+        }
+
+        //! \brief Batched stream method
+        unsigned_type batch_length() const
+        {
+            unsigned_type batch_length = base::batch_length();
+            if (batch_length == 0)
+            	p.stop_push();
+            return batch_length;
+        }
     };
 
 
