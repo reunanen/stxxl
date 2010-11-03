@@ -52,11 +52,13 @@ struct forty_two
 
     int batch_length()
     {
-        return 1;
+        return empty() ? 0 : 1;
     }
 
-    void operator += (int)
-    { }
+    void operator += (int length)
+    { 
+    	counter += length;
+    }
 };
 
 int forty_two::ft = 42;
