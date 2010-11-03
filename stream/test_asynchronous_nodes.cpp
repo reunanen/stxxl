@@ -54,6 +54,7 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
     using stxxl::stream::startable_runs_merger;
     using stxxl::stream::make_tuple;
     using stxxl::stream::use_push;
+    using stxxl::stream::pusher;
 
     stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
 
@@ -112,27 +113,26 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 
 //split
 
-        typedef transform<split2<my_type, runs_creator_stream_node1_type>, accumulate_stream_type> split2_stream_type;
-        split2<my_type, runs_creator_stream_node1_type> s2(runs_creator_stream_node1);
-        split2_stream_type split2_stream(s2, accumulate_stream);                //2
+        typedef pusher<accumulate_stream_type, runs_creator_stream_node1_type> split_stream_type;
+        split_stream_type split_stream(accumulate_stream, runs_creator_stream_node1);                //2
 
 #if PIPELINED
-        typedef PULL<split2_stream_type> split2_stream_node_type;
-        split2_stream_node_type split2_stream_node(run_size, split2_stream, start_mode);  //3
+        typedef PULL<split_stream_type> split_stream_node_type;
+        split_stream_node_type split_stream_node(run_size, split_stream, start_mode);  //3
 #else
-        typedef split2_stream_type split2_stream_node_type;
-        split2_stream_node_type & split2_stream_node = split2_stream;         //renaming
+        typedef split_stream_type split_stream_node_type;
+        split_stream_node_type & split_stream_node = split_stream;         //renaming
 #endif
 
 //left flow
 
 #if PIPELINED && BATCHED
-        typedef sort<split2_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<split2_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream1_type;
+        typedef sort<split_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY, runs_creator_batch<split_stream_node_type, cmp_4_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> > sort_left_stream1_type;
 #else
-        typedef sort<split2_stream_node_type, cmp_4_type, block_size> sort_left_stream1_type;
+        typedef sort<split_stream_node_type, cmp_4_type, block_size> sort_left_stream1_type;
 #endif
 
-        sort_left_stream1_type sort_left_stream1(split2_stream_node, cmp_4, run_size, asynchronous_pull, start_mode); //4
+        sort_left_stream1_type sort_left_stream1(split_stream_node, cmp_4, run_size, asynchronous_pull, start_mode); //4
 
 
         typedef transform<accumulate<my_type>, sort_left_stream1_type> left_modifier_stream_type;

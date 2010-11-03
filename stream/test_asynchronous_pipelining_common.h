@@ -303,36 +303,6 @@ public:
 };
 
 
-/** @brief Delayed by a user-defined amount of time. */
-template <typename T, class SecondStream>
-class split2 : public std::unary_function<T, void>
-{
-private:
-    SecondStream & second_stream;
-
-public:
-    typedef T value_type;
-
-    split2(SecondStream & second_stream) : second_stream(second_stream)
-    { }
-
-    const T & operator () (const T & t)
-    {
-        second_stream.push(t);
-        return t;
-    }
-
-    void stop_push()
-    {
-        second_stream.stop_push();
-    }
-
-    void start_push()
-    {
-        second_stream.start_push();
-    }
-};
-
 /** @brief Exclusive or argument. */
 template <typename T>
 class exclusive_or : public std::unary_function<T, void>
