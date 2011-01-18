@@ -94,6 +94,7 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
 #else
     vector_type::iterator o = materialize(sort_stream, output.begin(), output.end(), 0, start_mode);
 #endif
+    STXXL_UNUSED(o);
 
 #if OUTPUT_STATS
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
