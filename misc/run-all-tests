@@ -89,6 +89,7 @@ XFAIL=1 run common/stxxl_info foo # returns -1 intentionally
 XFAIL=1 run common/stxxl_info foo bar # returns !0 if assertions are enabled
 run common/test_random
 run common/test_manyunits
+run common/test_globals
 
 run io/gen_file "$STXXL_TMPDIR/in"
 run utils/createdisks 1024 "$STXXL_TMPDIR/testdiskx" "$STXXL_TMPDIR/testdisky"
@@ -104,7 +105,15 @@ run io/benchmark_disks 0 2 256 "$STXXL_TMPDIR/testdiskx" "$STXXL_TMPDIR/testdisk
 run io/flushbuffers 2 "$STXXL_TMPDIR/testdiskx" "$STXXL_TMPDIR/testdisky"
 run io/sd_test
 run io/test_io "$STXXL_TMPDIR"
-run io/test_cancel "$STXXL_TMPDIR"
+run io/test_cancel syscall "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel fileperblock_syscall "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel mmap "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel fileperblock_mmap "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel simdisk "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel boostfd "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel fileperblock_boostfd "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel memory "$STXXL_TMPDIR/testdiskx"
+run io/test_cancel wbtl "$STXXL_TMPDIR/testdiskx"
 run io/test_io_sizes syscall "$STXXL_TMPDIR/out" 5368709120
 run io/test_io_sizes mmap "$STXXL_TMPDIR/out" 5368709120
 run io/test_io_sizes boostfd "$STXXL_TMPDIR/out" 5368709120
