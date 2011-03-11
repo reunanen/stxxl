@@ -14,8 +14,10 @@
 #include <stxxl/stream>
 #include <stxxl/vector>
 
+
 struct forty_two
 {
+    typedef const int * const_iterator;
     unsigned counter;
 
     static int ft;
@@ -43,7 +45,7 @@ struct forty_two
         return *this;
     }
 
-    int * batch_begin()
+    const_iterator batch_begin()
     {
         return &ft;
     }
