@@ -4,7 +4,7 @@
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
  *  Copyright (C) 2002, 2003 Roman Dementiev <dementiev@mpi-sb.mpg.de>
- *  Copyright (C) 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2007-2009, 2011 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -93,7 +93,7 @@ struct interleaved_RC : public interleaved_striping
                 perms[i][j] = j;
 
             random_number<random_uniform_fast> rnd;
-            std::random_shuffle(perms[i].begin(), perms[i].end(), rnd);
+            std::random_shuffle(perms[i].begin(), perms[i].end(), rnd _STXXL_FORCE_SEQUENTIAL);
         }
     }
 

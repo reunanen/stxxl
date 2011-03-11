@@ -101,9 +101,11 @@ algo\test_ksort
 algo\test_random_shuffle
 algo\test_scan
 algo\test_sort
+algo\test_bad_cmp
 
 stream\test_push_sort
 stream\test_sorted_runs
 stream\test_stream
 stream\test_stream1
 stream\test_transpose
+stream\test_loop 100 -v

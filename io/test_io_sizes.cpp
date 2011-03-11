@@ -3,7 +3,7 @@
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
- *  Copyright (C) 2010 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2010 Johannes Singler <singler@kit.edu>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -14,7 +14,7 @@
 #include <stxxl/aligned_alloc>
 #include <stxxl/bits/mng/mng.h>
 
-//! \example io/test_io_size.cpp
+//! \example io/test_io_sizes.cpp
 //! This tests the maximum chunk size that a file type can handle with a single request.
 
 
@@ -76,7 +76,7 @@ int main(int argc, char ** argv)
 
         file->remove();
     }
-    catch(stxxl::io_error e)
+    catch (stxxl::io_error e)
     {
         std::cerr << e.what() << std::endl;
     }

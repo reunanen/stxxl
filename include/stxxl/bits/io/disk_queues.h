@@ -4,7 +4,8 @@
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
  *  Copyright (C) 2002 Roman Dementiev <dementiev@mpi-sb.mpg.de>
- *  Copyright (C) 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2008-2010 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2009 Johannes Singler <singler@ira.uka.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -51,6 +52,9 @@ protected:
 public:
     void add_request(request_ptr & req, DISKID disk)
     {
+#ifdef STXXL_HACK_SINGLE_IO_THREAD
+        disk = 42;
+#endif
         if (queues.find(disk) == queues.end())
         {
             // create new request queue
@@ -69,6 +73,9 @@ public:
     //! \return \c true iff the request was canceled successfully
     bool cancel_request(request_ptr & req, DISKID disk)
     {
+#ifdef STXXL_HACK_SINGLE_IO_THREAD
+        disk = 42;
+#endif
         if (queues.find(disk) != queues.end())
             return queues[disk]->cancel_request(req);
         else
@@ -87,7 +94,7 @@ public:
     //!                 - READ, read requests are served before write requests within a disk queue
     //!                 - WRITE, write requests are served before read requests within a disk queue
     //!                 - NONE, read and write requests are served by turns, alternately
-    void set_priority_op(disk_queue::priority_op op)
+    void set_priority_op(request_queue::priority_op op)
     {
         for (request_queue_map::iterator i = queues.begin(); i != queues.end(); i++)
             i->second->set_priority_op(op);

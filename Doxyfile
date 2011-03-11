@@ -31,7 +31,7 @@ PROJECT_NAME           = Stxxl
 # This could be handy for archiving the generated documentation or
 # if some version control system is used.
 
-PROJECT_NUMBER         = 1.3.1
+PROJECT_NUMBER         = 1.3.2
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute)
 # base path where the generated documentation will be put.
@@ -593,6 +593,7 @@ INPUT                  = doxymain.h \
                          include/stxxl/ \
                          include/stxxl/bits/algo/ \
                          include/stxxl/bits/common/ \
+                         include/stxxl/bits/compat/ \
                          include/stxxl/bits/containers/ \
                          include/stxxl/bits/containers/btree/ \
                          include/stxxl/bits/io/ \

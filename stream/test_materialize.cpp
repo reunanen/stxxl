@@ -16,8 +16,6 @@
 
 struct forty_two
 {
-    typedef int * const_iterator;
-
     unsigned counter;
 
     static int ft;
