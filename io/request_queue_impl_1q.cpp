@@ -5,6 +5,7 @@
  *
  *  Copyright (C) 2002-2005 Roman Dementiev <dementiev@mpi-sb.mpg.de>
  *  Copyright (C) 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2009 Johannes Singler <singler@ira.uka.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -12,9 +13,9 @@
  **************************************************************************/
 
 #include <algorithm>
-#include <stxxl/bits/io/request_state_impl_basic.h>
+
 #include <stxxl/bits/io/request_queue_impl_1q.h>
-#include <stxxl/bits/io/request.h>
+#include <stxxl/bits/io/request_with_state.h>
 #include <stxxl/bits/parallel.h>
 
 
@@ -69,9 +70,9 @@ void request_queue_impl_1q::add_request(request_ptr & req)
 bool request_queue_impl_1q::cancel_request(request_ptr & req)
 {
     if (req.empty())
-        STXXL_THROW_INVALID_ARGUMENT("Empty request cancelled disk_queue.");
+        STXXL_THROW_INVALID_ARGUMENT("Empty request canceled disk_queue.");
     if (_thread_state() != RUNNING)
-        STXXL_THROW_INVALID_ARGUMENT("Request cancelled to not running queue.");
+        STXXL_THROW_INVALID_ARGUMENT("Request canceled to not running queue.");
 
     bool was_still_in_queue = false;
     {

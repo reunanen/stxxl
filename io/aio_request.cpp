@@ -16,6 +16,8 @@
 
 #include <iomanip>
 
+#include <stxxl/stats>
+
 
 __STXXL_BEGIN_NAMESPACE
 
@@ -40,7 +42,7 @@ void aio_request::completed()
         else
             stats::get_instance()->write_canceled(bytes);
     }
-    request_impl_basic::completed();
+    serving_request::completed();
 }
 
 void aio_request::fill_control_block()

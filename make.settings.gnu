@@ -6,8 +6,8 @@
 #  Part of the STXXL. See http://stxxl.sourceforge.net
 #
 #  Copyright (C) 2002-2007 Roman Dementiev <dementiev@mpi-sb.mpg.de>
-#  Copyright (C) 2006-2008 Johannes Singler <singler@ira.uka.de>
-#  Copyright (C) 2007-2010 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+#  Copyright (C) 2006-2010 Johannes Singler <singler@ira.uka.de>
+#  Copyright (C) 2007-2011 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
 #
 #  Distributed under the Boost Software License, Version 1.0.
 #  (See accompanying file LICENSE_1_0.txt or copy at
@@ -20,14 +20,18 @@ TOPDIR	?= $(error TOPDIR not defined) # DO NOT CHANGE! This is set elsewhere.
 # Change this file according to your paths.
 
 # Instead of modifying this file, you could also set your modified variables
-# in make.settings.local (needs to be created first).
+# in make.settings.local (needs to be created first, a template can be created
+# by running 'make config_gnu').
 -include $(TOPDIR)/make.settings.local
 
 
 USE_BOOST	?= no	# set 'yes' to use Boost libraries or 'no' to not use Boost libraries
 USE_MACOSX	?= no	# set 'yes' if you run Mac OS X, 'no' otherwise
 USE_FREEBSD	?= no	# set 'yes' if you run FreeBSD, 'no' otherwise
+USE_PARALLEL_MODE ?= no # set 'yes' to explicitly enable parallel mode for stxxl operations only
 ENABLE_SHARED	?= no   # set 'yes' to build a shared library instead of a static library (EXPERIMENTAL)
+
+# internal flags
 USE_PMODE	?= no	# will be overridden from main Makefile
 USE_MCSTL	?= no	# will be overridden from main Makefile
 USE_ICPC	?= no	# will be overridden from main Makefile
@@ -94,10 +98,6 @@ MODENAME	?= $(MODEBASE)$(LIBEXTRA)
 #
 # But for the best performance it is strongly recommended
 # to reconfigure the kernel for the support of the direct I/O.
-#
-# FIXME: documentation needed
-#
-#STXXL_SPECIFIC += -DSTXXL_DEBUGMON
 
 
 #### You usually shouldn't need to change the sections below #####
@@ -165,11 +165,12 @@ cmt	= \#
 $(shell echo '$(cmt)STXXL_ROOT	 = $(CURDIR:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
 MCSTL_ROOT	?= $(HOME)/work/mcstl
 $(shell echo '$(cmt)MCSTL_ROOT	 = $(MCSTL_ROOT:$(HOME)%=$$(HOME)%)' >> $(CURDIR)/make.settings.local)
-$(shell echo '$(cmt)COMPILER_GCC	 = g++-4.2' >> $(CURDIR)/make.settings.local)
+$(shell echo '$(cmt)COMPILER_GCC	 = g++' >> $(CURDIR)/make.settings.local)
 $(shell echo '$(cmt)COMPILER_GCC	 = g++-4.4 -std=c++0x' >> $(CURDIR)/make.settings.local)
 $(shell echo '$(cmt)COMPILER_ICPC	 = icpc' >> $(CURDIR)/make.settings.local)
 $(shell echo '$(cmt)USE_BOOST	 = no' >> $(CURDIR)/make.settings.local)
 $(shell echo '$(cmt)BOOST_ROOT	 = ' >> $(CURDIR)/make.settings.local)
+$(shell echo '$(cmt)USE_PARALLEL_MODE	 = no' >> $(CURDIR)/make.settings.local)
 ifeq (Darwin,$(strip $(shell uname)))
 $(shell echo 'USE_MACOSX	 = yes' >> $(CURDIR)/make.settings.local)
 else
@@ -253,6 +254,18 @@ OPENMPFLAG			?= -fopenmp
 PARALLEL_MODE_CPPFLAGS		+= $(OPENMPFLAG) -D_GLIBCXX_PARALLEL
 PARALLEL_MODE_LDFLAGS		+= $(OPENMPFLAG)
 
+else
+ifeq ($(strip $(USE_PARALLEL_MODE)),yes)
+
+OPENMPFLAG			?= -fopenmp
+
+EXPLICIT_PARALLEL_MODE_CPPFLAGS	+= $(OPENMPFLAG) -DSTXXL_PARALLEL_MODE_EXPLICIT
+EXPLICIT_PARALLEL_MODE_LDFLAGS	+= $(OPENMPFLAG)
+
+STXXL_SPECIFIC			+= $(EXPLICIT_PARALLEL_MODE_CPPFLAGS)
+STXXL_LDFLAGS			+= $(EXPLICIT_PARALLEL_MODE_LDFLAGS)
+
+endif
 endif
 
 ##################################################################
@@ -314,18 +327,26 @@ CPPUNIT_LINKER_OPTIONS		+= -lcppunit -ldl
 HEADER_FILES_BITS	+= namespace.h noncopyable.h version.h
 HEADER_FILES_BITS	+= compat_hash_map.h
 HEADER_FILES_BITS	+= compat_unique_ptr.h parallel.h singleton.h defines.h
-HEADER_FILES_BITS	+= verbose.h unused.h compat_type_traits.h
-HEADER_FILES_BITS	+= msvc_compatibility.h
+HEADER_FILES_BITS	+= verbose.h unused.h
+HEADER_FILES_BITS	+= msvc_compatibility.h deprecated.h libstxxl.h
 
 HEADER_FILES_COMMON	+= aligned_alloc.h new_alloc.h
 HEADER_FILES_COMMON	+= mutex.h rand.h semaphore.h state.h
 HEADER_FILES_COMMON	+= timer.h utils.h error_handling.h simple_vector.h
-HEADER_FILES_COMMON	+= switch.h tmeta.h log.h exceptions.h debug.h tuple.h
+HEADER_FILES_COMMON	+= switch.h tmeta.h log.h exceptions.h tuple.h
 HEADER_FILES_COMMON	+= types.h settings.h seed.h is_sorted.h exithandler.h
 
+HEADER_FILES_COMPAT	+= shared_ptr.h
+HEADER_FILES_COMPAT	+= type_traits.h
+
 HEADER_FILES_IO		+= io.h iostats.h completion_handler.h
-HEADER_FILES_IO		+= request.h request_waiters_impl_basic.h
-HEADER_FILES_IO		+= request_state_impl_basic.h request_impl_basic.h
+HEADER_FILES_IO		+= request_interface.h
+HEADER_FILES_IO		+= request.h
+HEADER_FILES_IO		+= request_ptr.h
+HEADER_FILES_IO		+= request_operations.h
+HEADER_FILES_IO		+= request_with_state.h
+HEADER_FILES_IO		+= request_with_waiters.h
+HEADER_FILES_IO		+= serving_request.h
 HEADER_FILES_IO		+= disk_queues.h
 HEADER_FILES_IO		+= request_queue.h request_queue_impl_worker.h
 HEADER_FILES_IO		+= request_queue_impl_qwqr.h
@@ -335,6 +356,7 @@ HEADER_FILES_IO		+= ufs_file_base.h syscall_file.h mmap_file.h simdisk_file.h
 HEADER_FILES_IO		+= wfs_file_base.h wincall_file.h
 HEADER_FILES_IO		+= boostfd_file.h mem_file.h fileperblock_file.h
 HEADER_FILES_IO		+= wbtl_file.h
+HEADER_FILES_IO		+= create_file.h
 HEADER_FILES_IO		+= aio_request.h aio_queue.h aio_file.h
 
 HEADER_FILES_MNG	+= adaptor.h block_prefetcher.h
@@ -349,7 +371,7 @@ HEADER_FILES_CONTAINERS	+= pager.h stack.h vector.h priority_queue.h
 HEADER_FILES_CONTAINERS	+= queue.h map.h deque.h
 
 HEADER_FILES_CONTAINERS_BTREE	+= btree.h iterator_map.h leaf.h node_cache.h
-HEADER_FILES_CONTAINERS_BTREE	+= root_node.h node.h btree_pager.h iterator.h
+HEADER_FILES_CONTAINERS_BTREE	+= root_node.h node.h iterator.h
 
 HEADER_FILES_ALGO	+= adaptor.h inmemsort.h intksort.h run_cursor.h sort.h
 HEADER_FILES_ALGO	+= async_schedule.h ksort.h sort_base.h sort_helper.h
@@ -401,6 +423,7 @@ EXTRA_DEPS_COMPILE	?= $(DEPS_MAKEFILES)
 	$(COMPILE_STXXL)
 
 %.$(lo): PARALLEL_MODE_CPPFLAGS=
+%.$(lo): EXPLICIT_PARALLEL_MODE_CPPFLAGS=
 %.$(lo): MCSTL_CPPFLAGS=
 %.$(lo): STXXL_COMPILER_OPTIONS += $(STXXL_LIBRARY_SPECIFIC)
 %.$(lo): o=$(lo)
@@ -468,5 +491,6 @@ STXXL_LINKER_OPTIONS	+= $(BOOST_LINKER_OPTIONS)
 endif
 
 STXXL_COMPILER_OPTIONS	+= $(CPPFLAGS)
+STXXL_LINKER_OPTIONS	+= $(LDFLAGS)
 
 # vim: syn=make

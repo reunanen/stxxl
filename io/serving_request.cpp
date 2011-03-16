@@ -1,5 +1,5 @@
 /***************************************************************************
- *  io/request_impl_basic.cpp
+ *  io/serving_request.cpp
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -12,25 +12,21 @@
  **************************************************************************/
 
 #include <iomanip>
-#include <stxxl/bits/io/request_impl_basic.h>
+#include <stxxl/bits/io/serving_request.h>
 #include <stxxl/bits/io/file.h>
-
-#ifndef STXXL_THREAD_ID
-#define STXXL_THREAD_ID pthread_self()
-#endif
 
 
 __STXXL_BEGIN_NAMESPACE
 
 
-request_impl_basic::request_impl_basic(
+serving_request::serving_request(
     const completion_handler & on_cmpl,
     file * f,
     void * buf,
     offset_type off,
     size_type b,
     request_type t) :
-    request_state_impl_basic(on_cmpl, f, buf, off, b, t)
+    request_with_state(on_cmpl, f, buf, off, b, t)
 {
 #ifdef STXXL_CHECK_BLOCK_ALIGNING
     // Direct I/O requires file system block size alignment for file offsets,
@@ -40,12 +36,11 @@ request_impl_basic::request_impl_basic(
 #endif
 }
 
-void request_impl_basic::serve()
+void serving_request::serve()
 {
     check_nref();
     STXXL_VERBOSE2(
-        "[" << STXXL_THREAD_ID << "] " <<
-        "request_impl_basic[" << this << "]::serve(): " <<
+        "[" << static_cast<void *>(this) << "] serving_request::serve(): " <<
         buffer << " @ [" <<
         file_ << "|" << file_->get_allocator_id() << "]0x" <<
         std::hex << std::setfill('0') << std::setw(8) <<
@@ -66,17 +61,15 @@ void request_impl_basic::serve()
     completed();
 }
 
-void request_impl_basic::completed()
+void serving_request::completed()
 {
-    STXXL_VERBOSE2(
-        "[" << STXXL_THREAD_ID << "] " <<
-        "request_impl_basic[" << this << "]::completed()");
+    STXXL_VERBOSE2("[" << static_cast<void *>(this) << "] serving_request::completed()");
     _state.set_to(DONE);
-    request_state_impl_basic::completed();
+    request_with_state::completed();
     _state.set_to(READY2DIE);
 }
 
-const char * request_impl_basic::io_type() const
+const char * serving_request::io_type() const
 {
     return file_->io_type();
 }

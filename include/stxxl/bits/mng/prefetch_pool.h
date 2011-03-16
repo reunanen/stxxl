@@ -4,6 +4,7 @@
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
  *  Copyright (C) 2003-2004 Roman Dementiev <dementiev@mpi-sb.mpg.de>
+ *  Copyright (C) 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -177,7 +178,7 @@ public:
             return false;
 
         // cancel request if it is a read request, there might be
-        // write requests 'stolen' from a write_pool that may not be cancelled
+        // write requests 'stolen' from a write_pool that may not be canceled
         if (cache_el->second.second->get_type() == request::READ)
             cache_el->second.second->cancel();
         // finish the request

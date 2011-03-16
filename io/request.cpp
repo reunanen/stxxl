@@ -4,11 +4,14 @@
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
  *  Copyright (C) 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2009 Johannes Singler <singler@ira.uka.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
+
+#include <ostream>
 
 #include <stxxl/bits/io/request.h>
 #include <stxxl/bits/io/file.h>
@@ -29,13 +32,13 @@ request::request(const completion_handler & on_compl,
     bytes(bytes_),
     type(type_)
 {
-    STXXL_VERBOSE3("request " << static_cast<void *>(this) << ": creation, cnt: " << ref_cnt);
+    STXXL_VERBOSE3("[" << static_cast<void *>(this) << "] request::(...), ref_cnt=" << ref_cnt);
     file_->add_request_ref();
 }
 
 request::~request()
 {
-    STXXL_VERBOSE3("request " << static_cast<void *>(this) << ": deletion, cnt: " << ref_cnt);
+    STXXL_VERBOSE3("[" << static_cast<void *>(this) << "] request::~(), ref_cnt=" << ref_cnt);
 }
 
 void request::completed()
@@ -75,6 +78,16 @@ void request::check_nref_failed(bool after)
                  " file=" << get_file() <<
                  " iotype=" << get_file()->io_type()
                  );
+}
+
+std::ostream & request::print(std::ostream & out) const
+{
+    out << "File object address: " << static_cast<void *>(get_file());
+    out << " Buffer address: " << static_cast<void *>(get_buffer());
+    out << " File offset: " << get_offset();
+    out << " Transfer size: " << get_size() << " bytes";
+    out << " Type of transfer: " << ((get_type() == READ) ? "READ" : "WRITE");
+    return out;
 }
 
 __STXXL_END_NAMESPACE

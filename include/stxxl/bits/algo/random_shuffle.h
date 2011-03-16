@@ -5,7 +5,7 @@
  *
  *  Copyright (C) 2007 Manuel Krings
  *  Copyright (C) 2007 Markus Westphal
- *  Copyright (C) 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2009, 2010 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -135,7 +135,8 @@ void random_shuffle(ExtIterator_ first,
             }
 
             // shuffle
-            std::random_shuffle(temp_array, temp_array + size, rand);
+            potentially_parallel::
+            random_shuffle(temp_array, temp_array + size, rand);
 
             // write back
             for (j = 0; j < size; j++) {
@@ -292,7 +293,8 @@ void random_shuffle(stxxl::vector_iterator<Tp_, AllocStrategy_, SzTp_, DiffTp_, 
             }
 
             // shuffle
-            std::random_shuffle(temp_array, temp_array + size, rand);
+            potentially_parallel::
+            random_shuffle(temp_array, temp_array + size, rand);
 
             // write back
             for (j = 0; j < size; j++) {

@@ -21,6 +21,7 @@
 
 #include <stxxl/bits/io/request_queue_impl_worker.h>
 #include <stxxl/bits/common/mutex.h>
+#include <stxxl/bits/singleton.h>
 
 
 __STXXL_BEGIN_NAMESPACE
@@ -29,7 +30,7 @@ __STXXL_BEGIN_NAMESPACE
 //! \{
 
 //! \brief Queue for aio_file(s)
-class aio_queue : public request_queue_impl_worker, public disk_queue, public singleton<aio_queue>
+class aio_queue : public request_queue_impl_worker, public singleton<aio_queue>
 {
 private:
     typedef std::list<request_ptr> queue_type;

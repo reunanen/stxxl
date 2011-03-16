@@ -4,8 +4,8 @@
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
  *  Copyright (C) 2002-2005 Roman Dementiev <dementiev@mpi-sb.mpg.de>
- *  Copyright (C) 2006 Johannes Singler <singler@ira.uka.de>
- *  Copyright (C) 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+ *  Copyright (C) 2006-2008 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2008-2010 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -103,9 +103,10 @@ namespace stream
         //! \brief Sort a specific run, contained in a sequences of blocks.
         void sort_run(block_type * run, unsigned_type elements)
         {
-            std::sort(make_element_iterator(run, 0),
-                      make_element_iterator(run, elements),
-                      cmp);
+            potentially_parallel::
+            sort(make_element_iterator(run, 0),
+                 make_element_iterator(run, elements),
+                 cmp);
         }
 
         void compute_result();
@@ -175,7 +176,8 @@ namespace stream
         {
             STXXL_VERBOSE1("basic_runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
-            std::sort(result_.small_.begin(), result_.small_.end(), cmp);
+            potentially_parallel::
+            sort(result_.small_.begin(), result_.small_.end(), cmp);
             return;
         }
 #endif //STXXL_SMALL_INPUT_PSORT_OPT
@@ -205,7 +207,7 @@ namespace stream
         run.resize(cur_run_size);
         bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
-        disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
+        disk_queues::get_instance()->set_priority_op(request_queue::WRITE);
 
         // fill the rest of the last block with max values
         fill_with_max_value(Blocks1, cur_run_size, blocks1_length);
@@ -436,9 +438,10 @@ namespace stream
 
         void sort_run(block_type * run, unsigned_type elements)
         {
-            std::sort(make_element_iterator(run, 0),
-                      make_element_iterator(run, elements),
-                      cmp);
+            potentially_parallel::
+            sort(make_element_iterator(run, 0),
+                 make_element_iterator(run, elements),
+                 cmp);
         }
 
         void compute_result()
@@ -463,7 +466,7 @@ namespace stream
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
-            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(request_queue::WRITE);
 
             result_.runs_sizes.push_back(cur_el_reg);
 
@@ -545,7 +548,7 @@ namespace stream
             block_manager * bm = block_manager::get_instance();
             bm->new_blocks(AllocStr_(), make_bid_iterator(run.begin()), make_bid_iterator(run.end()));
 
-            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(request_queue::WRITE);
 
             result_.runs_sizes.push_back(el_in_run);
 
@@ -1008,7 +1011,7 @@ namespace stream
             assert(check_sorted_runs(r, cmp));
 #endif //STXXL_CHECK_ORDER_IN_SORTS
 
-            disk_queues::get_instance()->set_priority_op(disk_queue::WRITE);
+            disk_queues::get_instance()->set_priority_op(request_queue::WRITE);
 
             int_type disks_number = config::get_instance()->disks_number();
             unsigned_type min_prefetch_buffers = 2 * disks_number;
@@ -1351,8 +1354,7 @@ namespace stream
         //! \param memory_to_use amount of memory available for the merger in bytes
         runs_merger(const sorted_runs_type & r, value_cmp c, unsigned_type memory_to_use) :
             base(r, c, memory_to_use)
-        {
-        }
+        { }
     };
 
 

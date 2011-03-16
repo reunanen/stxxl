@@ -3,8 +3,9 @@
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
- *  Copyright (C) 2002-2007 Roman Dementiev <dementiev@mpi-sb.mpg.de>
- *  Copyright (C) 2007, 2008 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2002-2008 Roman Dementiev <dementiev@mpi-sb.mpg.de>
+ *  Copyright (C) 2007-2009 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2008-2010 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -18,6 +19,8 @@
 #include <queue>
 #include <algorithm>
 
+#include <stxxl/bits/deprecated.h>
+#include <stxxl/bits/io/request_operations.h>
 #include <stxxl/bits/mng/mng.h>
 #include <stxxl/bits/mng/typed_block.h>
 #include <stxxl/bits/common/tmeta.h>
@@ -237,11 +240,9 @@ template <unsigned BlkSize_>
 class bid_vector : public std::vector<BID<BlkSize_> >
 {
 public:
-    enum
-    { block_size = BlkSize_ };
-    typedef bid_vector<block_size> _Self;
     typedef std::vector<BID<BlkSize_> > _Derived;
-    typedef unsigned size_type;
+    typedef typename _Derived::size_type size_type;
+    typedef typename _Derived::value_type bid_type;
 
     bid_vector(size_type _sz) : _Derived(_sz)
     { }
@@ -268,10 +269,8 @@ template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
           unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
 class vector_iterator
 {
-    typedef vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_,
-                            BlkSize_, PgTp_, PgSz_> _Self;
-    typedef const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_,
-                                  BlkSize_, PgTp_, PgSz_> _CIterator;
+    typedef vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> _Self;
+    typedef const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> _CIterator;
 
     friend class const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>;
 
@@ -279,27 +278,26 @@ public:
     typedef _CIterator const_iterator;
     typedef _Self iterator;
 
-    typedef SzTp_ size_type;
-    typedef DiffTp_ difference_type;
     typedef unsigned block_offset_type;
     typedef vector<Tp_, PgSz_, PgTp_, BlkSize_, AllocStr_, SzTp_> vector_type;
     friend class vector<Tp_, PgSz_, PgTp_, BlkSize_, AllocStr_, SzTp_>;
-    typedef bid_vector<BlkSize_> bids_container_type;
+    typedef typename vector_type::bids_container_type bids_container_type;
     typedef typename bids_container_type::iterator bids_container_iterator;
-    typedef typed_block<BlkSize_, Tp_> block_type;
-    typedef BID<BlkSize_> bid_type;
+    typedef typename bids_container_type::bid_type bid_type;
+    typedef typename vector_type::block_type block_type;
+    typedef typename vector_type::blocked_index_type blocked_index_type;
 
     typedef std::random_access_iterator_tag iterator_category;
+    typedef typename vector_type::size_type size_type;
+    typedef typename vector_type::difference_type difference_type;
     typedef typename vector_type::value_type value_type;
     typedef typename vector_type::reference reference;
     typedef typename vector_type::const_reference const_reference;
     typedef typename vector_type::pointer pointer;
     typedef typename vector_type::const_pointer const_pointer;
 
-    enum { block_size = BlkSize_ };
-
 protected:
-    double_blocked_index<SzTp_, PgSz_, block_type::size> offset;
+    blocked_index_type offset;
     vector_type * p_vector;
 
 private:
@@ -482,12 +480,13 @@ public:
     {
         p_vector->flush();
     }
-    /*
-       std::ostream & operator<< (std::ostream & o) const
-       {
-            o << "vectorpointer: "  << ((void*)p_vector) <<" offset: "<<offset;
-            return o;
-       }*/
+#if 0
+    std::ostream & operator << (std::ostream & o) const
+    {
+        o << "vectorpointer: " << ((void *)p_vector) << " offset: " << offset;
+        return o;
+    }
+#endif
 };
 
 //! \brief Const external vector iterator, model of \c ext_random_access_iterator concept
@@ -495,10 +494,8 @@ template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
           unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
 class const_vector_iterator
 {
-    typedef const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_,
-                                  BlkSize_, PgTp_, PgSz_> _Self;
-    typedef vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_,
-                            BlkSize_, PgTp_, PgSz_> _NonConstIterator;
+    typedef const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> _Self;
+    typedef vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> _NonConstIterator;
 
     friend class vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>;
 
@@ -506,27 +503,26 @@ public:
     typedef _Self const_iterator;
     typedef _NonConstIterator iterator;
 
-    typedef SzTp_ size_type;
-    typedef DiffTp_ difference_type;
     typedef unsigned block_offset_type;
     typedef vector<Tp_, PgSz_, PgTp_, BlkSize_, AllocStr_, SzTp_> vector_type;
     friend class vector<Tp_, PgSz_, PgTp_, BlkSize_, AllocStr_, SzTp_>;
-    typedef bid_vector<BlkSize_> bids_container_type;
+    typedef typename vector_type::bids_container_type bids_container_type;
     typedef typename bids_container_type::iterator bids_container_iterator;
-    typedef typed_block<BlkSize_, Tp_> block_type;
-    typedef BID<BlkSize_> bid_type;
+    typedef typename bids_container_type::bid_type bid_type;
+    typedef typename vector_type::block_type block_type;
+    typedef typename vector_type::blocked_index_type blocked_index_type;
 
     typedef std::random_access_iterator_tag iterator_category;
+    typedef typename vector_type::size_type size_type;
+    typedef typename vector_type::difference_type difference_type;
     typedef typename vector_type::value_type value_type;
     typedef typename vector_type::const_reference reference;
     typedef typename vector_type::const_reference const_reference;
     typedef typename vector_type::const_pointer pointer;
     typedef typename vector_type::const_pointer const_pointer;
 
-    enum { block_size = BlkSize_ };
-
 protected:
-    double_blocked_index<SzTp_, PgSz_, block_type::size> offset;
+    blocked_index_type offset;
     const vector_type * p_vector;
 
 private:
@@ -702,11 +698,13 @@ public:
         p_vector->flush();
     }
 
+#if 0
     std::ostream & operator << (std::ostream & o) const
     {
         o << "vector pointer: " << ((void *)p_vector) << " offset: " << offset;
         return o;
     }
+#endif
 };
 
 
@@ -763,12 +761,11 @@ public:
     typedef std::reverse_iterator<const_iterator> const_reverse_iterator;
 
     typedef bid_vector<block_size> bids_container_type;
-    typedef typename bids_container_type::
-    iterator bids_container_iterator;
-    typedef typename bids_container_type::
-    const_iterator const_bids_container_iterator;
+    typedef typename bids_container_type::iterator bids_container_iterator;
+    typedef typename bids_container_type::const_iterator const_bids_container_iterator;
 
     typedef typed_block<BlkSize_, Tp_> block_type;
+    typedef double_blocked_index<SzTp_, PgSz_, block_type::size> blocked_index_type;
 
 private:
     alloc_strategy_type alloc_strategy;
@@ -875,11 +872,11 @@ public:
     {
         return size_type(_bids.size()) * block_type::raw_size;
     }
+
     void reserve(size_type n)
     {
         if (n <= capacity())
             return;
-
 
         unsigned_type old_bids_size = _bids.size();
         unsigned_type new_bids_size = div_ceil(n, block_type::size);
@@ -984,6 +981,7 @@ public:
         for (int_type i = 0; i < n_pages; ++i)
             _free_slots.push(i);
     }
+
     void push_back(const_reference obj)
     {
         size_type old_size = _size;
@@ -994,6 +992,7 @@ public:
     {
         resize(_size - 1);
     }
+
     reference back()
     {
         return element(_size - 1);
@@ -1010,6 +1009,7 @@ public:
     {
         return const_element(0);
     }
+
     //! \brief Construct vector from a file
     //! \param from file to be constructed from
     //! \warning Only one \c vector can be assigned to a particular (physical) file.
@@ -1171,13 +1171,17 @@ public:
         return const_element(offset);
     }
 
+    bool is_element_cached(size_type offset) const
+    {
+        return is_page_cached(blocked_index_type(offset));
+    }
+
     void flush() const
     {
         simple_vector<bool> non_free_slots(n_pages);
         int_type i = 0;
         for ( ; i < n_pages; i++)
             non_free_slots[i] = true;
-
 
         while (!_free_slots.empty())
         {
@@ -1199,15 +1203,21 @@ public:
             }
         }
     }
+
     ~vector()
     {
+        STXXL_VERBOSE("~vector()");
         try
         {
             flush();
         }
+        catch (io_error e)
+        {
+            STXXL_ERRMSG("io_error thrown in ~vector(): " << e.what());
+        }
         catch (...)
         {
-            STXXL_VERBOSE("Exception thrown in ~vector()");
+            STXXL_ERRMSG("Exception thrown in ~vector()");
         }
 
         if (!exported)
@@ -1225,7 +1235,7 @@ public:
                 }
                 catch (...)
                 {
-                    STXXL_VERBOSE("Exception thrown in ~vector()...set_size()");
+                    STXXL_ERRMSG("Exception thrown in ~vector()...set_size()");
                 }
             }
         }
@@ -1251,7 +1261,7 @@ public:
     }
 
     //! \brief Get the file associated with this vector, or NULL.
-    file * get_file()
+    file * get_file() const
     {
         return _from;
     }
@@ -1277,7 +1287,7 @@ private:
                 static_cast<typename bids_container_type::size_type>
                 (offset / block_type::size));
     }
-    bids_container_iterator bid(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset)
+    bids_container_iterator bid(const blocked_index_type & offset)
     {
         return (_bids.begin() +
                 static_cast<typename bids_container_type::size_type>
@@ -1289,12 +1299,13 @@ private:
                 static_cast<typename bids_container_type::size_type>
                 (offset / block_type::size));
     }
-    const_bids_container_iterator bid(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset) const
+    const_bids_container_iterator bid(const blocked_index_type & offset) const
     {
         return (_bids.begin() +
                 static_cast<typename bids_container_type::size_type>
                 (offset.get_block2() * PgSz_ + offset.get_block1()));
     }
+
     void read_page(int_type page_no, int_type cache_slot) const
     {
         if (_page_status[page_no] == uninitialized)
@@ -1330,15 +1341,16 @@ private:
         wait_all(reqs, last_block - page_no * page_size);
         delete[] reqs;
     }
+
     reference element(size_type offset)
     {
         #ifdef STXXL_RANGE_CHECK
         assert(offset < size());
         #endif
-        return element(double_blocked_index<SzTp_, PgSz_, block_type::size>(offset));
+        return element(blocked_index_type(offset));
     }
 
-    reference element(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset)
+    reference element(const blocked_index_type & offset)
     {
         #ifdef STXXL_RANGE_CHECK
         assert(offset.get_pos() < size());
@@ -1392,8 +1404,8 @@ private:
     {
         // fails if offset is too large, out of bound access
         assert(page_no < _page_status.size());
-        assert(!(_page_status[page_no] & dirty) &&
-               "A dirty page has been marked as newly initialized. The page content will be lost.");
+        // "A dirty page has been marked as newly initialized. The page content will be lost."
+        assert(!(_page_status[page_no] & dirty));
         if (_page_to_slot[page_no] != on_disk) {
             // remove page from cache
             _free_slots.push(_page_to_slot[page_no]);
@@ -1407,7 +1419,7 @@ private:
         page_externally_updated(offset / (block_type::size * page_size));
     }
 
-    void block_externally_updated(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset) const
+    void block_externally_updated(const blocked_index_type & offset) const
     {
         page_externally_updated(offset.get_block2());
     }
@@ -1417,17 +1429,17 @@ private:
         page_externally_updated(offset / (block_type::size * page_size));
     }
 
-    _STXXL_DEPRECATED(void touch(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset) const)
+    _STXXL_DEPRECATED(void touch(const blocked_index_type & offset) const)
     {
         page_externally_updated(offset.get_block2());
     }
 
     const_reference const_element(size_type offset) const
     {
-        return const_element(double_blocked_index<SzTp_, PgSz_, block_type::size>(offset));
+        return const_element(blocked_index_type(offset));
     }
 
-    const_reference const_element(const double_blocked_index<SzTp_, PgSz_, block_type::size> & offset) const
+    const_reference const_element(const blocked_index_type & offset) const
     {
         int_type page_no = offset.get_block2();
         assert(page_no < int_type(_page_to_slot.size()));   // fails if offset is too large, out of bound access
@@ -1466,6 +1478,14 @@ private:
             pager.hit(cache_slot);
             return (*_cache)[cache_slot * page_size + offset.get_block1()][offset.get_offset()];
         }
+    }
+
+    bool is_page_cached(const blocked_index_type & offset) const
+    {
+        int_type page_no = offset.get_block2();
+        assert(page_no < int_type(_page_to_slot.size()));   // fails if offset is too large, out of bound access
+        int_type cache_slot = _page_to_slot[page_no];
+        return (cache_slot >= 0);                           // on_disk == -1
     }
 };
 

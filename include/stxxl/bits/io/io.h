@@ -13,7 +13,7 @@
 #ifndef STXXL_IO_HEADER
 #define STXXL_IO_HEADER
 
-#include <stxxl/bits/io/request.h>
+#include <stxxl/request>
 #include <stxxl/bits/io/file.h>
 #include <stxxl/bits/io/syscall_file.h>
 #include <stxxl/bits/io/mmap_file.h>
@@ -24,13 +24,10 @@
 #include <stxxl/bits/io/fileperblock_file.h>
 #include <stxxl/bits/io/wbtl_file.h>
 #include <stxxl/bits/io/aio_file.h>
+#include <stxxl/bits/io/create_file.h>
 #include <stxxl/bits/io/disk_queues.h>
 #include <stxxl/bits/io/iostats.h>
 
-
-#ifdef BOOST_MSVC
- #pragma comment (lib, "libstxxl.lib")
-#endif
 
 //! \brief \c \<stxxl\> library namespace
 __STXXL_BEGIN_NAMESPACE

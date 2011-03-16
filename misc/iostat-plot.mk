@@ -3,7 +3,7 @@
 #
 #  Part of the STXXL. See http://stxxl.sourceforge.net
 #
-#  Copyright (C) 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
+#  Copyright (C) 2008-2011 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
 #
 #  Distributed under the Boost Software License, Version 1.0.
 #  (See accompanying file LICENSE_1_0.txt or copy at
@@ -29,7 +29,9 @@ empty	?=#
 space	?= $(empty) $(empty)
 comma	?= ,
 
-IOSTAT_PLOT_BINDIR		?= .
+ifndef IOSTAT_PLOT_BINDIR
+IOSTAT_PLOT_BINDIR		:= $(dir $(lastword $(MAKEFILE_LIST)))
+endif
 IOSTAT_PLOT_RECORD_DATA		?= $(IOSTAT_PLOT_BINDIR)/record-load-iostat
 IOSTAT_PLOT_CONCAT_LINES	?= $(IOSTAT_PLOT_BINDIR)/concat-lines
 IOSTAT_PLOT_FLOATING_AVERAGE	?= $(IOSTAT_PLOT_BINDIR)/floating-average
@@ -56,7 +58,9 @@ IOSTAT_PLOT_IO_WITH_UTILIZATION	?= no
 IOSTAT_PLOT_Y_LABEL.io		?= Bandwidth [MiB/s]
 IOSTAT_PLOT_Y_LABEL.cpu		?= CPU Usage [%]
 
-GNUPLOTFILEINFO			?= set label "$(subst _,\\_,$(HOST):$(patsubst $(HOME)/%,\\~/%,$(CURDIR))/)" at character 0,-1 font ",6"
+GNUPLOT_PS_COLOR		?= color solid
+GNUPLOT_PS_STRING_ESCAPE	?= $(subst _,\\_,$(subst @,\\@,$(subst ~,\\~,$1)))
+GNUPLOTFILEINFO			?= set label "$(call GNUPLOT_PS_STRING_ESCAPE,$(HOST):$(patsubst $(HOME)/%,~/%,$(CURDIR))/)" at character 0,-1 font ",6"
 
 ECHO				?= echo
 
@@ -71,7 +75,7 @@ define template-iostat-gnuplot
 	$(ECHO) 'set title "$(subst _, ,$*) (avg=$(IOSTAT_PLOT_AVERAGE.$(strip $1)))"' >> $@
 	$(ECHO) 'set xlabel "Time [s]"' >> $@
 	$(ECHO) 'set ylabel "$(IOSTAT_PLOT_Y_LABEL.$(strip $1))"' >> $@
-$(if $(filter yes,$(IOSTAT_PLOT_IO_WITH_UTILIZATION)),
+$(if $(and $(filter io,$1),$(filter yes,$(IOSTAT_PLOT_IO_WITH_UTILIZATION))),
 	$(ECHO) 'set y2label "Utilization [%]"' >> $@
 	$(ECHO) 'set ytics nomirror' >> $@
 	$(ECHO) 'set y2tics' >> $@
@@ -119,7 +123,7 @@ $(if $(filter cpu,$1),
 	$(ECHO) '' >> $@
 	$(ECHO) 'pause -1' >> $@
 	$(ECHO) '' >> $@
-	$(ECHO) 'set terminal postscript enhanced $(GPLT_COLOR_PS) 10' >> $@
+	$(ECHO) 'set terminal postscript enhanced $(GNUPLOT_PS_COLOR) 10' >> $@
 	$(ECHO) 'set output "$*.$(strip $1).eps"' >> $@
 	$(ECHO) '$(GNUPLOTFILEINFO)' >> $@
 	$(ECHO) 'replot' >> $@

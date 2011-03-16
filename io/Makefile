@@ -9,10 +9,10 @@ tests: $(TESTS)
 lib: ufs_file_base.$(OBJEXT) syscall_file.$(OBJEXT) wincall_file.$(OBJEXT) wfs_file_base.$(OBJEXT) \
 iostats.$(OBJEXT) \
 mmap_file.$(OBJEXT) simdisk_file.$(OBJEXT) boostfd_file.$(OBJEXT) mem_file.$(OBJEXT) \
-fileperblock_file.$(OBJEXT) request.$(OBJEXT) request_waiters_impl_basic.$(OBJEXT) \
-request_state_impl_basic.$(OBJEXT) request_impl_basic.$(OBJEXT) \
+fileperblock_file.$(OBJEXT) request.$(OBJEXT) request_with_waiters.$(OBJEXT) \
+request_with_state.$(OBJEXT) serving_request.$(OBJEXT) \
 disk_queued_file.$(OBJEXT) request_queue_impl_qwqr.$(OBJEXT) request_queue_impl_1q.$(OBJEXT) \
-request_queue_impl_worker.$(OBJEXT) wbtl_file.$(OBJEXT) \
+request_queue_impl_worker.$(OBJEXT) wbtl_file.$(OBJEXT) create_file.$(OBJEXT) \
 aio_request.$(OBJEXT) aio_queue.$(OBJEXT) aio_file.$(OBJEXT)
 
 
@@ -53,14 +53,14 @@ fileperblock_file.$(OBJEXT): fileperblock_file.cpp
 request.$(OBJEXT): request.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request.cpp
 
-request_waiters_impl_basic.$(OBJEXT): request_waiters_impl_basic.cpp
-	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_waiters_impl_basic.cpp
+request_with_state.$(OBJEXT): request_with_state.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_with_state.cpp
 
-request_state_impl_basic.$(OBJEXT): request_state_impl_basic.cpp
-	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_state_impl_basic.cpp
+request_with_waiters.$(OBJEXT): request_with_waiters.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_with_waiters.cpp
 
-request_impl_basic.$(OBJEXT): request_impl_basic.cpp
-	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_impl_basic.cpp
+serving_request.$(OBJEXT): serving_request.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c serving_request.cpp
 
 disk_queued_file.$(OBJEXT): disk_queued_file.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c disk_queued_file.cpp
@@ -74,9 +74,15 @@ request_queue_impl_1q.$(OBJEXT): request_queue_impl_1q.cpp
 request_queue_impl_worker.$(OBJEXT): request_queue_impl_worker.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c request_queue_impl_worker.cpp
 
+<<<<<<< .working
 aio_request.$(OBJEXT): aio_request.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c aio_request.cpp
+=======
+create_file.$(OBJEXT): create_file.cpp
+	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c create_file.cpp
+>>>>>>> .merge-right.r3098
 
+<<<<<<< .working
 aio_queue.$(OBJEXT): aio_queue.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c aio_queue.cpp
 
@@ -84,6 +90,9 @@ aio_file.$(OBJEXT): aio_file.cpp
 	$(COMPILER) $(STXXL_COMPILER_OPTIONS) -c aio_file.cpp
 
 
+=======
+
+>>>>>>> .merge-right.r3098
 DEPENDENCIES = $(COMMON_FILES) $(IO_LAYER_FILES)
 
 
