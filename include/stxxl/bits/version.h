@@ -20,7 +20,7 @@ __STXXL_BEGIN_NAMESPACE
 
 #define STXXL_VERSION_MAJOR             1
 #define STXXL_VERSION_MINOR             4
-#define STXXL_VERSION_PATCHLEVEL        0
+#define STXXL_VERSION_PATCHLEVEL        90
 
 const char * get_version_string();
 
