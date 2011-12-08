@@ -122,6 +122,7 @@ namespace stream
         //! \brief Sort a specific run, contained in a sequences of blocks.
         void sort_run(block_type * run, unsigned_type elements)
         {
+            check_sort_settings();
             potentially_parallel::
             sort(make_element_iterator(run, 0),
                  make_element_iterator(run, elements),
@@ -395,6 +396,7 @@ namespace stream
         {   // whole input fits into one block
             STXXL_VERBOSE1("basic_runs_creator: Small input optimization, input length: " << blocks1_length);
             result_.elements = blocks1_length;
+            check_sort_settings();
             potentially_parallel::
             sort(result_.small_.begin(), result_.small_.end(), cmp);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -864,6 +866,7 @@ namespace stream
 
         void sort_run(block_type * run, unsigned_type elements)
         {
+            check_sort_settings();
             potentially_parallel::
             sort(make_element_iterator(run, 0),
                  make_element_iterator(run, elements),

@@ -1798,8 +1798,11 @@ namespace stream
             Input5_ & i5_,
             Input6_ & i6_
             ) :
-            i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_),
-            current(value_type(*i1, *i2, *i3, *i4, *i5, *i6)) { }
+            i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_)
+        {
+            if (!empty())
+                current = value_type(*i1, *i2, *i3, *i4, *i5, *i6);
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -2019,8 +2022,11 @@ namespace stream
             Input2_ & i2_,
             Input3_ & i3_
             ) :
-            i1(i1_), i2(i2_), i3(i3_),
-            current(value_type(*i1, *i2, *i3)) { }
+            i1(i1_), i2(i2_), i3(i3_)
+        {
+            if (!empty())
+                current = value_type(*i1, *i2, *i3);
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -2092,8 +2098,11 @@ namespace stream
             Input3_ & i3_,
             Input4_ & i4_
             ) :
-            i1(i1_), i2(i2_), i3(i3_), i4(i4_),
-            current(value_type(*i1, *i2, *i3, *i4)) { }
+            i1(i1_), i2(i2_), i3(i3_), i4(i4_)
+        {
+            if (!empty())
+                current = value_type(*i1, *i2, *i3, *i4);
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
@@ -2173,8 +2182,11 @@ namespace stream
             Input4_ & i4_,
             Input5_ & i5_
             ) :
-            i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_),
-            current(value_type(*i1, *i2, *i3, *i4, *i5)) { }
+            i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_)
+        {
+            if (!empty())
+                current = value_type(*i1, *i2, *i3, *i4, *i5);
+        }
 
         //! \brief Standard stream method
         const value_type & operator * () const
