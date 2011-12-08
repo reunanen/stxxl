@@ -80,11 +80,29 @@ private:
 public:
     //! \brief Constructs empty queue with own write and prefetch block pool
 
+    //! \param D  number of parallel disks, defaulting to the configured number of scratch disks,
+    //!           memory consumption will be 2 * D + 2 blocks 
+    //!           (first and last block, D blocks as write cache, D block for prefetching)
+    explicit queue(int D = -1) :
+        size_(0),
+        delete_pool(true),
+        alloc_count(0),
+        bm(block_manager::get_instance())
+    {
+        if (D < 1)
+            D = config::get_instance()->disks_number();
+        STXXL_VERBOSE_QUEUE("queue[" << this << "]::queue(D)");
+        pool = new pool_type(D, D + 2);
+        init();
+    }
+
+    //! \brief Constructs empty queue with own write and prefetch block pool
+
     //! \param w_pool_size  number of blocks in the write pool, must be at least 2, recommended at least 3
     //! \param p_pool_size  number of blocks in the prefetch pool, recommended at least 1
     //! \param blocks2prefetch_  defines the number of blocks to prefetch (\c front side),
     //!                          default is number of block in the prefetch pool
-    explicit queue(unsigned_type w_pool_size = 3, unsigned_type p_pool_size = 1, int blocks2prefetch_ = -1) :
+    explicit queue(unsigned_type w_pool_size, unsigned_type p_pool_size, int blocks2prefetch_ = -1) :
         size_(0),
         delete_pool(true),
         alloc_count(0),
@@ -134,7 +152,7 @@ public:
     }
 
 private:
-    void init(int blocks2prefetch_)
+    void init(int blocks2prefetch_ = -1)
     {
         if (pool->size_write() < 2) {
             STXXL_ERRMSG("queue: invalid configuration, not enough blocks (" << pool->size_write() <<
@@ -178,13 +196,31 @@ public:
     //! \brief Adds an element in the queue
     void push(const value_type & val)
     {
-        if (back_element == back_block->begin() + (block_type::size - 1))
+        if (UNLIKELY(back_element == back_block->begin() + (block_type::size - 1)))
         {
             // back block is filled
             if (front_block == back_block)
             {             // can not write the back block because it
                 // is the same as the front block, must keep it memory
                 STXXL_VERBOSE1("queue::push Case 1");
+            }
+            else if (size() < 2 * block_type::size)
+            {
+                STXXL_VERBOSE1("queue::push Case 1.5");
+                // only two blocks with a gap in the beginning, move elements within memory
+                assert(bids.empty());
+                size_t gap = front_element - front_block->begin();
+                assert(gap > 0);
+                std::copy(front_element, front_block->end(), front_block->begin());
+                std::copy(back_block->begin(), back_block->begin() + gap, front_block->begin() + (block_type::size - gap));
+                std::copy(back_block->begin() + gap, back_block->end(), back_block->begin());
+                front_element -= gap;
+                back_element -= gap;
+
+                ++back_element;
+                *back_element = val;
+                ++size_;
+                return;
             }
             else
             {
@@ -220,7 +256,7 @@ public:
     {
         assert(!empty());
 
-        if (front_element == front_block->begin() + (block_type::size - 1))
+        if (UNLIKELY(front_element == front_block->begin() + (block_type::size - 1)))
         {
             // if there is only one block, it implies ...
             if (back_block == front_block)
@@ -314,10 +350,9 @@ public:
 
     ~queue()
     {
-        pool->add(front_block);
         if (front_block != back_block)
             pool->add(back_block);
-
+        pool->add(front_block);
 
         if (delete_pool)
         {

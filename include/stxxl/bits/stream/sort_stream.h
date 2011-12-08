@@ -981,7 +981,7 @@ namespace stream
         void push(const value_type & val)
         {
             assert(result_computed == false);
-            if (cur_el < el_in_run)
+            if (LIKELY(cur_el < el_in_run))
             {
                 Blocks1[cur_el.get_block()][cur_el.get_offset()] = val;
                 ++cur_el;
@@ -1708,7 +1708,7 @@ namespace stream
 
             --elements_remaining;
 
-            if (buffer_pos != out_block_type::size)
+            if (LIKELY(buffer_pos != out_block_type::size))
             {
 //              printf("single %lld\n", out_block_type::size - buffer_pos);
                 current_value = current_block->elem[buffer_pos];
