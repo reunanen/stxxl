@@ -10,8 +10,8 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_AIO_FILE_HEADER
-#define STXXL_AIO_FILE_HEADER
+#ifndef STXXL_IO_AIO_FILE_HEADER
+#define STXXL_IO_AIO_FILE_HEADER
 
 #ifdef STXXL_BOOST_CONFIG
  #include <boost/config.hpp>
@@ -32,7 +32,7 @@
 #include <stxxl/bits/common/error_handling.h>
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup fileimpl
 //! \{
@@ -52,16 +52,16 @@ public:
     //! \param mode open mode, see \c stxxl::file::open_modes
     //! \param disk disk(file) queue_identifier
     aio_file(
-        const std::string & filename,
+        const std::string& filename,
         int mode, int physical_device_id = DEFAULT_QUEUE, int allocator_id = NO_ALLOCATOR) :
         ufs_file_base(filename, mode), physical_device_id(physical_device_id), allocator_id(allocator_id)
     { }
 
-    void serve(const request * req) throw (io_error);
-    request_ptr aread(void * buffer, offset_type pos, size_type bytes,
-                      const completion_handler & on_cmpl);
-    request_ptr awrite(void * buffer, offset_type pos, size_type bytes,
-                       const completion_handler & on_cmpl);
+    void serve(const request* req) throw (io_error);
+    request_ptr aread(void* buffer, offset_type pos, size_type bytes,
+                      const completion_handler& on_cmpl);
+    request_ptr awrite(void* buffer, offset_type pos, size_type bytes,
+                       const completion_handler& on_cmpl);
     const char * io_type() const;
 
     int get_queue_id() const
@@ -83,9 +83,9 @@ public:
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // #if STXXL_HAVE_AIO_FILE
 
-#endif // !STXXL_AIO_FILE_HEADER
+#endif // !STXXL_IO_AIO_FILE_HEADER
 // vim: et:ts=4:sw=4

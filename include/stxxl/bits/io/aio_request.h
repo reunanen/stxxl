@@ -21,7 +21,7 @@
 #include <stxxl/bits/io/serving_request.h>
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup iolayer
 //! \{
@@ -38,15 +38,15 @@ class aio_request : public serving_request
 
 public:
     aio_request(
-        const completion_handler & on_cmpl,
-        file * f,
-        void * buf,
+        const completion_handler& on_cmpl,
+        file* f,
+        void* buf,
         offset_type off,
         size_type b,
         request_type t) :
         serving_request(on_cmpl, f, buf, off, b, t)
     {
-        assert(dynamic_cast<aio_file *>(file_));
+        assert(dynamic_cast<aio_file*>(file_));
     }
 
     bool post();
@@ -61,7 +61,7 @@ public:
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // #if STXXL_HAVE_AIO_FILE
 
