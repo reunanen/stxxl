@@ -119,16 +119,38 @@ file * create_file(disk_config& cfg, int mode, int disk_allocator_id)
         return result;
     }
 #endif
-#if STXXL_HAVE_AIO_FILE && TODO
-    else if (io_impl == "aio")
+#if STXXL_HAVE_AIO_FILE
+    else if (cfg.io_impl == "aio")
     {
-        ufs_file_base* result = new aio_file(filename, options, physical_device_id, allocator_id);
+        ufs_file_base* result =
+            new aio_file(cfg.path, mode, cfg.queue, disk_allocator_id);
         result->lock();
+
+        // if marked as device but file is not -> throw!
+        if (cfg.raw_device && !result->is_device())
+        {
+            delete result;
+            STXXL_THROW(io_error, "Disk " << cfg.path << " was expected to be raw block device, but it is a normal file!");
+        }
+
+        // if is raw_device -> get size and remove some flags.
+        if (result->is_device())
+        {
+            // if device
+            cfg.raw_device = true;
+            cfg.size = result->size();
+            cfg.autogrow = cfg.delete_on_exit = cfg.unlink_on_open = false;
+        }
+
+        if (cfg.unlink_on_open)
+            result->unlink();
+
         return result;
     }
-    else if (io_impl == "fileperblock_aio")
+    else if (cfg.io_impl == "fileperblock_aio")
     {
-        fileperblock_file<aio_file>* result = new fileperblock_file<aio_file>(filename, options, allocator_id);
+        fileperblock_file<aio_file>* result =
+            new fileperblock_file<aio_file>(cfg.path, mode, cfg.queue, disk_allocator_id);
         result->lock();
         return result;
     }

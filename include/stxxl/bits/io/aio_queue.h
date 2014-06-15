@@ -32,6 +32,8 @@ STXXL_BEGIN_NAMESPACE
 //! \brief Queue for aio_file(s)
 class aio_queue : public request_queue_impl_worker, public singleton<aio_queue>
 {
+    typedef aio_queue self_type;
+
 private:
     typedef std::list<request_ptr> queue_type;
 
