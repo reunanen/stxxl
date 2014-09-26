@@ -24,7 +24,7 @@
 #endif
 
 #include <stxxl/bits/stream/stream.h>
-#include <stxxl/bits/mng/mng.h>
+#include <stxxl/bits/mng/block_manager.h>
 #include <stxxl/bits/algo/sort_base.h>
 #include <stxxl/bits/algo/sort_helper.h>
 #include <stxxl/bits/algo/adaptor.h>
@@ -33,7 +33,7 @@
 #include <stxxl/bits/stream/sorted_runs.h>
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 namespace stream
 {
@@ -2195,7 +2195,7 @@ void sort(RandomAccessIterator begin,
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // !STXXL_SORT_STREAM_HEADER
 // vim: et:ts=4:sw=4

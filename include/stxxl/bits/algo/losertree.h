@@ -12,16 +12,15 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_LOSERTREE_HEADER
-#define STXXL_LOSERTREE_HEADER
+#ifndef STXXL_ALGO_LOSERTREE_HEADER
+#define STXXL_ALGO_LOSERTREE_HEADER
 
 #include <algorithm>
 #include <stxxl/bits/noncopyable.h>
 #include <stxxl/bits/common/utils.h>
 #include <stxxl/bits/verbose.h>
 
-
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 template <typename run_cursor_type,
           typename run_cursor_cmp_type>
@@ -29,8 +28,8 @@ class loser_tree : private noncopyable
 {
     int logK;
     int_type k;
-    int_type * entry;
-    run_cursor_type * current;
+    int_type* entry;
+    run_cursor_type* current;
     run_cursor_cmp_type cmp;
 
     int_type init_winner(int_type root)
@@ -61,13 +60,13 @@ public:
     typedef typename run_cursor_type::value_type value_type;
 
     loser_tree(
-        prefetcher_type * p,
+        prefetcher_type* p,
         int_type nruns,
         run_cursor_cmp_type c) : cmp(c)
     {
         int_type i;
-        logK = log2_ceil(nruns);
-        int_type kReg = k = (1 << logK);
+        logK = ilog2_ceil(nruns);
+        int_type kReg = k = (int_type(1) << logK);
 
         STXXL_VERBOSE2("loser_tree: logK=" << logK << " nruns=" << nruns << " K=" << kReg);
 
@@ -102,7 +101,7 @@ public:
         delete[] entry;
     }
 
-    void swap(loser_tree & obj)
+    void swap(loser_tree& obj)
     {
         std::swap(logK, obj.logK);
         std::swap(k, obj.k);
@@ -112,11 +111,11 @@ public:
     }
 
 private:
-    template <unsigned LogK>
-    void multi_merge_unrolled(value_type * out_first, value_type * out_last)
+    template <int LogK>
+    void multi_merge_unrolled(value_type* out_first, value_type* out_last)
     {
-        run_cursor_type * currentE, * winnerE;
-        int_type * regEntry = entry;
+        run_cursor_type* currentE, * winnerE;
+        int_type* regEntry = entry;
         int_type winnerIndex = regEntry[0];
 
         while (LIKELY(out_first != out_last))
@@ -127,18 +126,17 @@ private:
 
             ++(*winnerE);
 
-
-#define TreeStep(L) \
-    if (LogK >= L) \
-    { \
-        currentE = current + \
+#define TreeStep(L)                                                                                              \
+    if (LogK >= L)                                                                                               \
+    {                                                                                                            \
+        currentE = current +                                                                                     \
                    regEntry[(winnerIndex + (1 << LogK)) >> (((int(LogK - L) + 1) >= 0) ? ((LogK - L) + 1) : 0)]; \
-        if (cmp(*currentE, *winnerE)) \
-        { \
-            std::swap(regEntry[(winnerIndex + (1 << LogK)) \
-                               >> (((int(LogK - L) + 1) >= 0) ? ((LogK - L) + 1) : 0)], winnerIndex); \
-            winnerE = currentE; \
-        } \
+        if (cmp(*currentE, *winnerE))                                                                            \
+        {                                                                                                        \
+            std::swap(regEntry[(winnerIndex + (1 << LogK))                                                       \
+                               >> (((int(LogK - L) + 1) >= 0) ? ((LogK - L) + 1) : 0)], winnerIndex);            \
+            winnerE = currentE;                                                                                  \
+        }                                                                                                        \
     }
 
             TreeStep(10);
@@ -158,7 +156,7 @@ private:
         regEntry[0] = winnerIndex;
     }
 
-    void multi_merge_unrolled_0(value_type * out_first, value_type * out_last)
+    void multi_merge_unrolled_0(value_type* out_first, value_type* out_last)
     {
         while (LIKELY(out_first != out_last))
         {
@@ -168,9 +166,9 @@ private:
         }
     }
 
-    void multi_merge_k(value_type * out_first, value_type * out_last)
+    void multi_merge_k(value_type* out_first, value_type* out_last)
     {
-        run_cursor_type * currentE, * winnerE;
+        run_cursor_type* currentE, * winnerE;
         int_type kReg = k;
         int_type winnerIndex = entry[0];
 
@@ -198,7 +196,7 @@ private:
     }
 
 public:
-    void multi_merge(value_type * out_first, value_type * out_last)
+    void multi_merge(value_type* out_first, value_type* out_last)
     {
         switch (logK)
         {
@@ -242,18 +240,19 @@ public:
     }
 };
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
-namespace std
+namespace std {
+
+template <typename run_cursor_type,
+          typename run_cursor_cmp_type>
+void swap(stxxl::loser_tree<run_cursor_type, run_cursor_cmp_type>& a,
+          stxxl::loser_tree<run_cursor_type, run_cursor_cmp_type>& b)
 {
-    template <typename run_cursor_type,
-              typename run_cursor_cmp_type>
-    void swap(stxxl::loser_tree<run_cursor_type, run_cursor_cmp_type> & a,
-              stxxl::loser_tree<run_cursor_type, run_cursor_cmp_type> & b)
-    {
-        a.swap(b);
-    }
+    a.swap(b);
 }
 
-#endif // !STXXL_LOSERTREE_HEADER
+} // namespace std
+
+#endif // !STXXL_ALGO_LOSERTREE_HEADER
 // vim: et:ts=4:sw=4

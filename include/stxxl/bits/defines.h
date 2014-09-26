@@ -20,7 +20,7 @@
 //#define STXXL_HAVE_BOOSTFD_FILE 0/1
 //#define STXXL_HAVE_WINCALL_FILE 0/1
 //#define STXXL_HAVE_WBTL_FILE 0/1
-#define STXXL_HAVE_AIO_FILE 0  // only available on the kernelaio branch
+//#define STXXL_HAVE_LINUXAIO_FILE 0/1
 // default: 0/1 (platform and type dependent)
 // used in: io/*_file.h, io/*_file.cpp, mng/mng.cpp
 // affects: library
@@ -82,5 +82,18 @@
 // effect if defined: uses only a single I/O thread instead of one per disk
 //          used e.g. by EcoSort which puts input file, output file and
 //          scratch on a single disk (RAID0)
+
+//#define STXXL_MNG_COUNT_ALLOCATION 0/1
+// default: 1
+// used in: mng/block_manager.h
+// effect if defined: counts current, total and maximum allocation of bytes in
+// block manager. The numbers are exported via block_manager's get_
+// functions. This can be used to determine the maximum disk space required by
+// an application.
+
+//#define STXXL_NO_DEPRECATED 0/1
+// default: 0
+// used in deprecated.h
+// turns off deprecated warnings for some forced template instantiations
 
 #endif // !STXXL_DEFINES_HEADER

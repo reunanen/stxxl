@@ -5,37 +5,48 @@
  *
  *  Copyright (C) 2008 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *  Copyright (C) 2009 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2014 Timo Bingmann <tb@panthema.net>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_MEM_FILE_HEADER
-#define STXXL_MEM_FILE_HEADER
+#ifndef STXXL_IO_MEM_FILE_HEADER
+#define STXXL_IO_MEM_FILE_HEADER
 
 #include <stxxl/bits/io/disk_queued_file.h>
 #include <stxxl/bits/io/request.h>
 
-
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup fileimpl
 //! \{
 
-//! \brief Implementation of file based on new[] and memcpy
+//! Implementation of file based on new[] and memcpy.
 class mem_file : public disk_queued_file
 {
-    char * ptr;
-    offset_type sz;
+    //! pointer to memory area of "file"
+    char* m_ptr;
+
+    //! size of memory area
+    offset_type m_size;
+
+    //! sequentialize function calls
+    mutex m_mutex;
 
 public:
-    //! \brief constructs file object
-    //! \param disk disk(file) identifier
+    //! constructs file object.
     mem_file(
-        int queue_id = DEFAULT_QUEUE, int allocator_id = NO_ALLOCATOR) : disk_queued_file(queue_id, allocator_id), ptr(NULL), sz(0)
+        int queue_id = DEFAULT_QUEUE,
+        int allocator_id = NO_ALLOCATOR,
+        unsigned int device_id = DEFAULT_DEVICE_ID)
+        : file(device_id),
+          disk_queued_file(queue_id, allocator_id),
+          m_ptr(NULL), m_size(0)
     { }
-    void serve(const request * req) throw (io_error);
+    void serve(void* buffer, offset_type offset, size_type bytes,
+               request::request_type type);
     ~mem_file();
     offset_type size();
     void set_size(offset_type newsize);
@@ -46,6 +57,6 @@ public:
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
-#endif // !STXXL_MEM_FILE_HEADER
+#endif // !STXXL_IO_MEM_FILE_HEADER

@@ -6,6 +6,7 @@
  *  Copyright (C) 2002 Roman Dementiev <dementiev@mpi-sb.mpg.de>
  *  Copyright (C) 2008, 2009 Andreas Beckmann <beckmann@cs.uni-frankfurt.de>
  *  Copyright (C) 2009 Johannes Singler <singler@ira.uka.de>
+ *  Copyright (C) 2013 Timo Bingmann <tb@panthema.net>
  *
  *  Distributed under the Boost Software License, Version 1.0.
  *  (See accompanying file LICENSE_1_0.txt or copy at
@@ -20,30 +21,32 @@
 #include <stxxl/bits/io/request_queue_impl_worker.h>
 #include <stxxl/bits/common/mutex.h>
 
+STXXL_BEGIN_NAMESPACE
 
-__STXXL_BEGIN_NAMESPACE
-
-//! \addtogroup iolayer
+//! \addtogroup reqlayer
 //! \{
 
+//! Implementation of a local request queue having two queues, one for read and
+//! one for write requests, thus having two threads. This is the default
+//! implementation.
 class request_queue_impl_qwqr : public request_queue_impl_worker
 {
 private:
     typedef request_queue_impl_qwqr self;
     typedef std::list<request_ptr> queue_type;
 
-    mutex write_mutex;
-    mutex read_mutex;
-    queue_type write_queue;
-    queue_type read_queue;
+    mutex m_write_mutex;
+    mutex m_read_mutex;
+    queue_type m_write_queue;
+    queue_type m_read_queue;
 
-    state<thread_state> _thread_state;
-    thread_type thread;
-    semaphore sem;
+    state<thread_state> m_thread_state;
+    thread_type m_thread;
+    semaphore m_sem;
 
-    static const priority_op _priority_op = WRITE;
+    static const priority_op m_priority_op = WRITE;
 
-    static void * worker(void * arg);
+    static void * worker(void* arg);
 
 public:
     // \param n max number of requests simultaneously submitted to disk
@@ -58,14 +61,14 @@ public:
         //_priority_op = op;
         STXXL_UNUSED(op);
     }
-    void add_request(request_ptr & req);
-    bool cancel_request(request_ptr & req);
+    void add_request(request_ptr& req);
+    bool cancel_request(request_ptr& req);
     ~request_queue_impl_qwqr();
 };
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // !STXXL_IO_REQUEST_QUEUE_IMPL_QWQR_HEADER
 // vim: et:ts=4:sw=4

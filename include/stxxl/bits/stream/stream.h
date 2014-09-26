@@ -33,7 +33,7 @@
 #include <stxxl/bits/mng/buf_ostream.h>
 #include <stxxl/bits/common/tuple.h>
 #include <stxxl/vector>
-#include <stxxl/bits/compat_unique_ptr.h>
+#include <stxxl/bits/compat/unique_ptr.h>
 
 
 #ifndef STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT
@@ -50,7 +50,7 @@
 #endif
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \brief Stream package subnamespace
 namespace stream
@@ -2226,7 +2226,7 @@ namespace stream
 //! \}
 }
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 
 #include <stxxl/bits/stream/distribute.h>

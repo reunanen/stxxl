@@ -16,7 +16,7 @@
 #include <stxxl/bits/namespace.h>
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \brief Stream package subnamespace
 namespace stream
@@ -115,7 +115,7 @@ namespace stream
 #else
             {
                 void * return_code;
-                check_pthread_call(pthread_join(threads[i], &return_code));
+                STXXL_CHECK_PTHREAD_CALL(pthread_join(threads[i], &return_code));
             }
 #endif
 
@@ -217,7 +217,7 @@ namespace stream
 //! \}
 }
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 
 #endif // !STXXL_STREAM__DISTRIBUTE_H_

@@ -10,695 +10,690 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_CONTAINERS_BTREE__LEAF_H
-#define STXXL_CONTAINERS_BTREE__LEAF_H
+#ifndef STXXL_CONTAINERS_BTREE_LEAF_HEADER
+#define STXXL_CONTAINERS_BTREE_LEAF_HEADER
 
 #include <stxxl/bits/containers/btree/iterator.h>
 #include <stxxl/bits/containers/btree/node_cache.h>
 
+STXXL_BEGIN_NAMESPACE
 
-__STXXL_BEGIN_NAMESPACE
+namespace btree {
 
-namespace btree
+template <class NodeType, class BTreeType>
+class node_cache;
+
+template <class KeyType, class DataType, class KeyCmp, unsigned RawSize, class BTreeType>
+class normal_leaf : private noncopyable
 {
-    template <class NodeType, class BTreeType>
-    class node_cache;
+public:
+    typedef normal_leaf<KeyType, DataType, KeyCmp, RawSize, BTreeType> self_type;
 
-    template <class KeyType_, class DataType_, class KeyCmp_, unsigned RawSize_, class BTreeType>
-    class normal_leaf : private noncopyable
+    friend class node_cache<self_type, BTreeType>;
+
+    typedef KeyType key_type;
+    typedef DataType data_type;
+    typedef KeyCmp key_compare;
+    typedef std::pair<key_type, data_type> value_type;
+    typedef value_type& reference;
+    typedef const value_type& const_reference;
+
+    enum {
+        raw_size = RawSize
+    };
+
+    typedef BID<raw_size> bid_type;
+
+    struct metainfo_type
     {
-    public:
-        typedef normal_leaf<KeyType_, DataType_, KeyCmp_, RawSize_, BTreeType> SelfType;
+        bid_type me, pred, succ;
+        unsigned cur_size;
+    };
 
-        friend class node_cache<SelfType, BTreeType>;
+    typedef typed_block<raw_size, value_type, 0, metainfo_type> block_type;
+    enum {
+        nelements = block_type::size - 1,
+        max_size = nelements,
+        min_size = nelements / 2
+    };
 
-        typedef KeyType_ key_type;
-        typedef DataType_ data_type;
-        typedef KeyCmp_ key_compare;
-        typedef std::pair<key_type, data_type> value_type;
-        typedef value_type & reference;
-        typedef const value_type & const_reference;
+    typedef BTreeType btree_type;
+    typedef typename btree_type::size_type size_type;
+    typedef btree_iterator_base<btree_type> iterator_base;
+    typedef btree_iterator<btree_type> iterator;
+    typedef btree_const_iterator<btree_type> const_iterator;
 
-        enum {
-            raw_size = RawSize_
-        };
-        typedef BID<raw_size> bid_type;
-        struct InfoType
+    typedef node_cache<normal_leaf, btree_type> leaf_cache_type;
+
+public:
+    struct value_compare : public std::binary_function<value_type, value_type, bool>
+    {
+        key_compare comp;
+
+        value_compare(key_compare c) : comp(c) { }
+
+        bool operator () (const value_type& x, const value_type& y) const
         {
-            bid_type me, pred, succ;
-            unsigned cur_size;
-        };
+            return comp(x.first, y.first);
+        }
+    };
 
-        typedef typed_block<raw_size, value_type, 0, InfoType> block_type;
-        enum {
-            nelements = block_type::size - 1,
-            max_size = nelements,
-            min_size = nelements / 2
-        };
+private:
+    block_type* m_block;
+    btree_type* m_btree;
 
-        typedef BTreeType btree_type;
-        typedef typename btree_type::size_type size_type;
-        typedef btree_iterator_base<btree_type> iterator_base;
-        typedef btree_iterator<btree_type> iterator;
-        typedef btree_const_iterator<btree_type> const_iterator;
+    key_compare m_cmp;
+    value_compare m_vcmp;
 
-        typedef node_cache<normal_leaf, btree_type> leaf_cache_type;
+    void split(std::pair<key_type, bid_type>& splitter)
+    {
+        bid_type new_bid;
+        m_btree->m_leaf_cache.get_new_node(new_bid);                         // new (left) leaf
+        normal_leaf* new_leaf = m_btree->m_leaf_cache.get_node(new_bid, true);
+        assert(new_leaf);
 
-    public:
-        struct value_compare : public std::binary_function<value_type, value_type, bool>
+        // update links
+        new_leaf->succ() = my_bid();
+        normal_leaf* pred_leaf = NULL;
+        if (pred().valid())
         {
-            key_compare comp;
+            new_leaf->pred() = pred();
+            pred_leaf = m_btree->m_leaf_cache.get_node(pred());
+            assert(pred_leaf);
+            assert(m_vcmp(pred_leaf->back(), front()));
+            pred_leaf->succ() = new_bid;
+        }
+        pred() = new_bid;
 
-            value_compare(key_compare c) : comp(c) { }
+        typedef std::vector<iterator_base*> iterators2fix_type;
+        iterators2fix_type iterators2fix;
+        m_btree->m_iterator_map.find(my_bid(), 0, size(), iterators2fix);
 
-            bool operator () (const value_type & x, const value_type & y) const
-            {
-                return comp(x.first, y.first);
-            }
-        };
+        const unsigned end_of_smaller_part = size() / 2;
 
-    private:
-        block_type * block_;
-        btree_type * btree_;
+        splitter.first = ((*m_block)[end_of_smaller_part - 1]).first;
+        splitter.second = new_bid;
 
-        key_compare cmp_;
-        value_compare vcmp_;
+        const unsigned old_size = size();
+        // copy the smaller part
+        std::copy(m_block->begin(), m_block->begin() + end_of_smaller_part,
+                  new_leaf->m_block->begin());
+        new_leaf->m_block->info.cur_size = end_of_smaller_part;
+        // copy the larger part
+        std::copy(m_block->begin() + end_of_smaller_part,
+                  m_block->begin() + old_size, m_block->begin());
+        m_block->info.cur_size = old_size - end_of_smaller_part;
+        assert(size() + new_leaf->size() == old_size);
 
-        void split(std::pair<key_type, bid_type> & splitter)
+        // fix iterators
+        for (typename iterators2fix_type::iterator it2fix = iterators2fix.begin();
+             it2fix != iterators2fix.end(); ++it2fix)
         {
-            bid_type NewBid;
-            btree_->leaf_cache_.get_new_node(NewBid);                     // new (left) leaf
-            normal_leaf * NewLeaf = btree_->leaf_cache_.get_node(NewBid, true);
-            assert(NewLeaf);
+            m_btree->m_iterator_map.unregister_iterator(**it2fix);
 
-            // update links
-            NewLeaf->succ() = my_bid();
-            normal_leaf * PredLeaf = NULL;
-            if (pred().valid())
-            {
-                NewLeaf->pred() = pred();
-                PredLeaf = btree_->leaf_cache_.get_node(pred());
-                assert(PredLeaf);
-                assert(vcmp_(PredLeaf->back(), front()));
-                PredLeaf->succ() = NewBid;
-            }
-            pred() = NewBid;
+            if ((*it2fix)->pos < end_of_smaller_part)     // belongs to the smaller part
+                (*it2fix)->bid = new_bid;
 
-            std::vector<iterator_base *> Iterators2Fix;
-            btree_->iterator_map_.find(my_bid(), 0, size(), Iterators2Fix);
+            else
+                (*it2fix)->pos -= end_of_smaller_part;
 
-            const unsigned end_of_smaller_part = size() / 2;
+            m_btree->m_iterator_map.register_iterator(**it2fix);
+        }
 
-            splitter.first = ((*block_)[end_of_smaller_part - 1]).first;
-            splitter.second = NewBid;
-
-            const unsigned old_size = size();
-            // copy the smaller part
-            std::copy(block_->begin(), block_->begin() + end_of_smaller_part, NewLeaf->block_->begin());
-            NewLeaf->block_->info.cur_size = end_of_smaller_part;
-            // copy the larger part
-            std::copy(block_->begin() + end_of_smaller_part,
-                      block_->begin() + old_size, block_->begin());
-            block_->info.cur_size = old_size - end_of_smaller_part;
-            assert(size() + NewLeaf->size() == old_size);
-
-            // fix iterators
-            typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix.begin();
-            for ( ; it2fix != Iterators2Fix.end(); ++it2fix)
-            {
-                btree_->iterator_map_.unregister_iterator(**it2fix);
-
-                if ((*it2fix)->pos < end_of_smaller_part) // belongs to the smaller part
-                    (*it2fix)->bid = NewBid;
-
-                else
-                    (*it2fix)->pos -= end_of_smaller_part;
-
-
-                btree_->iterator_map_.register_iterator(**it2fix);
-            }
-
-
-            STXXL_VERBOSE1("btree::normal_leaf split leaf " << this
-                                                            << " splitter: " << splitter.first);
+        STXXL_VERBOSE1("btree::normal_leaf split leaf " << this
+                                                        << " splitter: " << splitter.first);
 
 #if STXXL_VERBOSE_LEVEL >= 1
-            if (PredLeaf)
-            {
-                STXXL_VERBOSE1("btree::normal_leaf pred_part.smallest    = " << PredLeaf->front().first);
-                STXXL_VERBOSE1("btree::normal_leaf pred_part.largest     = " << PredLeaf->back().first);
-            }
+        if (pred_leaf)
+        {
+            STXXL_VERBOSE1("btree::normal_leaf pred_part.smallest    = " << pred_leaf->front().first);
+            STXXL_VERBOSE1("btree::normal_leaf pred_part.largest     = " << pred_leaf->back().first);
+        }
 #endif
-            STXXL_VERBOSE1("btree::normal_leaf smaller_part.smallest = " << NewLeaf->front().first);
-            STXXL_VERBOSE1("btree::normal_leaf smaller_part.largest  = " << NewLeaf->back().first);
-            STXXL_VERBOSE1("btree::normal_leaf larger_part.smallest  = " << front().first);
-            STXXL_VERBOSE1("btree::normal_leaf larger_part.largest   = " << back().first);
+        STXXL_VERBOSE1("btree::normal_leaf smaller_part.smallest = " << new_leaf->front().first);
+        STXXL_VERBOSE1("btree::normal_leaf smaller_part.largest  = " << new_leaf->back().first);
+        STXXL_VERBOSE1("btree::normal_leaf larger_part.smallest  = " << front().first);
+        STXXL_VERBOSE1("btree::normal_leaf larger_part.largest   = " << back().first);
 
-            btree_->leaf_cache_.unfix_node(NewBid);
-        }
+        m_btree->m_leaf_cache.unfix_node(new_bid);
+    }
 
-    public:
-        virtual ~normal_leaf()
-        {
-            delete block_;
-        }
+public:
+    virtual ~normal_leaf()
+    {
+        delete m_block;
+    }
 
-        normal_leaf(btree_type * btree__,
-                    key_compare cmp) :
-            block_(new block_type),
-            btree_(btree__),
-            cmp_(cmp),
-            vcmp_(cmp)
-        {
-            assert(min_nelements() >= 2);
-            assert(2 * min_nelements() - 1 <= max_nelements());
+    normal_leaf(btree_type* btree,
+                key_compare cmp)
+        : m_block(new block_type),
+          m_btree(btree),
+          m_cmp(cmp),
+          m_vcmp(cmp)
+    {
+        assert(min_nelements() >= 2);
+        assert(2 * min_nelements() - 1 <= max_nelements());
+        assert(max_nelements() <= nelements);
+        assert(unsigned(block_type::size) >= nelements + 1);                       // extra space for an overflow
+    }
+
+    bool overflows() const { return m_block->info.cur_size > max_nelements(); }
+    bool underflows() const { return m_block->info.cur_size < min_nelements(); }
+
+    static unsigned max_nelements() { return max_size; }
+    static unsigned min_nelements() { return min_size; }
+
+    bid_type & succ()
+    {
+        return m_block->info.succ;
+    }
+    bid_type & pred()
+    {
+        return m_block->info.pred;
+    }
+
+    const bid_type & succ() const
+    {
+        return m_block->info.succ;
+    }
+    const bid_type & pred() const
+    {
+        return m_block->info.pred;
+    }
+
+    /*
+       template <class InputIterator>
+       normal_leaf(InputIterator begin_, InputIterator end_,
+            btree_type * btree,
+            key_compare cmp):
+            m_block(new block_type),
+            m_btree(btree),
+            m_cmp(cmp),
+            m_vcmp(cmp)
+       {
+            assert(min_nelements() >=2);
+            assert(2*min_nelements() - 1 <= max_nelements());
             assert(max_nelements() <= nelements);
-            assert(unsigned(block_type::size) >= nelements + 1);                   // extra space for an overflow
+            assert(unsigned(block_type::size) >= nelements +1); // extra space for an overflow element
+
+            unsigned new_size = end_ - begin_;
+            assert(new_size <= max_nelements());
+            assert(new_size >= min_nelements());
+
+            std::copy(begin_,end_,m_block->begin());
+            assert(stxxl::is_sorted(m_block->begin(),m_block->begin() + new_size, m_vcmp));
+            m_block->info.cur_size = new_size;
+       }*/
+
+    unsigned size() const
+    {
+        return m_block->info.cur_size;
+    }
+
+    const bid_type & my_bid() const
+    {
+        return m_block->info.me;
+    }
+
+    void save()
+    {
+        request_ptr req = m_block->write(my_bid());
+        req->wait();
+    }
+
+    request_ptr load(const bid_type& bid)
+    {
+        request_ptr req = m_block->read(bid);
+        req->wait();
+        assert(bid == my_bid());
+        return req;
+    }
+
+    request_ptr prefetch(const bid_type& bid)
+    {
+        return m_block->read(bid);
+    }
+
+    void init(const bid_type& my_bid_)
+    {
+        m_block->info.me = my_bid_;
+        m_block->info.succ = bid_type();
+        m_block->info.pred = bid_type();
+        m_block->info.cur_size = 0;
+    }
+
+    reference operator [] (unsigned_type i)
+    {
+        return (*m_block)[i];
+    }
+
+    const_reference operator [] (unsigned_type i) const
+    {
+        return (*m_block)[i];
+    }
+
+    reference back()
+    {
+        return (*m_block)[size() - 1];
+    }
+
+    reference front()
+    {
+        return *(m_block->begin());
+    }
+
+    const_reference back() const
+    {
+        return (*m_block)[size() - 1];
+    }
+
+    const_reference front() const
+    {
+        return *(m_block->begin());
+    }
+
+    void dump()
+    {
+        STXXL_VERBOSE2("Dump of leaf " << this);
+        for (unsigned i = 0; i < size(); ++i)
+            STXXL_VERBOSE2((*this)[i].first << " " << (*this)[i].second);
+    }
+
+    std::pair<iterator, bool> insert(
+        const value_type& x,
+        std::pair<key_type, bid_type>& splitter)
+    {
+        assert(size() <= max_nelements());
+        splitter.first = key_compare::max_value();
+
+        typename block_type::iterator it =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), x, m_vcmp);
+
+        if (!(m_vcmp(*it, x) || m_vcmp(x, *it)) && it != (m_block->begin() + size()))                    // *it == x
+        {
+            // already exists
+            return std::pair<iterator, bool>(
+                iterator(m_btree, my_bid(), unsigned(it - m_block->begin())),
+                false);
         }
 
-        bool overflows() const { return block_->info.cur_size > max_nelements(); }
-        bool underflows() const { return block_->info.cur_size < min_nelements(); }
+        typename block_type::iterator cur = m_block->begin() + size() - 1;
 
-        unsigned max_nelements() const { return max_size; }
-        unsigned min_nelements() const { return min_size; }
+        for ( ; cur >= it; --cur)
+            *(cur + 1) = *cur;
+        // move elements to make space for the new element
 
+        *it = x;
 
-        bid_type & succ()
+        std::vector<iterator_base*> iterators2fix;
+        m_btree->m_iterator_map.find(my_bid(), unsigned(it - m_block->begin()), size(), iterators2fix);
+        typename std::vector<iterator_base*>::iterator it2fix = iterators2fix.begin();
+        for ( ; it2fix != iterators2fix.end(); ++it2fix)
         {
-            return block_->info.succ;
-        }
-        bid_type & pred()
-        {
-            return block_->info.pred;
-        }
-
-        const bid_type & succ() const
-        {
-            return block_->info.succ;
-        }
-        const bid_type & pred() const
-        {
-            return block_->info.pred;
+            m_btree->m_iterator_map.unregister_iterator(**it2fix);
+            ++((*it2fix)->pos);                          // fixing iterators
+            m_btree->m_iterator_map.register_iterator(**it2fix);
         }
 
-        /*
-           template <class InputIterator>
-           normal_leaf(InputIterator begin_, InputIterator end_,
-                btree_type * btree__,
-                key_compare cmp):
-                block_(new block_type),
-                btree_(btree__),
-                cmp_(cmp),
-                vcmp_(cmp)
-           {
-                assert(min_nelements() >=2);
-                assert(2*min_nelements() - 1 <= max_nelements());
-                assert(max_nelements() <= nelements);
-                assert(unsigned(block_type::size) >= nelements +1); // extra space for an overflow element
+        ++(m_block->info.cur_size);
 
-                unsigned new_size = end_ - begin_;
-                assert(new_size <= max_nelements());
-                assert(new_size >= min_nelements());
+        std::pair<iterator, bool> result(iterator(m_btree, my_bid(), unsigned(it - m_block->begin())), true);
 
-                std::copy(begin_,end_,block_->begin());
-                assert(stxxl::is_sorted(block_->begin(),block_->begin() + new_size, vcmp_));
-                block_->info.cur_size = new_size;
-           }*/
-
-        unsigned size() const
+        if (size() <= max_nelements())
         {
-            return block_->info.cur_size;
-        }
-
-        const bid_type & my_bid() const
-        {
-            return block_->info.me;
-        }
-
-        void save()
-        {
-            request_ptr req = block_->write(my_bid());
-            req->wait();
-        }
-
-        request_ptr load(const bid_type & bid)
-        {
-            request_ptr req = block_->read(bid);
-            req->wait();
-            assert(bid == my_bid());
-            return req;
-        }
-
-        request_ptr prefetch(const bid_type & bid)
-        {
-            return block_->read(bid);
-        }
-
-        void init(const bid_type & my_bid_)
-        {
-            block_->info.me = my_bid_;
-            block_->info.succ = bid_type();
-            block_->info.pred = bid_type();
-            block_->info.cur_size = 0;
-        }
-
-        reference operator [] (int i)
-        {
-            return (*block_)[i];
-        }
-
-        const_reference operator [] (int i) const
-        {
-            return (*block_)[i];
-        }
-
-        reference back()
-        {
-            return (*block_)[size() - 1];
-        }
-
-        reference front()
-        {
-            return *(block_->begin());
-        }
-
-        const_reference back() const
-        {
-            return (*block_)[size() - 1];
-        }
-
-        const_reference front() const
-        {
-            return *(block_->begin());
-        }
-
-        void dump()
-        {
-            STXXL_VERBOSE2("Dump of leaf " << this);
-            for (unsigned i = 0; i < size(); ++i)
-                STXXL_VERBOSE2((*this)[i].first << " " << (*this)[i].second);
-        }
-
-        std::pair<iterator, bool> insert(
-            const value_type & x,
-            std::pair<key_type, bid_type> & splitter)
-        {
-            assert(size() <= max_nelements());
-            splitter.first = key_compare::max_value();
-
-            typename block_type::iterator it =
-                std::lower_bound(block_->begin(), block_->begin() + size(), x, vcmp_);
-
-            if (!(vcmp_(*it, x) || vcmp_(x, *it)) && it != (block_->begin() + size()))                // *it == x
-            {
-                // already exists
-                return std::pair<iterator, bool>(
-                           iterator(btree_, my_bid(), it - block_->begin()),
-                           false);
-            }
-
-            typename block_type::iterator cur = block_->begin() + size() - 1;
-
-            for ( ; cur >= it; --cur)
-                *(cur + 1) = *cur;
-            // move elements to make space for the new element
-
-            *it = x;
-
-            std::vector<iterator_base *> Iterators2Fix;
-            btree_->iterator_map_.find(my_bid(), it - block_->begin(), size(), Iterators2Fix);
-            typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix.begin();
-            for ( ; it2fix != Iterators2Fix.end(); ++it2fix)
-            {
-                btree_->iterator_map_.unregister_iterator(**it2fix);
-                ++((*it2fix)->pos);                        // fixing iterators
-                btree_->iterator_map_.register_iterator(**it2fix);
-            }
-
-            ++(block_->info.cur_size);
-
-            std::pair<iterator, bool> result(iterator(btree_, my_bid(), it - block_->begin()), true);
-
-            if (size() <= max_nelements())
-            {
-                // no overflow
-                dump();
-                return result;
-            }
-
-            // overflow
-
-            split(splitter);
-
+            // no overflow
+            dump();
             return result;
         }
 
-        iterator begin()
+        // overflow
+
+        split(splitter);
+
+        return result;
+    }
+
+    iterator begin()
+    {
+        return iterator(m_btree, my_bid(), 0);
+    }
+
+    const_iterator begin() const
+    {
+        return const_iterator(m_btree, my_bid(), 0);
+    }
+
+    iterator end()
+    {
+        return iterator(m_btree, my_bid(), size());
+    }
+
+    void increment_iterator(iterator_base& it) const
+    {
+        assert(it.bid == my_bid());
+        assert(it.pos != size());
+
+        m_btree->m_iterator_map.unregister_iterator(it);
+
+        ++(it.pos);
+        if (it.pos == size() && succ().valid())
         {
-            return iterator(btree_, my_bid(), 0);
+            // run to the end of the leaf
+            STXXL_VERBOSE1("btree::normal_leaf jumping to the next block");
+            it.pos = 0;
+            it.bid = succ();
+        }
+        // increment of pos from 0 to 1
+        else if (it.pos == 1 && m_btree->m_prefetching_enabled)
+        {
+            // prefetch the succ leaf
+            if (succ().valid())
+                m_btree->m_leaf_cache.prefetch_node(succ());
+        }
+        m_btree->m_iterator_map.register_iterator(it);
+    }
+
+    void decrement_iterator(iterator_base& it) const
+    {
+        assert(it.bid == my_bid());
+
+        m_btree->m_iterator_map.unregister_iterator(it);
+
+        if (it.pos == 0)
+        {
+            assert(pred().valid());
+
+            it.bid = pred();
+            normal_leaf const* pred_leaf = m_btree->m_leaf_cache.get_const_node(pred(), true);
+            assert(pred_leaf);
+            it.pos = pred_leaf->size() - 1;
+
+            // prefetch the pred leaf of pred_leaf
+            if (m_btree->m_prefetching_enabled && pred_leaf->pred().valid())
+                m_btree->m_leaf_cache.prefetch_node(pred_leaf->pred());
+
+            m_btree->m_leaf_cache.unfix_node(pred());
+        }
+        else
+            --it.pos;
+
+        m_btree->m_iterator_map.register_iterator(it);
+    }
+
+    iterator find(const key_type& k)
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator lb =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+        if (lb == m_block->begin() + size() || lb->first != k)
+            return m_btree->end();
+
+        return iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    const_iterator find(const key_type& k) const
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator lb =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+        if (lb == m_block->begin() + size() || lb->first != k)
+            return m_btree->end();
+
+        return const_iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    iterator lower_bound(const key_type& k)
+    {
+        value_type search_val(k, data_type());
+
+        typename block_type::iterator lb =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+
+        // lower_bound is in the succ block
+        if (lb == m_block->begin() + size() && succ().valid())
+        {
+            return iterator(m_btree, succ(), 0);
         }
 
-        const_iterator begin() const
+        return iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    const_iterator lower_bound(const key_type& k) const
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator lb =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+
+        // lower_bound is in the succ block
+        if (lb == m_block->begin() + size() && succ().valid())
         {
-            return const_iterator(btree_, my_bid(), 0);
+            return iterator(m_btree, succ(), 0);
         }
 
-        iterator end()
+        return const_iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    iterator upper_bound(const key_type& k)
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator lb =
+            std::upper_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+
+        // upper_bound is in the succ block
+        if (lb == m_block->begin() + size() && succ().valid())
         {
-            return iterator(btree_, my_bid(), size());
+            return iterator(m_btree, succ(), 0);
         }
 
-        void increment_iterator(iterator_base & it) const
+        return iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    const_iterator upper_bound(const key_type& k) const
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator lb =
+            std::upper_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+
+        // upper_bound is in the succ block
+        if (lb == m_block->begin() + size() && succ().valid())
         {
-            assert(it.bid == my_bid());
-            assert(it.pos != size());
-
-            btree_->iterator_map_.unregister_iterator(it);
-
-            ++(it.pos);
-            if (it.pos == size() && succ().valid())
-            {
-                // run to the end of the leaf
-                STXXL_VERBOSE1("btree::normal_leaf jumping to the next block");
-                it.pos = 0;
-                it.bid = succ();
-            } else if (it.pos == 1 && btree_->prefetching_enabled_)                    // increment of pos from 0 to 1
-            {
-                // prefetch the succ leaf
-                if (succ().valid())
-                    btree_->leaf_cache_.prefetch_node(succ());
-            }
-            btree_->iterator_map_.register_iterator(it);
+            return const_iterator(m_btree, succ(), 0);
         }
 
-        void decrement_iterator(iterator_base & it) const
+        return const_iterator(m_btree, my_bid(), unsigned(lb - m_block->begin()));
+    }
+
+    size_type erase(const key_type& k)
+    {
+        value_type search_val(k, data_type());
+        typename block_type::iterator it =
+            std::lower_bound(m_block->begin(), m_block->begin() + size(), search_val, m_vcmp);
+
+        if (it == m_block->begin() + size() || it->first != k)
+            return 0;
+        // no such element
+
+        // move elements one position left
+        std::copy(it + 1, m_block->begin() + size(), it);
+
+        std::vector<iterator_base*> iterators2fix;
+        m_btree->m_iterator_map.find(my_bid(), unsigned(it + 1 - m_block->begin()), size(), iterators2fix);
+        typename std::vector<iterator_base*>::iterator it2fix = iterators2fix.begin();
+        for ( ; it2fix != iterators2fix.end(); ++it2fix)
         {
-            assert(it.bid == my_bid());
-
-            btree_->iterator_map_.unregister_iterator(it);
-
-            if (it.pos == 0)
-            {
-                assert(pred().valid());
-
-                it.bid = pred();
-                normal_leaf const * PredLeaf = btree_->leaf_cache_.get_const_node(pred(), true);
-                assert(PredLeaf);
-                it.pos = PredLeaf->size() - 1;
-
-                // prefetch the pred leaf of PredLeaf
-                if (btree_->prefetching_enabled_ && PredLeaf->pred().valid())
-                    btree_->leaf_cache_.prefetch_node(PredLeaf->pred());
-
-
-                btree_->leaf_cache_.unfix_node(pred());
-            }
-            else
-                --it.pos;
-
-
-            btree_->iterator_map_.register_iterator(it);
+            STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) << " (pos--)");
+            m_btree->m_iterator_map.unregister_iterator(**it2fix);
+            --((*it2fix)->pos);                          // fixing iterators
+            m_btree->m_iterator_map.register_iterator(**it2fix);
         }
 
-        iterator find(const key_type & k)
+        --(m_block->info.cur_size);
+
+        return 1;
+    }
+
+    void fuse(const normal_leaf& src)
+    {
+        STXXL_VERBOSE1("btree::normal_leaf Fusing");
+        assert(m_vcmp(src.back(), front()));
+        const unsigned src_size = src.size();
+
+        typename block_type::iterator cur = m_block->begin() + size() - 1;
+        typename block_type::const_iterator begin = m_block->begin();
+
+        for ( ; cur >= begin; --cur)
+            *(cur + src_size) = *cur;
+        // move elements to make space for Src elements
+
+        // copy Src to *this leaf
+        std::copy(src.m_block->begin(), src.m_block->begin() + src_size, m_block->begin());
+
+        std::vector<iterator_base*> iterators2fix;
+        m_btree->m_iterator_map.find(my_bid(), 0, size(), iterators2fix);
+        typename std::vector<iterator_base*>::iterator it2fix = iterators2fix.begin();
+        for ( ; it2fix != iterators2fix.end(); ++it2fix)
         {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator lb =
-                std::lower_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-            if (lb == block_->begin() + size() || lb->first != k)
-                return btree_->end();
-
-
-            return iterator(btree_, my_bid(), lb - block_->begin());
+            STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
+                           " (pos+" << src_size << ")");
+            m_btree->m_iterator_map.unregister_iterator(**it2fix);
+            ((*it2fix)->pos) += src_size;                           // fixing iterators
+            m_btree->m_iterator_map.register_iterator(**it2fix);
         }
 
-        const_iterator find(const key_type & k) const
+        iterators2fix.clear();
+        m_btree->m_iterator_map.find(src.my_bid(), 0, src_size, iterators2fix);
+        for (it2fix = iterators2fix.begin(); it2fix != iterators2fix.end(); ++it2fix)
         {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator lb =
-                std::lower_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-            if (lb == block_->begin() + size() || lb->first != k)
-                return btree_->end();
-
-
-            return const_iterator(btree_, my_bid(), lb - block_->begin());
+            STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
+                           " (bid=" << my_bid() << ")");
+            m_btree->m_iterator_map.unregister_iterator(**it2fix);
+            ((*it2fix)->bid) = my_bid();                             // fixing iterators
+            m_btree->m_iterator_map.register_iterator(**it2fix);
         }
 
-        iterator lower_bound(const key_type & k)
-        {
-            value_type searchVal(k, data_type());
+        m_block->info.cur_size += src_size;
 
-            typename block_type::iterator lb =
-                std::lower_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-
-            // lower_bound is in the succ block
-            if (lb == block_->begin() + size() && succ().valid())
-            {
-                return iterator(btree_, succ(), 0);
-            }
-
-            return iterator(btree_, my_bid(), lb - block_->begin());
+        // update links
+        pred() = src.pred();
+        if (pred().valid())
+        {                         // update successor link
+            normal_leaf* new_pred = m_btree->m_leaf_cache.get_node(pred());
+            assert(new_pred);
+            new_pred->succ() = my_bid();
         }
+    }
 
-        const_iterator lower_bound(const key_type & k) const
+    key_type balance(normal_leaf& left)
+    {
+        STXXL_VERBOSE1("btree::normal_leaf Balancing leaves with bids " <<
+                       left.my_bid() << " and " << my_bid());
+        const unsigned total_size = left.size() + size();
+        unsigned new_left_size = total_size / 2;
+        assert(new_left_size <= left.max_nelements());
+        assert(new_left_size >= left.min_nelements());
+        unsigned new_right_size = total_size - new_left_size;
+        assert(new_right_size <= max_nelements());
+        assert(new_right_size >= min_nelements());
+
+        assert(m_vcmp(left.back(), front()) || size() == 0);
+
+        if (new_left_size < left.size())
         {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator lb =
-                std::lower_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
+            // #elements to move from left to *this
+            const unsigned nEl2Move = left.size() - new_left_size;
 
-            // lower_bound is in the succ block
-            if (lb == block_->begin() + size() && succ().valid())
-            {
-                return iterator(btree_, succ(), 0);
-            }
-
-            return const_iterator(btree_, my_bid(), lb - block_->begin());
-        }
-
-        iterator upper_bound(const key_type & k)
-        {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator lb =
-                std::upper_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-
-            // upper_bound is in the succ block
-            if (lb == block_->begin() + size() && succ().valid())
-            {
-                return iterator(btree_, succ(), 0);
-            }
-
-            return iterator(btree_, my_bid(), lb - block_->begin());
-        }
-
-        const_iterator upper_bound(const key_type & k) const
-        {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator lb =
-                std::upper_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-
-            // upper_bound is in the succ block
-            if (lb == block_->begin() + size() && succ().valid())
-            {
-                return const_iterator(btree_, succ(), 0);
-            }
-
-            return const_iterator(btree_, my_bid(), lb - block_->begin());
-        }
-
-        size_type erase(const key_type & k)
-        {
-            value_type searchVal(k, data_type());
-            typename block_type::iterator it =
-                std::lower_bound(block_->begin(), block_->begin() + size(), searchVal, vcmp_);
-
-            if (it == block_->begin() + size() || it->first != k)
-                return 0;
-            // no such element
-
-            // move elements one position left
-            std::copy(it + 1, block_->begin() + size(), it);
-
-            std::vector<iterator_base *> Iterators2Fix;
-            btree_->iterator_map_.find(my_bid(), it + 1 - block_->begin(), size(), Iterators2Fix);
-            typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix.begin();
-            for ( ; it2fix != Iterators2Fix.end(); ++it2fix)
-            {
-                STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) << " (pos--)");
-                btree_->iterator_map_.unregister_iterator(**it2fix);
-                --((*it2fix)->pos);                        // fixing iterators
-                btree_->iterator_map_.register_iterator(**it2fix);
-            }
-
-            --(block_->info.cur_size);
-
-            return 1;
-        }
-
-        void fuse(const normal_leaf & Src)
-        {
-            STXXL_VERBOSE1("btree::normal_leaf Fusing");
-            assert(vcmp_(Src.back(), front()));
-            const unsigned SrcSize = Src.size();
-
-            typename block_type::iterator cur = block_->begin() + size() - 1;
-            typename block_type::const_iterator begin = block_->begin();
+            typename block_type::iterator cur = m_block->begin() + size() - 1;
+            typename block_type::const_iterator begin = m_block->begin();
 
             for ( ; cur >= begin; --cur)
-                *(cur + SrcSize) = *cur;
+                *(cur + nEl2Move) = *cur;
             // move elements to make space for Src elements
 
-            // copy Src to *this leaf
-            std::copy(Src.block_->begin(), Src.block_->begin() + SrcSize, block_->begin());
+            // copy Left to *this leaf
+            std::copy(left.m_block->begin() + new_left_size,
+                      left.m_block->begin() + left.size(), m_block->begin());
 
+            std::vector<iterator_base*> iterators2fix1;
+            std::vector<iterator_base*> iterators2fix2;
+            m_btree->m_iterator_map.find(my_bid(), 0, size(), iterators2fix1);
+            m_btree->m_iterator_map.find(left.my_bid(), new_left_size, left.size(), iterators2fix2);
 
-            std::vector<iterator_base *> Iterators2Fix;
-            btree_->iterator_map_.find(my_bid(), 0, size(), Iterators2Fix);
-            typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix.begin();
-            for ( ; it2fix != Iterators2Fix.end(); ++it2fix)
+            typename std::vector<iterator_base*>::iterator it2fix = iterators2fix1.begin();
+            for ( ; it2fix != iterators2fix1.end(); ++it2fix)
             {
                 STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                               " (pos+" << SrcSize << ")");
-                btree_->iterator_map_.unregister_iterator(**it2fix);
-                ((*it2fix)->pos) += SrcSize;                       // fixing iterators
-                btree_->iterator_map_.register_iterator(**it2fix);
+                               " (pos+" << nEl2Move << ")");
+                m_btree->m_iterator_map.unregister_iterator(**it2fix);
+                ((*it2fix)->pos) += nEl2Move;                               // fixing iterators
+                m_btree->m_iterator_map.register_iterator(**it2fix);
             }
 
-            Iterators2Fix.clear();
-            btree_->iterator_map_.find(Src.my_bid(), 0, SrcSize, Iterators2Fix);
-            it2fix = Iterators2Fix.begin();
-            for ( ; it2fix != Iterators2Fix.end(); ++it2fix)
+            it2fix = iterators2fix2.begin();
+            for ( ; it2fix != iterators2fix2.end(); ++it2fix)
             {
                 STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                               " (bid=" << my_bid() << ")");
-                btree_->iterator_map_.unregister_iterator(**it2fix);
-                ((*it2fix)->bid) = my_bid();                         // fixing iterators
-                btree_->iterator_map_.register_iterator(**it2fix);
-            }
-
-            block_->info.cur_size += SrcSize;
-
-            // update links
-            pred() = Src.pred();
-            if (pred().valid())
-            {                     // update successor link
-                normal_leaf * NewPred = btree_->leaf_cache_.get_node(pred());
-                assert(NewPred);
-                NewPred->succ() = my_bid();
+                               " (pos-" << new_left_size << " bid=" << my_bid() << ")");
+                m_btree->m_iterator_map.unregister_iterator(**it2fix);
+                ((*it2fix)->bid) = my_bid();                                     // fixing iterators
+                ((*it2fix)->pos) -= new_left_size;                               // fixing iterators
+                m_btree->m_iterator_map.register_iterator(**it2fix);
             }
         }
-
-        key_type balance(normal_leaf & Left)
+        else
         {
-            STXXL_VERBOSE1("btree::normal_leaf Balancing leaves with bids " <<
-                           Left.my_bid() << " and " << my_bid());
-            const unsigned TotalSize = Left.size() + size();
-            unsigned newLeftSize = TotalSize / 2;
-            assert(newLeftSize <= Left.max_nelements());
-            assert(newLeftSize >= Left.min_nelements());
-            unsigned newRightSize = TotalSize - newLeftSize;
-            assert(newRightSize <= max_nelements());
-            assert(newRightSize >= min_nelements());
+            assert(new_right_size < size());
 
-            assert(vcmp_(Left.back(), front()) || size() == 0);
+            const unsigned nEl2Move = size() - new_right_size;                            // #elements to move from *this to Left
 
-            if (newLeftSize < Left.size())
+            // copy *this to Left
+            std::copy(m_block->begin(),
+                      m_block->begin() + nEl2Move, left.m_block->begin() + left.size());
+            // move elements in *this
+            std::copy(m_block->begin() + nEl2Move,
+                      m_block->begin() + size(), m_block->begin());
+
+            std::vector<iterator_base*> iterators2fix1;
+            std::vector<iterator_base*> iterators2fix2;
+            m_btree->m_iterator_map.find(my_bid(), nEl2Move, size(), iterators2fix1);
+            m_btree->m_iterator_map.find(my_bid(), 0, nEl2Move - 1, iterators2fix2);
+
+            typename std::vector<iterator_base*>::iterator it2fix = iterators2fix1.begin();
+            for ( ; it2fix != iterators2fix1.end(); ++it2fix)
             {
-                const unsigned nEl2Move = Left.size() - newLeftSize;                        // #elements to move from Left to *this
-
-                typename block_type::iterator cur = block_->begin() + size() - 1;
-                typename block_type::const_iterator begin = block_->begin();
-
-                for ( ; cur >= begin; --cur)
-                    *(cur + nEl2Move) = *cur;
-                // move elements to make space for Src elements
-
-                // copy Left to *this leaf
-                std::copy(Left.block_->begin() + newLeftSize,
-                          Left.block_->begin() + Left.size(), block_->begin());
-
-                std::vector<iterator_base *> Iterators2Fix1;
-                std::vector<iterator_base *> Iterators2Fix2;
-                btree_->iterator_map_.find(my_bid(), 0, size(), Iterators2Fix1);
-                btree_->iterator_map_.find(Left.my_bid(), newLeftSize, Left.size(), Iterators2Fix2);
-
-                typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix1.begin();
-                for ( ; it2fix != Iterators2Fix1.end(); ++it2fix)
-                {
-                    STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                                   " (pos+" << nEl2Move << ")");
-                    btree_->iterator_map_.unregister_iterator(**it2fix);
-                    ((*it2fix)->pos) += nEl2Move;                           // fixing iterators
-                    btree_->iterator_map_.register_iterator(**it2fix);
-                }
-
-
-                it2fix = Iterators2Fix2.begin();
-                for ( ; it2fix != Iterators2Fix2.end(); ++it2fix)
-                {
-                    STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                                   " (pos-" << newLeftSize << " bid=" << my_bid() << ")");
-                    btree_->iterator_map_.unregister_iterator(**it2fix);
-                    ((*it2fix)->bid) = my_bid();                                 // fixing iterators
-                    ((*it2fix)->pos) -= newLeftSize;                             // fixing iterators
-                    btree_->iterator_map_.register_iterator(**it2fix);
-                }
-            }
-            else
-            {
-                assert(newRightSize < size());
-
-                const unsigned nEl2Move = size() - newRightSize;                        // #elements to move from *this to Left
-
-                // copy *this to Left
-                std::copy(block_->begin(),
-                          block_->begin() + nEl2Move, Left.block_->begin() + Left.size());
-                // move elements in *this
-                std::copy(block_->begin() + nEl2Move,
-                          block_->begin() + size(), block_->begin());
-
-                std::vector<iterator_base *> Iterators2Fix1;
-                std::vector<iterator_base *> Iterators2Fix2;
-                btree_->iterator_map_.find(my_bid(), nEl2Move, size(), Iterators2Fix1);
-                btree_->iterator_map_.find(my_bid(), 0, nEl2Move - 1, Iterators2Fix2);
-
-                typename std::vector<iterator_base *>::iterator it2fix = Iterators2Fix1.begin();
-                for ( ; it2fix != Iterators2Fix1.end(); ++it2fix)
-                {
-                    STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                                   " (pos-" << nEl2Move << ")");
-                    btree_->iterator_map_.unregister_iterator(**it2fix);
-                    ((*it2fix)->pos) -= nEl2Move;                             // fixing iterators
-                    btree_->iterator_map_.register_iterator(**it2fix);
-                }
-
-
-                it2fix = Iterators2Fix2.begin();
-                for ( ; it2fix != Iterators2Fix2.end(); ++it2fix)
-                {
-                    STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
-                                   " (pos+" << Left.size() << " bid=" << Left.my_bid() << ")");
-                    btree_->iterator_map_.unregister_iterator(**it2fix);
-                    ((*it2fix)->bid) = Left.my_bid();                             // fixing iterators
-                    ((*it2fix)->pos) += Left.size();                              // fixing iterators
-                    btree_->iterator_map_.register_iterator(**it2fix);
-                }
+                STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
+                               " (pos-" << nEl2Move << ")");
+                m_btree->m_iterator_map.unregister_iterator(**it2fix);
+                ((*it2fix)->pos) -= nEl2Move;                                 // fixing iterators
+                m_btree->m_iterator_map.register_iterator(**it2fix);
             }
 
-            block_->info.cur_size = newRightSize;                         // update size
-            Left.block_->info.cur_size = newLeftSize;                     // update size
-
-            return Left.back().first;
+            it2fix = iterators2fix2.begin();
+            for ( ; it2fix != iterators2fix2.end(); ++it2fix)
+            {
+                STXXL_VERBOSE2("btree::normal_leaf updating iterator " << (*it2fix) <<
+                               " (pos+" << left.size() << " bid=" << left.my_bid() << ")");
+                m_btree->m_iterator_map.unregister_iterator(**it2fix);
+                ((*it2fix)->bid) = left.my_bid();                                 // fixing iterators
+                ((*it2fix)->pos) += left.size();                                  // fixing iterators
+                m_btree->m_iterator_map.register_iterator(**it2fix);
+            }
         }
 
-        void push_back(const value_type & x)
-        {
-            (*this)[size()] = x;
-            ++(block_->info.cur_size);
-        }
-    };
-}
+        m_block->info.cur_size = new_right_size;                             // update size
+        left.m_block->info.cur_size = new_left_size;                         // update size
 
+        return left.back().first;
+    }
 
-__STXXL_END_NAMESPACE
+    void push_back(const value_type& x)
+    {
+        (*this)[size()] = x;
+        ++(m_block->info.cur_size);
+    }
+};
 
-#endif /* STXXL_CONTAINERS_BTREE__LEAF_H */
+} // namespace btree
+
+STXXL_END_NAMESPACE
+
+#endif // !STXXL_CONTAINERS_BTREE_LEAF_HEADER

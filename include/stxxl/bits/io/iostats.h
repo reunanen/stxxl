@@ -12,15 +12,12 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_IOSTATS_HEADER
-#define STXXL_IOSTATS_HEADER
+#ifndef STXXL_IO_IOSTATS_HEADER
+#define STXXL_IO_IOSTATS_HEADER
 
 #ifndef STXXL_IO_STATS
  #define STXXL_IO_STATS 1
 #endif
-
-
-#include <iostream>
 
 #include <stxxl/bits/namespace.h>
 #include <stxxl/bits/deprecated.h>
@@ -31,14 +28,16 @@
 #include <stxxl/bits/unused.h>
 #include <stxxl/bits/singleton.h>
 
+#include <iostream>
+#include <string>
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \addtogroup iolayer
 //!
 //! \{
 
-//! \brief Collects various I/O statistics
+//! Collects various I/O statistics.
 //! \remarks is a singleton
 class stats : public singleton<stats>
 {
@@ -262,102 +261,100 @@ public:
     };
 
 public:
-    //! \brief Returns total number of reads
+    //! Returns total number of reads.
     //! \return total number of reads
     unsigned get_reads() const
     {
         return reads;
     }
 
-    //! \brief Returns total number of writes
+    //! Returns total number of writes.
     //! \return total number of writes
     unsigned get_writes() const
     {
         return writes;
     }
 
-    //! \brief Returns number of bytes read from disks
+    //! Returns number of bytes read from disks.
     //! \return number of bytes read
     int64 get_read_volume() const
     {
         return volume_read;
     }
 
-    //! \brief Returns number of bytes written to the disks
+    //! Returns number of bytes written to the disks.
     //! \return number of bytes written
     int64 get_written_volume() const
     {
         return volume_written;
     }
 
-    //! \brief Returns total number of reads served from cache
+    //! Returns total number of reads served from cache.
     //! \return total number of cached reads
     unsigned get_cached_reads() const
     {
         return c_reads;
     }
 
-    //! \brief Returns total number of cached writes
+    //! Returns total number of cached writes.
     //! \return total number of cached writes
     unsigned get_cached_writes() const
     {
         return c_writes;
     }
 
-    //! \brief Returns number of bytes read from cache
+    //! Returns number of bytes read from cache.
     //! \return number of bytes read from cache
     int64 get_cached_read_volume() const
     {
         return c_volume_read;
     }
 
-    //! \brief Returns number of bytes written to the cache
+    //! Returns number of bytes written to the cache.
     //! \return number of bytes written to cache
     int64 get_cached_written_volume() const
     {
         return c_volume_written;
     }
 
-    //! \brief Time that would be spent in read syscalls if all parallel reads were serialized.
+    //! Time that would be spent in read syscalls if all parallel reads were serialized.
     //! \return seconds spent in reading
     double get_read_time() const
     {
         return t_reads;
     }
 
-    //! \brief Time that would be spent in write syscalls if all parallel writes were serialized.
+    //! Time that would be spent in write syscalls if all parallel writes were serialized.
     //! \return seconds spent in writing
     double get_write_time() const
     {
         return t_writes;
     }
 
-    //! \brief Period of time when at least one I/O thread was executing a read.
+    //! Period of time when at least one I/O thread was executing a read.
     //! \return seconds spent in reading
     double get_pread_time() const
     {
         return p_reads;
     }
 
-    //! \brief Period of time when at least one I/O thread was executing a write.
+    //! Period of time when at least one I/O thread was executing a write.
     //! \return seconds spent in writing
     double get_pwrite_time() const
     {
         return p_writes;
     }
 
-    //! \brief Period of time when at least one I/O thread was executing a read or a write.
+    //! Period of time when at least one I/O thread was executing a read or a write.
     //! \return seconds spent in I/O
     double get_pio_time() const
     {
         return p_ios;
     }
 
-    //! \brief I/O wait time counter
-    //! \return number of seconds spent in I/O waiting functions
-    //!  \link request::wait request::wait \endlink,
-    //!  \c wait_any and
-    //!  \c wait_all
+    //! I/O wait time counter.
+    //! \return number of seconds spent in I/O waiting functions \link
+    //! request::wait request::wait \endlink, \c wait_any and \c wait_all
     double get_io_wait_time() const
     {
         return t_waits;
@@ -373,7 +370,7 @@ public:
         return t_wait_write;
     }
 
-    //! \brief Return time of the last reset
+    //! Return time of the last reset.
     //! \return seconds passed from the last reset()
     double get_last_reset_time() const
     {
@@ -381,12 +378,12 @@ public:
     }
 
 #ifndef STXXL_IO_STATS_RESET_FORBIDDEN
-    //! \brief Resets I/O time counters (including I/O wait counter)
-    _STXXL_DEPRECATED(void reset());
+    //! Resets I/O time counters (including I/O wait counter).
+    STXXL_DEPRECATED(void reset());
 #endif
 
-    //! \brief Resets I/O wait time counter
-    _STXXL_DEPRECATED(void _reset_io_wait_time());
+    //! Resets I/O wait time counter.
+    STXXL_DEPRECATED(void _reset_io_wait_time());
 
     // for library use
     void write_started(unsigned_type size_, double now = 0.0);
@@ -428,62 +425,69 @@ inline void stats::wait_started(wait_op_type) { }
 inline void stats::wait_finished(wait_op_type) { }
 #endif
 
-
 class stats_data
 {
-    unsigned reads, writes;                    // number of operations
-    int64 volume_read, volume_written;         // number of bytes read/written
-    unsigned c_reads, c_writes;                // number of cached operations
-    int64 c_volume_read, c_volume_written;     // number of bytes read/written from/to cache
-    double t_reads, t_writes;                  // seconds spent in operations
-    double p_reads, p_writes;                  // seconds spent in parallel operations
-    double p_ios;                              // seconds spent in all parallel I/O operations (read and write)
-    double t_wait;                             // seconds spent waiting for completion of I/O operations
-    double t_wait_read, t_wait_write;          //
+    //! number of operations
+    unsigned reads, writes;
+    //! number of bytes read/written
+    int64 volume_read, volume_written;
+    //! number of cached operations
+    unsigned c_reads, c_writes;
+    //! number of bytes read/written from/to cache
+    int64 c_volume_read, c_volume_written;
+    //! seconds spent in operations
+    double t_reads, t_writes;
+    //! seconds spent in parallel operations
+    double p_reads, p_writes;
+    //! seconds spent in all parallel I/O operations (read and write)
+    double p_ios;
+    //! seconds spent waiting for completion of I/O operations
+    double t_wait;
+    double t_wait_read, t_wait_write;
     double elapsed;
 
 public:
-    stats_data() :
-        reads(0),
-        writes(0),
-        volume_read(0),
-        volume_written(0),
-        c_reads(0),
-        c_writes(0),
-        c_volume_read(0),
-        c_volume_written(0),
-        t_reads(0.0),
-        t_writes(0.0),
-        p_reads(0.0),
-        p_writes(0.0),
-        p_ios(0.0),
-        t_wait(0.0),
-        t_wait_read(0.0),
-        t_wait_write(0.0),
-        elapsed(0.0)
+    stats_data()
+        : reads(0),
+          writes(0),
+          volume_read(0),
+          volume_written(0),
+          c_reads(0),
+          c_writes(0),
+          c_volume_read(0),
+          c_volume_written(0),
+          t_reads(0.0),
+          t_writes(0.0),
+          p_reads(0.0),
+          p_writes(0.0),
+          p_ios(0.0),
+          t_wait(0.0),
+          t_wait_read(0.0),
+          t_wait_write(0.0),
+          elapsed(0.0)
     { }
 
-    stats_data(const stats & s) :
-        reads(s.get_reads()),
-        writes(s.get_writes()),
-        volume_read(s.get_read_volume()),
-        volume_written(s.get_written_volume()),
-        c_reads(s.get_cached_reads()),
-        c_writes(s.get_cached_writes()),
-        c_volume_read(s.get_cached_read_volume()),
-        c_volume_written(s.get_cached_written_volume()),
-        t_reads(s.get_read_time()),
-        t_writes(s.get_write_time()),
-        p_reads(s.get_pread_time()),
-        p_writes(s.get_pwrite_time()),
-        p_ios(s.get_pio_time()),
-        t_wait(s.get_io_wait_time()),
-        t_wait_read(s.get_wait_read_time()),
-        t_wait_write(s.get_wait_write_time()),
-        elapsed(timestamp() - s.get_last_reset_time())
+    stats_data(const stats& s)
+        : reads(s.get_reads()),
+          writes(s.get_writes()),
+          volume_read(s.get_read_volume()),
+          volume_written(s.get_written_volume()),
+          c_reads(s.get_cached_reads()),
+          c_writes(s.get_cached_writes()),
+          c_volume_read(s.get_cached_read_volume()),
+          c_volume_written(s.get_cached_written_volume()),
+          t_reads(s.get_read_time()),
+          t_writes(s.get_write_time()),
+          p_reads(s.get_pread_time()),
+          p_writes(s.get_pwrite_time()),
+          p_ios(s.get_pio_time()),
+          t_wait(s.get_io_wait_time()),
+          t_wait_read(s.get_wait_read_time()),
+          t_wait_write(s.get_wait_write_time()),
+          elapsed(timestamp() - s.get_last_reset_time())
     { }
 
-    stats_data operator + (const stats_data & a) const
+    stats_data operator + (const stats_data& a) const
     {
         stats_data s;
         s.reads = reads + a.reads;
@@ -506,7 +510,7 @@ public:
         return s;
     }
 
-    stats_data operator - (const stats_data & a) const
+    stats_data operator - (const stats_data& a) const
     {
         stats_data s;
         s.reads = reads - a.reads;
@@ -615,29 +619,29 @@ public:
     }
 };
 
-std::ostream & operator << (std::ostream & o, const stats_data & s);
+std::ostream& operator << (std::ostream& o, const stats_data& s);
 
-inline std::ostream & operator << (std::ostream & o, const stats & s)
+inline std::ostream& operator << (std::ostream& o, const stats& s)
 {
     o << stxxl::stats_data(s);
     return o;
 }
 
-std::string format_with_SI_IEC_unit_multiplier(uint64 number, const char * unit = "", int multiplier = 1000);
+std::string format_with_SI_IEC_unit_multiplier(uint64 number, const char* unit = "", int multiplier = 1000);
 
-inline std::string add_IEC_binary_multiplier(uint64 number, const char * unit = "")
+inline std::string add_IEC_binary_multiplier(uint64 number, const char* unit = "")
 {
     return format_with_SI_IEC_unit_multiplier(number, unit, 1024);
 }
 
-inline std::string add_SI_multiplier(uint64 number, const char * unit = "")
+inline std::string add_SI_multiplier(uint64 number, const char* unit = "")
 {
     return format_with_SI_IEC_unit_multiplier(number, unit, 1000);
 }
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
-#endif // !STXXL_IOSTATS_HEADER
+#endif // !STXXL_IO_IOSTATS_HEADER
 // vim: et:ts=4:sw=4

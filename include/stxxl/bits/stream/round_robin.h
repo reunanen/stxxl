@@ -16,7 +16,7 @@
 #include <stxxl/bits/namespace.h>
 
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 //! \brief Stream package subnamespace
 namespace stream
@@ -240,7 +240,7 @@ namespace stream
 //! \}
 }
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 
 #endif // !STXXL_STREAM__ROUND_ROBIN_H_

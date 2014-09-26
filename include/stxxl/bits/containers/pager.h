@@ -11,8 +11,8 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_PAGER_HEADER
-#define STXXL_PAGER_HEADER
+#ifndef STXXL_CONTAINERS_PAGER_HEADER
+#define STXXL_CONTAINERS_PAGER_HEADER
 
 #include <list>
 #include <cassert>
@@ -21,10 +21,9 @@
 #include <stxxl/bits/common/rand.h>
 #include <stxxl/bits/common/simple_vector.h>
 
+STXXL_BEGIN_NAMESPACE
 
-__STXXL_BEGIN_NAMESPACE
-
-//! \addtogroup stlcontinternals
+//! \addtogroup stlcont_vector
 //! \{
 
 enum pager_type
@@ -33,7 +32,7 @@ enum pager_type
     lru
 };
 
-//! \brief Pager with \b random replacement strategy
+//! Pager with \b random replacement strategy
 template <unsigned npages_>
 class random_pager
 {
@@ -53,7 +52,7 @@ public:
 
     void hit(size_type ipage)
     {
-        assert(ipage < size());
+        STXXL_ASSERT(ipage < size());
     }
 
     size_type size() const
@@ -62,7 +61,7 @@ public:
     }
 };
 
-//! \brief Pager with \b LRU replacement strategy
+//! Pager with \b LRU replacement strategy
 template <unsigned npages_ = 0>
 class lru_pager : private noncopyable
 {
@@ -92,7 +91,7 @@ public:
         history.splice(history.begin(), history, history_entry[ipage]);
     }
 
-    void swap(lru_pager & obj)
+    void swap(lru_pager& obj)
     {
         history.swap(obj.history);
         history_entry.swap(obj.history_entry);
@@ -106,17 +105,18 @@ public:
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
-namespace std
+namespace std {
+
+template <unsigned npages_>
+void swap(stxxl::lru_pager<npages_>& a,
+          stxxl::lru_pager<npages_>& b)
 {
-    template <unsigned npages_>
-    void swap(stxxl::lru_pager<npages_> & a,
-              stxxl::lru_pager<npages_> & b)
-    {
-        a.swap(b);
-    }
+    a.swap(b);
 }
 
-#endif // !STXXL_PAGER_HEADER
+} // namespace std
+
+#endif // !STXXL_CONTAINERS_PAGER_HEADER
 // vim: et:ts=4:sw=4

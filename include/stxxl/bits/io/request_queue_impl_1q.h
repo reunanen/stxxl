@@ -20,28 +20,29 @@
 #include <stxxl/bits/io/request_queue_impl_worker.h>
 #include <stxxl/bits/common/mutex.h>
 
+STXXL_BEGIN_NAMESPACE
 
-__STXXL_BEGIN_NAMESPACE
-
-//! \addtogroup iolayer
+//! \addtogroup reqlayer
 //! \{
 
+//! Implementation of a local request queue having only one queue for both read
+//! and write requests, thus having only one thread.
 class request_queue_impl_1q : public request_queue_impl_worker
 {
 private:
     typedef request_queue_impl_1q self;
     typedef std::list<request_ptr> queue_type;
 
-    mutex queue_mutex;
-    queue_type queue;
+    mutex m_queue_mutex;
+    queue_type m_queue;
 
-    state<thread_state> _thread_state;
-    thread_type thread;
-    semaphore sem;
+    state<thread_state> m_thread_state;
+    thread_type m_thread;
+    semaphore m_sem;
 
-    static const priority_op _priority_op = WRITE;
+    static const priority_op m_priority_op = WRITE;
 
-    static void * worker(void * arg);
+    static void * worker(void* arg);
 
 public:
     // \param n max number of requests simultaneously submitted to disk
@@ -56,14 +57,14 @@ public:
         //_priority_op = op;
         STXXL_UNUSED(op);
     }
-    void add_request(request_ptr & req);
-    bool cancel_request(request_ptr & req);
+    void add_request(request_ptr& req);
+    bool cancel_request(request_ptr& req);
     ~request_queue_impl_1q();
 };
 
 //! \}
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // !STXXL_IO_REQUEST_QUEUE_IMPL_1Q_HEADER
 // vim: et:ts=4:sw=4

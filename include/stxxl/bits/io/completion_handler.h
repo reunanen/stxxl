@@ -13,91 +13,88 @@
  *  http://www.boost.org/LICENSE_1_0.txt)
  **************************************************************************/
 
-#ifndef STXXL_COMPLETION_HANDLER_HEADER
-#define STXXL_COMPLETION_HANDLER_HEADER
+#ifndef STXXL_IO_COMPLETION_HANDLER_HEADER
+#define STXXL_IO_COMPLETION_HANDLER_HEADER
 
 #include <stxxl/bits/namespace.h>
-#include <stxxl/bits/compat_unique_ptr.h>
+#include <stxxl/bits/compat/unique_ptr.h>
+#include <cstdlib>
 
-
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 class request;
 
 class completion_handler_impl
 {
 public:
-    virtual void operator () (request *) = 0;
+    virtual void operator () (request*) = 0;
     virtual completion_handler_impl * clone() const = 0;
     virtual ~completion_handler_impl() { }
 };
 
-template <typename handler_type>
+template <typename HandlerType>
 class completion_handler1 : public completion_handler_impl
 {
 private:
-    handler_type handler_;
+    HandlerType m_handler;
 
 public:
-    completion_handler1(const handler_type & handler__) : handler_(handler__) { }
+    completion_handler1(const HandlerType& handler)
+        : m_handler(handler)
+    { }
     completion_handler1 * clone() const
     {
         return new completion_handler1(*this);
     }
-    void operator () (request * req)
+    void operator () (request* req)
     {
-        handler_(req);
+        m_handler(req);
     }
 };
 
-//! \brief Completion handler class (Loki-style)
-
-//! In some situations one needs to execute
-//! some actions after completion of an I/O
-//! request. In these cases one can use
-//! an I/O completion handler - a function
-//! object that can be passed as a parameter
-//! to asynchronous I/O calls \c stxxl::file::aread
-//! and \c stxxl::file::awrite .
-//! For an example of use see \link mng/test_mng.cpp mng/test_mng.cpp \endlink
+//! Completion handler class (Loki-style).
+//!
+//! In some situations one needs to execute some actions after completion of an
+//! I/O request. In these cases one can use an I/O completion handler - a
+//! function object that can be passed as a parameter to asynchronous I/O calls
+//! \c stxxl::file::aread and \c stxxl::file::awrite .
 class completion_handler
 {
-    compat_unique_ptr<completion_handler_impl>::result sp_impl_;
+    compat_unique_ptr<completion_handler_impl>::result m_ptr;
 
 public:
-    completion_handler() :
-        sp_impl_(static_cast<completion_handler_impl *>(0))
+    //! Construct default, no operation completion handler.
+    completion_handler()
+        : m_ptr(static_cast<completion_handler_impl*>(NULL))
     { }
 
-    completion_handler(const completion_handler & obj) :
-        sp_impl_(obj.sp_impl_.get()->clone())
+    //! Copy constructor.
+    completion_handler(const completion_handler& obj)
+        : m_ptr(obj.m_ptr.get() ? obj.m_ptr.get()->clone() : NULL)
     { }
 
-    template <typename handler_type>
-    completion_handler(const handler_type & handler__) :
-        sp_impl_(new completion_handler1<handler_type>(handler__))
+    //! Construct a completion handler which calls some function.
+    template <typename HandlerType>
+    completion_handler(const HandlerType& handler)
+        : m_ptr(new completion_handler1<HandlerType>(handler))
     { }
 
-    completion_handler & operator = (const completion_handler & obj)
+    //! Assignment operator
+    completion_handler& operator = (const completion_handler& obj)
     {
-        sp_impl_.reset(obj.sp_impl_.get()->clone());
+        m_ptr.reset(obj.m_ptr.get() ? obj.m_ptr.get()->clone() : NULL);
         return *this;
     }
-    void operator () (request * req)
+
+    //! Call the enclosed completion handler.
+    void operator () (request* req)
     {
-        (*sp_impl_)(req);
+        if (m_ptr.get())
+            (* m_ptr)(req);
     }
 };
 
-//! \brief Default completion handler class
+STXXL_END_NAMESPACE
 
-struct default_completion_handler
-{
-    //! \brief An operator that does nothing
-    void operator () (request *) { }
-};
-
-__STXXL_END_NAMESPACE
-
-#endif // !STXXL_COMPLETION_HANDLER_HEADER
+#endif // !STXXL_IO_COMPLETION_HANDLER_HEADER
 // vim: et:ts=4:sw=4
