@@ -176,8 +176,8 @@ public:
         return current_blk->elem[current_elem + index];
     }
 
-    //! Frees used internal objects
-    virtual ~buf_istream()
+    //! Frees used internal objects.
+    ~buf_istream()
     {
         delete prefetcher;
         delete[] prefetch_seq;

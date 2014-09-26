@@ -22,7 +22,7 @@
 
 #include <stxxl/bits/stream/stream.h>
 
-__STXXL_BEGIN_NAMESPACE
+STXXL_BEGIN_NAMESPACE
 
 namespace stream {
 
@@ -1122,6 +1122,6 @@ public:
 
 } // namespace stream
 
-__STXXL_END_NAMESPACE
+STXXL_END_NAMESPACE
 
 #endif // !STXXL_STREAM_ASYNC_HEADER

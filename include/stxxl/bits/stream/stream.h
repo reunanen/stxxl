@@ -31,6 +31,7 @@
 #include <stxxl/bits/mng/buf_istream.h>
 #include <stxxl/bits/mng/buf_ostream.h>
 #include <stxxl/bits/common/tuple.h>
+#include <stxxl/bits/common/error_handling.h>
 #include <stxxl/vector>
 #include <stxxl/bits/compat/unique_ptr.h>
 
@@ -48,7 +49,7 @@
 
 STXXL_BEGIN_NAMESPACE
 
-//! Stream package subnamespace
+//! Stream package subnamespace.
 namespace stream {
 
 enum StartMode { start_deferred, start_immediately };
@@ -57,113 +58,94 @@ enum StartMode { start_deferred, start_immediately };
     #define STXXL_START_PIPELINE_DEFERRED_DEFAULT stxxl::stream::start_immediately
     #endif
 
-//! \weakgroup streampack Stream package
-//! Package that enables pipelining of consequent sorts
-//! and scans of the external data avoiding the saving the intermediate
-//! results on the disk, e.g. the output of a sort can be directly
-//! fed into a scan procedure without the need to save it on a disk.
-//! All components of the package are contained in the \c stxxl::stream
-//! namespace.
-//!
-//!    STREAM ALGORITHM CONCEPT (Do not confuse with C++ input/output streams)
-//!
-//! \verbatim
-//!
-//!    struct stream_algorithm // stream, pipe, whatever
-//!    {
-//!      typedef some_type value_type;
-//!
-//!      const value_type & operator * () const; // return current element of the stream
-//!      stream_algorithm & operator ++ ();      // go to next element. precondition: empty() == false
-//!      bool empty() const;                     // return true if end of stream is reached
-//!
-//!    };
-//! \endverbatim
-//!
+//! \addtogroup streampack
 //! \{
 
 ////////////////////////////////////////////////////////////////////////
 //     STREAMIFY                                                      //
 ////////////////////////////////////////////////////////////////////////
 
-//! A model of stream that retrieves the data from an input iterator
+//! A model of stream that retrieves the data from an input iterator.
 //! For convenience use \c streamify function instead of direct instantiation
 //! of \c iterator2stream .
-template <class InputIterator_>
+template <class InputIterator>
 class iterator2stream
 {
-    InputIterator_ current_, end_;
+    InputIterator m_current, m_end;
 
 public:
-    //! Standard stream typedef
-    typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename std::iterator_traits<InputIterator>::value_type value_type;
 
-    iterator2stream(InputIterator_ begin, InputIterator_ end)
-        : current_(begin), end_(end) { }
+    iterator2stream(InputIterator begin, InputIterator end)
+        : m_current(begin), m_end(end)
+    { }
 
-    iterator2stream(const iterator2stream& a) : current_(a.current_), end_(a.end_) { }
+    iterator2stream(const iterator2stream& a)
+        : m_current(a.m_current), m_end(a.m_end)
+    { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
         STXXL_VERBOSE0("iterator2stream " << this << " starts.");
         //do nothing
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
-        return *current_;
+        return *m_current;
     }
 
     const value_type* operator -> () const
     {
-        return &(*current_);
+        return &(*m_current);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     iterator2stream& operator ++ ()
     {
-        assert(end_ != current_);
-        ++current_;
+        assert(m_end != m_current);
+        ++m_current;
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
-        return (current_ == end_);
+        return (m_current == m_end);
     }
 };
 
-//! Input iterator range to stream converter
+//! Input iterator range to stream converter.
 //! \param begin iterator, pointing to the first value
 //! \param end iterator, pointing to the last + 1 position, i.e. beyond the range
 //! \return an instance of a stream object
-template <class InputIterator_>
-iterator2stream<InputIterator_> streamify(InputIterator_ begin, InputIterator_ end)
+template <class InputIterator>
+iterator2stream<InputIterator> streamify(InputIterator begin, InputIterator end)
 {
-    return iterator2stream<InputIterator_>(begin, end);
+    return iterator2stream<InputIterator>(begin, end);
 }
 
-//! Traits class of \c streamify function
-template <class InputIterator_>
+//! Traits class of \c streamify function.
+template <class InputIterator>
 struct streamify_traits
 {
-    //! return type (stream type) of \c streamify for \c InputIterator_
-    typedef iterator2stream<InputIterator_> stream_type;
+    //! return type (stream type) of \c streamify for \c InputIterator.
+    typedef iterator2stream<InputIterator> stream_type;
 };
 
-//! A model of stream that retrieves data from an external \c stxxl::vector iterator.
-//! It is more efficient than generic \c iterator2stream thanks to use of overlapping
-//! For convenience use \c streamify function instead of direct instantiation
-//! of \c vector_iterator2stream .
-template <class InputIterator_>
+//! A model of stream that retrieves data from an external \c stxxl::vector
+//! iterator.  It is more efficient than generic \c iterator2stream thanks to
+//! use of overlapping For convenience use \c streamify function instead of
+//! direct instantiation of \c vector_iterator2stream .
+template <class InputIterator>
 class vector_iterator2stream
 {
-    InputIterator_ current_, end_;
-    typedef buf_istream<typename InputIterator_::block_type,
-                        typename InputIterator_::bids_container_iterator> buf_istream_type;
+    InputIterator m_current, m_end;
+    typedef buf_istream<typename InputIterator::block_type,
+                        typename InputIterator::bids_container_iterator> buf_istream_type;
 
     typedef typename stxxl::compat_unique_ptr<buf_istream_type>::result buf_istream_unique_ptr_type;
     mutable buf_istream_unique_ptr_type in;
@@ -174,27 +156,33 @@ class vector_iterator2stream
     }
 
 public:
-    typedef vector_iterator2stream<InputIterator_> Self_;
+    typedef vector_iterator2stream<InputIterator> self_type;
 
-    //! Standard stream typedef
-    typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename std::iterator_traits<InputIterator>::value_type value_type;
     typedef const value_type* const_iterator;
 
-    vector_iterator2stream(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0)
-        : current_(begin), end_(end), in(static_cast<buf_istream_type*>(NULL))
+    vector_iterator2stream(InputIterator begin, InputIterator end,
+                           unsigned_type nbuffers = 0)
+        : m_current(begin), m_end(end),
+          in(static_cast<buf_istream_type*>(NULL))
     {
         if (empty())
             return;
 
         begin.flush();         // flush container
-        typename InputIterator_::bids_container_iterator end_iter = end.bid() + ((end.block_offset()) ? 1 : 0);
+        typename InputIterator::bids_container_iterator end_iter
+            = end.bid() + ((end.block_offset()) ? 1 : 0);
 
         if (end_iter - begin.bid() > 0)
         {
-            in.reset(new buf_istream_type(begin.bid(), end_iter, nbuffers ? nbuffers :
-                                          (2 * config::get_instance()->disks_number())));
+            in.reset(new buf_istream_type(
+                         begin.bid(), end_iter, nbuffers ? nbuffers :
+                         (2 * config::get_instance()->disks_number())
+                         )
+                     );
 
-            InputIterator_ cur = begin - begin.block_offset();
+            InputIterator cur = begin - begin.block_offset();
 
             // skip the beginning of the block
             for ( ; cur != begin; ++cur)
@@ -202,17 +190,18 @@ public:
         }
     }
 
-    vector_iterator2stream(const Self_& a)
-        : current_(a.current_), end_(a.end_), in(a.in.release()) { }
+    vector_iterator2stream(const self_type& a)
+        : m_current(a.m_current), m_end(a.m_end), in(a.in.release())
+    { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
         STXXL_VERBOSE0("vector_iterator2stream " << this << " starts.");
         //do nothing
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return **in;
@@ -223,11 +212,11 @@ public:
         return &(**in);
     }
 
-    //! Standard stream method
-    Self_& operator ++ ()
+    //! Standard stream method.
+    self_type& operator ++ ()
     {
-        assert(end_ != current_);
-        ++current_;
+        assert(m_end != m_current);
+        ++m_current;
         ++(*in);
         if (UNLIKELY(empty()))
             delete_stream();
@@ -235,25 +224,25 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
-        return (current_ == end_);
+        return (m_current == m_end);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     vector_iterator2stream& operator += (unsigned_type length)
     {
         assert(0 < length && length <= batch_length());
-        current_ += length;
+        m_current += length;
         (*in) += length;
         return *this;
     }
 
     unsigned_type batch_length()
     {
-        STXXL_VERBOSE(in->batch_length() << " " << end_ - current_);
-        return STXXL_MIN<unsigned_type>(in->batch_length(), end_ - current_);
+        STXXL_VERBOSE(in->batch_length() << " " << m_end - m_current);
+        return STXXL_MIN<unsigned_type>(in->batch_length(), m_end - m_current);
     }
 
     const_iterator batch_begin()
@@ -263,7 +252,7 @@ public:
 
     value_type& operator [] (unsigned_type index)
     {
-        assert(current_ + index < end_);
+        assert(m_current + index < m_end);
         return (*in)[index];
     }
 
@@ -273,7 +262,7 @@ public:
     }
 };
 
-//! Input external \c stxxl::vector iterator range to stream converter
+//! Input external \c stxxl::vector iterator range to stream converter.
 //! It is more efficient than generic input iterator \c streamify thanks to use of overlapping
 //! \param begin iterator, pointing to the first value
 //! \param end iterator, pointing to the last + 1 position, i.e. beyond the range
@@ -281,27 +270,42 @@ public:
 //! which equals to (2 * number_of_disks)
 //! \return an instance of a stream object
 
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+vector_iterator2stream<
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize>
+    >
 streamify(
-    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
-    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize> begin,
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize> end,
     unsigned_type nbuffers = 0)
 {
     STXXL_VERBOSE1("streamify for vector_iterator range is called");
-    return vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+    return vector_iterator2stream<
+        stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                               DiffType, BlockSize, PagerType, PageSize>
+        >(begin, end, nbuffers);
 }
 
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-struct streamify_traits<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+struct streamify_traits<
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize>
+    >
 {
-    typedef vector_iterator2stream<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> > stream_type;
+    typedef vector_iterator2stream<
+            stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                   DiffType, BlockSize, PagerType, PageSize>
+            > stream_type;
 };
 
-//! Input external \c stxxl::vector const iterator range to stream converter
+//! Input external \c stxxl::vector const iterator range to stream converter.
 //! It is more efficient than generic input iterator \c streamify thanks to use of overlapping
 //! \param begin const iterator, pointing to the first value
 //! \param end const iterator, pointing to the last + 1 position, i.e. beyond the range
@@ -309,24 +313,39 @@ struct streamify_traits<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, B
 //! which equals to (2 * number_of_disks)
 //! \return an instance of a stream object
 
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+vector_iterator2stream<
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize>
+    >
 streamify(
-    stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
-    stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize> begin,
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize> end,
     unsigned_type nbuffers = 0)
 {
     STXXL_VERBOSE1("streamify for const_vector_iterator range is called");
-    return vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+    return vector_iterator2stream<
+        stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                     DiffType, BlockSize, PagerType, PageSize>
+        >(begin, end, nbuffers);
 }
 
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-struct streamify_traits<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+struct streamify_traits<
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize>
+    >
 {
-    typedef vector_iterator2stream<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> > stream_type;
+    typedef vector_iterator2stream<
+            stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                         DiffType, BlockSize, PagerType, PageSize>
+            > stream_type;
 };
 
 //! Version of  \c iterator2stream. Switches between \c vector_iterator2stream and \c iterator2stream .
@@ -335,46 +354,49 @@ struct streamify_traits<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, Diff
 //! \c vector_iterator2stream and \c iterator2stream .
 //! iterator2stream is chosen if the input iterator range
 //! is small ( < B )
-template <class InputIterator_>
+template <class InputIterator>
 class vector_iterator2stream_sr
 {
-    vector_iterator2stream<InputIterator_>* vec_it_stream;
-    iterator2stream<InputIterator_>* it_stream;
+    vector_iterator2stream<InputIterator>* vec_it_stream;
+    iterator2stream<InputIterator>* it_stream;
 
-    typedef typename InputIterator_::block_type block_type;
+    typedef typename InputIterator::block_type block_type;
 
 public:
-    typedef vector_iterator2stream_sr<InputIterator_> Self_;
+    typedef vector_iterator2stream_sr<InputIterator> self_type;
 
-    //! Standard stream typedef
-    typedef typename std::iterator_traits<InputIterator_>::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename std::iterator_traits<InputIterator>::value_type value_type;
 
-    vector_iterator2stream_sr(InputIterator_ begin, InputIterator_ end, unsigned_type nbuffers = 0)
+    vector_iterator2stream_sr(InputIterator begin, InputIterator end,
+                              unsigned_type nbuffers = 0)
     {
         if (end - begin < block_type::size)
         {
-            STXXL_VERBOSE1("vector_iterator2stream_sr::vector_iterator2stream_sr: Choosing iterator2stream<InputIterator_>");
-            it_stream = new iterator2stream<InputIterator_>(begin, end);
+            STXXL_VERBOSE1("vector_iterator2stream_sr::vector_iterator2stream_sr: Choosing iterator2stream<InputIterator>");
+            it_stream = new iterator2stream<InputIterator>(begin, end);
             vec_it_stream = NULL;
         }
         else
         {
-            STXXL_VERBOSE1("vector_iterator2stream_sr::vector_iterator2stream_sr: Choosing vector_iterator2stream<InputIterator_>");
+            STXXL_VERBOSE1("vector_iterator2stream_sr::vector_iterator2stream_sr: Choosing vector_iterator2stream<InputIterator>");
             it_stream = NULL;
-            vec_it_stream = new vector_iterator2stream<InputIterator_>(begin, end, nbuffers);
+            vec_it_stream = new vector_iterator2stream<InputIterator>(begin, end, nbuffers);
         }
     }
 
-    vector_iterator2stream_sr(const Self_& a) : vec_it_stream(a.vec_it_stream), it_stream(a.it_stream) { }
+    vector_iterator2stream_sr(const self_type& a)
+        : vec_it_stream(a.vec_it_stream), it_stream(a.it_stream)
+    { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
         STXXL_VERBOSE0("vector_iterator2stream_sr " << this << " starts.");
         //do nothing
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         if (it_stream)          //PERFORMANCE: Frequent run-time decision
@@ -391,8 +413,8 @@ public:
         return &(**vec_it_stream);
     }
 
-    //! Standard stream method
-    Self_& operator ++ ()
+    //! Standard stream method.
+    self_type& operator ++ ()
     {
         if (it_stream)          //PERFORMANCE: Frequent run-time decision
             ++(*it_stream);
@@ -403,7 +425,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         if (it_stream)          //PERFORMANCE: Frequent run-time decision
@@ -421,47 +443,66 @@ public:
     }
 };
 
-//! Version of  \c streamify. Switches from \c vector_iterator2stream to \c iterator2stream for small ranges.
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-vector_iterator2stream_sr<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+//! Version of \c streamify. Switches from \c vector_iterator2stream to \c
+//! iterator2stream for small ranges.
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+vector_iterator2stream_sr<
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize>
+    >
 streamify_sr(
-    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
-    stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize> begin,
+    stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                           DiffType, BlockSize, PagerType, PageSize> end,
     unsigned_type nbuffers = 0)
 {
     STXXL_VERBOSE1("streamify_sr for vector_iterator range is called");
-    return vector_iterator2stream_sr<stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+    return vector_iterator2stream_sr<
+        stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                               DiffType, BlockSize, PagerType, PageSize>
+        >(begin, end, nbuffers);
 }
 
-//! Version of  \c streamify. Switches from \c vector_iterator2stream to \c iterator2stream for small ranges.
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_>
-vector_iterator2stream_sr<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
+//! Version of \c streamify. Switches from \c vector_iterator2stream to \c
+//! iterator2stream for small ranges.
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize>
+vector_iterator2stream_sr<
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize>
+    >
 streamify_sr(
-    stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> begin,
-    stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> end,
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize> begin,
+    stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                 DiffType, BlockSize, PagerType, PageSize> end,
     unsigned_type nbuffers = 0)
 {
     STXXL_VERBOSE1("streamify_sr for const_vector_iterator range is called");
-    return vector_iterator2stream_sr<stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> >
-               (begin, end, nbuffers);
+    return vector_iterator2stream_sr<
+        stxxl::const_vector_iterator<ValueType, AllocStr, SizeType,
+                                     DiffType, BlockSize, PagerType, PageSize>
+        >(begin, end, nbuffers);
 }
 
 ////////////////////////////////////////////////////////////////////////
 //     MATERIALIZE                                                    //
 ////////////////////////////////////////////////////////////////////////
 
-//! Stores consecutively stream content to an output iterator
+//! Stores consecutively stream content to an output iterator.
 //! \param in stream to be stored used as source
 //! \param out output iterator used as destination
 //! \param start_mode start node immediately or deferred
 //! \return value of the output iterator after all increments,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ out, StartMode start_mode)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize(StreamAlgorithm& in, OutputIterator out,
+                           StartMode start_mode)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
@@ -479,27 +520,28 @@ OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ out, StartMode
     return out;
 }
 
-//! Stores consecutively stream content to an output iterator
+//! Stores consecutively stream content to an output iterator.
 //! \param in stream to be stored used as source
 //! \param out output iterator used as destination
 //! \return value of the output iterator after all increments,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ out)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize(StreamAlgorithm& in, OutputIterator out)
 {
     return materialize(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
 }
 
-//! Stores consecutively stream content to an output iterator
+//! Stores consecutively stream content to an output iterator.
 //! \param in stream to be stored used as source
 //! \param out output iterator used as destination
 //! \param start_mode start node immediately or deferred
 //! \return value of the output iterator after all increments,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ out, StartMode start_mode)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize_batch(StreamAlgorithm& in, OutputIterator out,
+                                 StartMode start_mode)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
@@ -520,19 +562,19 @@ OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ out, Sta
     return out;
 }
 
-//! Stores consecutively stream content to an output iterator
+//! Stores consecutively stream content to an output iterator.
 //! \param in stream to be stored used as source
 //! \param out output iterator used as destination
 //! \return value of the output iterator after all increments,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ out)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize_batch(StreamAlgorithm& in, OutputIterator out)
 {
     return materialize_batch(in, out, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
 }
 
-//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached.
 //! \param in stream to be stored used as source
 //! \param outbegin output iterator used as destination
 //! \param outend output end iterator, pointing beyond the output range
@@ -542,8 +584,10 @@ OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ out)
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize(StreamAlgorithm& in,
+                           OutputIterator outbegin, OutputIterator outend,
+                           StartMode start_mode)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
@@ -561,7 +605,7 @@ OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ outbegin, Outp
     return outbegin;
 }
 
-//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached.
 //! \param in stream to be stored used as source
 //! \param outbegin output iterator used as destination
 //! \param outend output end iterator, pointing beyond the output range
@@ -570,13 +614,13 @@ OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ outbegin, Outp
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ outbegin, OutputIterator_ outend)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize(StreamAlgorithm& in, OutputIterator outbegin, OutputIterator outend)
 {
     return materialize(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
 }
 
-//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached.
 //! \param in stream to be stored used as source
 //! \param outbegin output iterator used as destination
 //! \param outend output end iterator, pointing beyond the output range
@@ -586,8 +630,8 @@ OutputIterator_ materialize(StreamAlgorithm_& in, OutputIterator_ outbegin, Outp
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ outbegin, OutputIterator_ outend, StartMode start_mode)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize_batch(StreamAlgorithm& in, OutputIterator outbegin, OutputIterator outend, StartMode start_mode)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
 #if STXXL_START_PIPELINE_DEFERRED
@@ -609,7 +653,7 @@ OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ outbegin
     return outbegin;
 }
 
-//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached
+//! Stores consecutively stream content to an output iterator range \b until end of the stream or end of the iterator range is reached.
 //! \param in stream to be stored used as source
 //! \param outbegin output iterator used as destination
 //! \param outend output end iterator, pointing beyond the output range
@@ -618,13 +662,13 @@ OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ outbegin
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <class OutputIterator_, class StreamAlgorithm_>
-OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ outbegin, OutputIterator_ outend)
+template <class OutputIterator, class StreamAlgorithm>
+OutputIterator materialize_batch(StreamAlgorithm& in, OutputIterator outbegin, OutputIterator outend)
 {
     return materialize_batch(in, outbegin, outend, STXXL_START_PIPELINE_DEFERRED_DEFAULT);
 }
 
-//! Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached
+//! Stores consecutively stream content to an output \c stxxl::vector iterator \b until end of the stream or end of the iterator range is reached.
 //! \param in stream to be stored used as source
 //! \param outbegin output \c stxxl::vector iterator used as destination
 //! \param outend output end iterator, pointing beyond the output range
@@ -636,18 +680,22 @@ OutputIterator_ materialize_batch(StreamAlgorithm_& in, OutputIterator_ outbegin
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
-stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-materialize(StreamAlgorithm_& in,
-            stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
-            stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize, class StreamAlgorithm>
+stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                       DiffType, BlockSize, PagerType, PageSize>
+materialize(StreamAlgorithm& in,
+            stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                   DiffType, BlockSize, PagerType, PageSize> outbegin,
+            stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                   DiffType, BlockSize, PagerType, PageSize> outend,
             unsigned_type nbuffers = 0,
             StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
-    typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
-    typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
+    typedef stxxl::vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ExtIterator;
+    typedef stxxl::const_vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ConstExtIterator;
     typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
@@ -725,18 +773,22 @@ materialize(StreamAlgorithm_& in,
 //! \pre Output range is large enough to hold the all elements in the input stream
 //!
 //! This function is useful when you do not know the length of the stream beforehand.
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
-stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-materialize_batch(StreamAlgorithm_& in,
-                  stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outbegin,
-                  stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> outend,
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize, class StreamAlgorithm>
+stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                       DiffType, BlockSize, PagerType, PageSize>
+materialize_batch(StreamAlgorithm& in,
+                  stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                         DiffType, BlockSize, PagerType, PageSize> outbegin,
+                  stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                         DiffType, BlockSize, PagerType, PageSize> outend,
                   unsigned_type nbuffers = 0,
                   StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
-    typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
-    typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
+    typedef stxxl::vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ExtIterator;
+    typedef stxxl::const_vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ConstExtIterator;
     typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
 #if STXXL_START_PIPELINE_DEFERRED
@@ -788,7 +840,7 @@ materialize_batch(StreamAlgorithm_& in,
 
         length = STXXL_MIN<unsigned_type>(length, STXXL_MIN<unsigned_type>(outend - outcurrent, ExtIterator::block_type::size - outcurrent.block_offset()));
 
-        for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+        for (typename StreamAlgorithm::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
         {
             *outstream = *i;
             ++outstream;
@@ -815,7 +867,7 @@ materialize_batch(StreamAlgorithm_& in,
     return outcurrent;
 }
 
-//! Stores consecutively stream content to an output \c stxxl::vector iterator
+//! Stores consecutively stream content to an output \c stxxl::vector iterator.
 //! \param in stream to be stored used as source
 //! \param out output \c stxxl::vector iterator used as destination
 //! \param nbuffers number of blocks used for overlapped writing (0 is default,
@@ -824,17 +876,20 @@ materialize_batch(StreamAlgorithm_& in,
 //! \return value of the output iterator after all increments,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
-template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
-stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-materialize(StreamAlgorithm_& in,
-            stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
+template <typename ValueType, typename AllocStr, typename SizeType,
+          typename DiffType, unsigned BlockSize, typename PagerType,
+          unsigned PageSize, class StreamAlgorithm>
+stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                       DiffType, BlockSize, PagerType, PageSize>
+materialize(StreamAlgorithm& in,
+            stxxl::vector_iterator<ValueType, AllocStr, SizeType,
+                                   DiffType, BlockSize, PagerType, PageSize> out,
             unsigned_type nbuffers = 0,
             StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
 {
     STXXL_VERBOSE_MATERIALIZE(STXXL_PRETTY_FUNCTION_NAME);
-    typedef stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ExtIterator;
-    typedef stxxl::const_vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> ConstExtIterator;
+    typedef stxxl::vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ExtIterator;
+    typedef stxxl::const_vector_iterator<ValueType, AllocStr, SizeType, DiffType, BlockSize, PagerType, PageSize> ConstExtIterator;
     typedef buf_ostream<typename ExtIterator::block_type, typename ExtIterator::bids_container_iterator> buf_ostream_type;
 
     // on the I/O complexity of "materialize":
@@ -891,6 +946,7 @@ materialize(StreamAlgorithm_& in,
 
     ConstExtIterator const_out = out;
 
+    // copy over items remaining in block from vector.
     while (const_out.block_offset())
     {
         *outstream = *const_out;                 // might cause I/Os for loading the page that
@@ -916,9 +972,9 @@ materialize(StreamAlgorithm_& in,
 //! i.e. points to the first unwritten value
 //! \pre Output (range) is large enough to hold the all elements in the input stream
 template <typename Tp_, typename AllocStr_, typename SzTp_, typename DiffTp_,
-          unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm_>
+          unsigned BlkSize_, typename PgTp_, unsigned PgSz_, class StreamAlgorithm>
 stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_>
-materialize_batch(StreamAlgorithm_& in,
+materialize_batch(StreamAlgorithm& in,
                   stxxl::vector_iterator<Tp_, AllocStr_, SzTp_, DiffTp_, BlkSize_, PgTp_, PgSz_> out,
                   unsigned_type nbuffers = 0,
                   StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
@@ -978,7 +1034,7 @@ materialize_batch(StreamAlgorithm_& in,
         }
 
         length = STXXL_MIN<unsigned_type>(length, ExtIterator::block_type::size - out.block_offset());
-        for (typename StreamAlgorithm_::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
+        for (typename StreamAlgorithm::const_iterator i = in.batch_begin(), end = in.batch_begin() + length; i != end; ++i)
         {
             *outstream = *i;
             ++outstream;
@@ -1027,8 +1083,8 @@ materialize_batch(StreamAlgorithm_& in,
 //! Useful where you do not need the processed stream anymore,
 //! but are just interested in side effects, or just for debugging.
 //! \param in input stream
-template <class StreamAlgorithm_>
-void discard(StreamAlgorithm_& in)
+template <class StreamAlgorithm>
+void discard(StreamAlgorithm& in)
 {
     while (!in.empty())
     {
@@ -1040,8 +1096,8 @@ void discard(StreamAlgorithm_& in)
 //! Pulls from a stream, discards output
 //! \param in stream to be stored used as source
 //! \param num_elements number of elements to pull
-template <class StreamAlgorithm_>
-unsigned_type pull(StreamAlgorithm_& in, unsigned_type num_elements)
+template <class StreamAlgorithm>
+unsigned_type pull(StreamAlgorithm& in, unsigned_type num_elements)
 {
     unsigned_type i;
     for (i = 0; i < num_elements && !in.empty(); ++i)
@@ -1055,15 +1111,15 @@ unsigned_type pull(StreamAlgorithm_& in, unsigned_type num_elements)
 //! Pulls from a stream, discards output
 //! \param in stream to be stored used as source
 //! \param num_elements number of elements to pull
-template <class StreamAlgorithm_>
-unsigned_type pull_batch(StreamAlgorithm_& in, unsigned_type num_elements)
+template <class StreamAlgorithm>
+unsigned_type pull_batch(StreamAlgorithm& in, unsigned_type num_elements)
 {
     unsigned_type i, length;
-    typename StreamAlgorithm_::value_type dummy;
+    typename StreamAlgorithm::value_type dummy;
     for (i = 0; i < num_elements && ((length = in.batch_length()) > 0); )
     {
         length = STXXL_MIN<unsigned_type>(length, num_elements - i);
-        for (typename StreamAlgorithm_::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
+        for (typename StreamAlgorithm::const_iterator j = in.batch_begin(); j != in.batch_begin() + length; ++j)
             dummy = *j;
         in += length;
         i += length;
@@ -1075,67 +1131,68 @@ unsigned_type pull_batch(StreamAlgorithm_& in, unsigned_type num_elements)
 //     GENERATE                                                       //
 ////////////////////////////////////////////////////////////////////////
 
-//! A model of stream that outputs data from an adaptable generator functor
+//! A model of stream that outputs data from an adaptable generator functor.
 //! For convenience use \c streamify function instead of direct instantiation
 //! of \c generator2stream .
-template <class Generator_, typename T = typename Generator_::value_type>
+template <class Generator, typename T = typename Generator::value_type>
 class generator2stream
 {
 public:
-    //! Standard stream typedef
+    //! Standard stream typedef.
     typedef T value_type;
     typedef generator2stream& iterator;
     typedef const generator2stream& const_iterator;
 
 private:
-    Generator_ gen_;
-    value_type current_;
+    Generator gen_;
+    value_type m_current;
 
 public:
-    generator2stream(Generator_ g)
-        : gen_(g), current_(gen_()) { }
+    generator2stream(Generator g)
+        : gen_(g), m_current(gen_())
+    { }
 
-    generator2stream(const generator2stream& a) : gen_(a.gen_), current_(a.current_) { }
+    generator2stream(const generator2stream& a) : gen_(a.gen_), m_current(a.m_current) { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
         STXXL_VERBOSE0("generator2stream " << this << " starts.");
         //do nothing
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
-        return current_;
+        return m_current;
     }
 
     const value_type* operator -> () const
     {
-        return &current_;
+        return &m_current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     generator2stream& operator ++ ()
     {
-        current_ = gen_();
+        m_current = gen_();
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return false;
     }
 };
 
-//! Adaptable generator to stream converter
+//! Adaptable generator to stream converter.
 //! \param gen_ generator object
 //! \return an instance of a stream object
-template <class Generator_>
-generator2stream<Generator_> streamify(Generator_ gen_)
+template <class Generator>
+generator2stream<Generator> streamify(Generator gen_)
 {
-    return generator2stream<Generator_>(gen_);
+    return generator2stream<Generator>(gen_);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -1144,52 +1201,52 @@ generator2stream<Generator_> streamify(Generator_ gen_)
 
 struct Stopper { };
 
-//! Processes (up to) 6 input streams using given operation functor
+//! Processes (up to) 6 input streams using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 6 parameters)
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
-//! \tparam Input5_ type of the 5th input
-//! \tparam Input6_ type of the 6th input
-template <class Operation_,
-          class Input1_,
-          class Input2_ = Stopper,
-          class Input3_ = Stopper,
-          class Input4_ = Stopper,
-          class Input5_ = Stopper,
-          class Input6_ = Stopper
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
+//! \tparam Input5 type of the 5th input
+//! \tparam Input6 type of the 6th input
+template <class Operation,
+          class Input1,
+          class Input2 = Stopper,
+          class Input3 = Stopper,
+          class Input4 = Stopper,
+          class Input5 = Stopper,
+          class Input6 = Stopper
           >
 class transform
 {
-    Operation_& op;
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
-    Input5_& i5;
-    Input6_& i6;
+    Operation& op;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
+    Input5& i5;
+    Input6& i6;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_, Input2_& i2_, Input3_& i3_, Input4_& i4_,
-              Input5_& i5_, Input5_& i6_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_, Input2& i2_, Input3& i3_, Input4& i4_,
+              Input5& i5_, Input5& i6_)
         : op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_)
     {
         if (!empty())
             current = op(*i1, *i2, *i3, *i4, *i5, *i6);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1200,7 +1257,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1215,7 +1272,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() ||
@@ -1225,19 +1282,19 @@ public:
 
 // Specializations
 
-template <class Operation_, class Input1_Iterator_>
-class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation_::value_type>
+template <class Operation, class Input1Iterator>
+class transforming_iterator : public std::iterator<std::random_access_iterator_tag, typename Operation::value_type>
 {
 public:
-    typedef typename Operation_::value_type value_type;
+    typedef typename Operation::value_type value_type;
 
 private:
-    Input1_Iterator_ i1;
-    Operation_& op;
+    Input1Iterator i1;
+    Operation& op;
     mutable value_type current;
 
 public:
-    transforming_iterator(Operation_& op, const Input1_Iterator_& i1) : i1(i1), op(op) { }
+    transforming_iterator(Operation& op, const Input1Iterator& i1) : i1(i1), op(op) { }
 
     const value_type& operator * () const       //RETURN BY VALUE
     {
@@ -1277,31 +1334,31 @@ public:
 //     TRANSFORM (1 input stream)                                     //
 ////////////////////////////////////////////////////////////////////////
 
-//! Processes an input stream using given operation functor
+//! Processes an input stream using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 1 parameter)
-//! \tparam Input1_ type of the input
+//! \tparam Input1 type of the input
 //! \remark This is a specialization of \c transform .
-template <class Operation_,
-          class Input1_
+template <class Operation,
+          class Input1
           >
-class transform<Operation_, Input1_, Stopper, Stopper, Stopper, Stopper, Stopper>
+class transform<Operation, Input1, Stopper, Stopper, Stopper, Stopper, Stopper>
 {
-    Operation_& op;
-    Input1_& i1;
+    Operation& op;
+    Input1& i1;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
-    typedef transforming_iterator<Operation_, typename Input1_::const_iterator> const_iterator;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
+    typedef transforming_iterator<Operation, typename Input1::const_iterator> const_iterator;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_) : op(o), i1(i1_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_) : op(o), i1(i1_)
     { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
         STXXL_VERBOSE0("transform " << this << " starts.");
@@ -1309,7 +1366,7 @@ public:
         op.start_push();
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return op(*i1);
@@ -1320,7 +1377,7 @@ public:
         return &(operator * ());
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1328,33 +1385,33 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         bool is_empty = i1.empty();
         return is_empty;
     }
 
-    //! Batched stream method
+    //! Batched stream method.
     unsigned_type batch_length() const
     {
         unsigned_type batch_length = i1.batch_length();
         return batch_length;
     }
 
-    //! Batched stream method
+    //! Batched stream method.
     const_iterator batch_begin() const
     {
         return const_iterator(op, i1.batch_begin());
     }
 
-    //! Batched stream method
+    //! Batched stream method.
     const value_type& operator [] (unsigned_type index) const
     {
         return op(i1[index]);
     }
 
-    //! Batched stream method
+    //! Batched stream method.
     transform& operator += (unsigned_type length)
     {
         assert(length > 0);
@@ -1366,13 +1423,13 @@ public:
 };
 
 //! push value to secondary stream before passing it on
-template <class Output_>
+template <class Output>
 class Pusher
 {
-    Output_& output;
+    Output& output;
 
 public:
-    typedef typename Output_::value_type value_type;
+    typedef typename Output::value_type value_type;
 
     void start_push()
     {
@@ -1380,7 +1437,7 @@ public:
         output.start_push();
     }
 
-    Pusher(Output_& output) : output(output)
+    Pusher(Output& output) : output(output)
     { }
 
     const value_type& operator () (const value_type& val)
@@ -1396,15 +1453,15 @@ public:
     }
 };
 
-template <class Input_, class Output_>
-class pusher : public transform<Pusher<Output_>, Input_>
+template <class Input, class Output>
+class pusher : public transform<Pusher<Output>, Input>
 {
-    typedef transform<Pusher<Output_>, Input_> base;
+    typedef transform<Pusher<Output>, Input> base;
 
-    Pusher<Output_> p;
+    Pusher<Output> p;
 
 public:
-    pusher(Input_& input, Output_& output)
+    pusher(Input& input, Output& output)
         : base(p, input),
           p(output)
     { }
@@ -1432,39 +1489,39 @@ public:
 //     TRANSFORM (2 input streams)                                    //
 ////////////////////////////////////////////////////////////////////////
 
-//! Processes 2 input streams using given operation functor
+//! Processes 2 input streams using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 2 parameters)
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
 //! \remark This is a specialization of \c transform .
-template <class Operation_,
-          class Input1_,
-          class Input2_
+template <class Operation,
+          class Input1,
+          class Input2
           >
-class transform<Operation_, Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
+class transform<Operation, Input1, Input2, Stopper, Stopper, Stopper, Stopper>
 {
-    Operation_& op;
-    Input1_& i1;
-    Input2_& i2;
+    Operation& op;
+    Input1& i1;
+    Input2& i2;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_, Input2_& i2_) : op(o), i1(i1_), i2(i2_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_, Input2& i2_) : op(o), i1(i1_), i2(i2_)
     {
         if (!empty())
             current = op(*i1, *i2);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1475,7 +1532,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1486,7 +1543,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty();
@@ -1497,43 +1554,43 @@ public:
 //     TRANSFORM (3 input streams)                                    //
 ////////////////////////////////////////////////////////////////////////
 
-//! Processes 3 input streams using given operation functor
+//! Processes 3 input streams using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 3 parameters)
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
 //! \remark This is a specialization of \c transform .
-template <class Operation_,
-          class Input1_,
-          class Input2_,
-          class Input3_
+template <class Operation,
+          class Input1,
+          class Input2,
+          class Input3
           >
-class transform<Operation_, Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
+class transform<Operation, Input1, Input2, Input3, Stopper, Stopper, Stopper>
 {
-    Operation_& op;
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
+    Operation& op;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_, Input2_& i2_, Input3_& i3_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_, Input2& i2_, Input3& i3_)
         : op(o), i1(i1_), i2(i2_), i3(i3_)
     {
         if (!empty())
             current = op(*i1, *i2, *i3);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1544,7 +1601,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1556,7 +1613,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty();
@@ -1567,46 +1624,46 @@ public:
 //     TRANSFORM (4 input streams)                                    //
 ////////////////////////////////////////////////////////////////////////
 
-//! Processes 4 input streams using given operation functor
+//! Processes 4 input streams using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 4 parameters)
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
 //! \remark This is a specialization of \c transform .
-template <class Operation_,
-          class Input1_,
-          class Input2_,
-          class Input3_,
-          class Input4_
+template <class Operation,
+          class Input1,
+          class Input2,
+          class Input3,
+          class Input4
           >
-class transform<Operation_, Input1_, Input2_, Input3_, Input4_, Stopper, Stopper>
+class transform<Operation, Input1, Input2, Input3, Input4, Stopper, Stopper>
 {
-    Operation_& op;
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
+    Operation& op;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_, Input2_& i2_, Input3_& i3_, Input4_& i4_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_, Input2& i2_, Input3& i3_, Input4& i4_)
         : op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_)
     {
         if (!empty())
             current = op(*i1, *i2, *i3, *i4);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1617,7 +1674,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1630,7 +1687,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() || i4.empty();
@@ -1641,50 +1698,50 @@ public:
 //     TRANSFORM (5 input streams)                                    //
 ////////////////////////////////////////////////////////////////////////
 
-//! Processes 5 input streams using given operation functor
+//! Processes 5 input streams using given operation functor.
 //!
-//! \tparam Operation_ type of the operation (type of an
+//! \tparam Operation type of the operation (type of an
 //! adaptable functor that takes 5 parameters)
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
-//! \tparam Input5_ type of the 5th input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
+//! \tparam Input5 type of the 5th input
 //! \remark This is a specialization of \c transform .
-template <class Operation_,
-          class Input1_,
-          class Input2_,
-          class Input3_,
-          class Input4_,
-          class Input5_
+template <class Operation,
+          class Input1,
+          class Input2,
+          class Input3,
+          class Input4,
+          class Input5
           >
-class transform<Operation_, Input1_, Input2_, Input3_, Input4_, Input5_, Stopper>
+class transform<Operation, Input1, Input2, Input3, Input4, Input5, Stopper>
 {
-    Operation_& op;
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
-    Input5_& i5;
+    Operation& op;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
+    Input5& i5;
 
 public:
-    //! Standard stream typedef
-    typedef typename Operation_::value_type value_type;
+    //! Standard stream typedef.
+    typedef typename Operation::value_type value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    transform(Operation_& o, Input1_& i1_, Input2_& i2_, Input3_& i3_, Input4_& i4_,
-              Input5_& i5_)
+    //! Construction.
+    transform(Operation& o, Input1& i1_, Input2& i2_, Input3& i3_,
+              Input4& i4_, Input5& i5_)
         : op(o), i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_)
     {
         if (!empty())
             current = op(*i1, *i2, *i3, *i4, *i5);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1695,7 +1752,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     transform& operator ++ ()
     {
         ++i1;
@@ -1709,7 +1766,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() || i4.empty() || i5.empty();
@@ -1720,61 +1777,59 @@ public:
 //     MAKE TUPLE                                                     //
 ////////////////////////////////////////////////////////////////////////
 
-//! Creates stream of 6-tuples from 6 input streams
+//! Creates stream of 6-tuples from 6 input streams.
 //!
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
-//! \tparam Input5_ type of the 5th input
-//! \tparam Input6_ type of the 6th input
-template <class Input1_,
-          class Input2_,
-          class Input3_ = Stopper,
-          class Input4_ = Stopper,
-          class Input5_ = Stopper,
-          class Input6_ = Stopper
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
+//! \tparam Input5 type of the 5th input
+//! \tparam Input6 type of the 6th input
+template <class Input1,
+          class Input2,
+          class Input3 = Stopper,
+          class Input4 = Stopper,
+          class Input5 = Stopper,
+          class Input6 = Stopper
           >
 class make_tuple
 {
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
-    Input5_& i5;
-    Input6_& i6;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
+    Input5& i5;
+    Input6& i6;
 
 public:
-    //! Standard stream typedef
+    //! Standard stream typedef.
     typedef typename stxxl::tuple<
-            typename Input1_::value_type,
-            typename Input2_::value_type,
-            typename Input3_::value_type,
-            typename Input4_::value_type,
-            typename Input5_::value_type,
-            typename Input6_::value_type
+            typename Input1::value_type,
+            typename Input2::value_type,
+            typename Input3::value_type,
+            typename Input4::value_type,
+            typename Input5::value_type,
+            typename Input6::value_type
             > value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    make_tuple(
-        Input1_& i1_,
-        Input2_& i2_,
-        Input3_& i3_,
-        Input4_& i4_,
-        Input5_& i5_,
-        Input6_& i6_
-        )
+    //! Construction.
+    make_tuple(Input1& i1_,
+               Input2& i2_,
+               Input3& i3_,
+               Input4& i4_,
+               Input5& i5_,
+               Input6& i6_)
         : i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_)
     {
         if (!empty())
             current = value_type(*i1, *i2, *i3, *i4, *i5, *i6);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -1785,7 +1840,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     make_tuple& operator ++ ()
     {
         ++i1;
@@ -1801,7 +1856,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() ||
@@ -1809,22 +1864,31 @@ public:
     }
 };
 
-template <class Input1_Iterator_, class Input2_Iterator_>
+#if TODO
+template <class Input1Iterator, class Input2Iterator>
 class make_tuple_iterator : std::iterator<
                                 std::random_access_iterator_tag,
-                                tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type>
+                                tuple<
+                                    typename std::iterator_traits<Input1Iterator>::value_type,
+                                    typename std::iterator_traits<Input2Iterator>::value_type
+                                    >
                                 >
 {
 public:
-    typedef tuple<typename std::iterator_traits<Input1_Iterator_>::value_type, typename std::iterator_traits<Input2_Iterator_>::value_type> value_type;
+    typedef typename std::iterator_traits<Input1Iterator>::value_type input1_type;
+    typedef typename std::iterator_traits<Input2Iterator>::value_type input2_type;
+
+    typedef tuple<typename input1_type, typename input2_type> value_type;
 
 private:
-    Input1_Iterator_ i1;
-    Input2_Iterator_ i2;
+    Input1Iterator i1;
+    Input2Iterator i2;
     mutable value_type current;
 
 public:
-    make_tuple_iterator(const Input1_Iterator_& i1, const Input2_Iterator_& i2) : i1(i1), i2(i2) { }
+    make_tuple_iterator(const Input1Iterator& i1, const Input2Iterator& i2)
+        : i1(i1), i2(i2)
+    { }
 
     const value_type& operator * () const       //RETURN BY VALUE
     {
@@ -1855,54 +1919,120 @@ public:
         return mti.i1 != i1 || mti.i2 != i2;
     }
 };
+#endif
 
-//! Creates stream of 2-tuples (pairs) from 2 input streams
+//! Creates stream of 2-tuples (pairs) from 2 input streams.
 //!
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
 //! \remark A specialization of \c make_tuple .
-template <class Input1_,
-          class Input2_
+template <class Input1,
+          class Input2
           >
-class make_tuple<Input1_, Input2_, Stopper, Stopper, Stopper, Stopper>
+class make_tuple<Input1, Input2, Stopper, Stopper, Stopper, Stopper>
+{
+    Input1& i1;
+    Input2& i2;
+
+public:
+    //! Standard stream typedef.
+    typedef typename stxxl::tuple<
+            typename Input1::value_type,
+            typename Input2::value_type
+            > value_type;
+
+private:
+    value_type current;
+
+public:
+    //! Construction.
+    make_tuple(Input1& i1_,
+               Input2& i2_)
+        : i1(i1_), i2(i2_)
+    {
+        if (!empty())
+            current = value_type(*i1, *i2);
+    }
+
+    //! Standard stream method.
+    const value_type& operator * () const
+    {
+        return current;
+    }
+
+    const value_type* operator -> () const
+    {
+        return &current;
+    }
+
+    //! Standard stream method.
+    make_tuple& operator ++ ()
+    {
+        ++i1;
+        ++i2;
+
+        if (!empty())
+            current = value_type(*i1, *i2);
+
+        return *this;
+    }
+
+    //! Standard stream method.
+    bool empty() const
+    {
+        return i1.empty() || i2.empty();
+    }
+};
+
+#if 0
+//! Creates batchable stream of 2-tuples (pairs) from 2 input streams.
+//!
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \remark A specialization of \c make_tuple .
+template <class Input1,
+          class Input2
+          >
+class make_batched_tuple<Input1, Input2, Stopper, Stopper, Stopper, Stopper>
 {
 public:
     //! Standard stream typedef
     typedef typename stxxl::tuple<
-            typename Input1_::value_type,
-            typename Input2_::value_type
+            typename Input1::value_type,
+            typename Input2::value_type
             > value_type;
-    typedef make_tuple_iterator<typename Input1_::const_iterator, typename Input2_::const_iterator> const_iterator;
+
+    typedef make_tuple_iterator<
+            typename Input1::const_iterator, typename Input2::const_iterator
+            > const_iterator;
 
 private:
-    Input1_& i1;
-    Input2_& i2;
+    Input1& i1;
+    Input2& i2;
     mutable value_type current;
 
 public:
-    //! Construction
-    make_tuple(
-        Input1_& i1_,
-        Input2_& i2_
-        )
+    //! Construction.
+    make_batched_tuple(Input1& i1_,
+                       Input2& i2_)
         : i1(i1_), i2(i2_)
     { }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_pull()
     {
-        STXXL_VERBOSE0("make_tuple " << this << " starts.");
+        STXXL_VERBOSE0("make_batched_tuple " << this << " starts.");
         i1.start_pull();
         i2.start_pull();
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     void start_push()
     {
         //do nothing
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const       //RETURN BY VALUE
     {
         current = value_type(*i1, *i2);
@@ -1914,8 +2044,8 @@ public:
         return &(operator * ());
     }
 
-    //! Standard stream method
-    make_tuple& operator ++ ()
+    //! Standard stream method.
+    make_batched_tuple& operator ++ ()
     {
         ++i1;
         ++i2;
@@ -1923,7 +2053,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty();
@@ -1936,7 +2066,7 @@ public:
     }
 
     //! Batched stream method.
-    make_tuple& operator += (unsigned_type size)
+    make_batched_tuple& operator += (unsigned_type size)
     {
         i1 += size;
         i2 += size;
@@ -1956,48 +2086,47 @@ public:
         return value_type(i1[index], i2[index]);
     }
 };
+#endif
 
-//! Creates stream of 3-tuples from 3 input streams
+//! Creates stream of 3-tuples from 3 input streams.
 //!
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
 //! \remark A specialization of \c make_tuple .
-template <class Input1_,
-          class Input2_,
-          class Input3_
+template <class Input1,
+          class Input2,
+          class Input3
           >
-class make_tuple<Input1_, Input2_, Input3_, Stopper, Stopper, Stopper>
+class make_tuple<Input1, Input2, Input3, Stopper, Stopper, Stopper>
 {
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
 
 public:
-    //! Standard stream typedef
+    //! Standard stream typedef.
     typedef typename stxxl::tuple<
-            typename Input1_::value_type,
-            typename Input2_::value_type,
-            typename Input3_::value_type
+            typename Input1::value_type,
+            typename Input2::value_type,
+            typename Input3::value_type
             > value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    make_tuple(
-        Input1_& i1_,
-        Input2_& i2_,
-        Input3_& i3_
-        )
+    //! Construction.
+    make_tuple(Input1& i1_,
+               Input2& i2_,
+               Input3& i3_)
         : i1(i1_), i2(i2_), i3(i3_)
     {
         if (!empty())
             current = value_type(*i1, *i2, *i3);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -2008,7 +2137,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     make_tuple& operator ++ ()
     {
         ++i1;
@@ -2021,59 +2150,57 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty();
     }
 };
 
-//! Creates stream of 4-tuples from 4 input streams
+//! Creates stream of 4-tuples from 4 input streams.
 //!
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
 //! \remark A specialization of \c make_tuple .
-template <class Input1_,
-          class Input2_,
-          class Input3_,
-          class Input4_
+template <class Input1,
+          class Input2,
+          class Input3,
+          class Input4
           >
-class make_tuple<Input1_, Input2_, Input3_, Input4_, Stopper, Stopper>
+class make_tuple<Input1, Input2, Input3, Input4, Stopper, Stopper>
 {
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
 
 public:
-    //! Standard stream typedef
+    //! Standard stream typedef.
     typedef typename stxxl::tuple<
-            typename Input1_::value_type,
-            typename Input2_::value_type,
-            typename Input3_::value_type,
-            typename Input4_::value_type
+            typename Input1::value_type,
+            typename Input2::value_type,
+            typename Input3::value_type,
+            typename Input4::value_type
             > value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    make_tuple(
-        Input1_& i1_,
-        Input2_& i2_,
-        Input3_& i3_,
-        Input4_& i4_
-        )
+    //! Construction.
+    make_tuple(Input1& i1_,
+               Input2& i2_,
+               Input3& i3_,
+               Input4& i4_)
         : i1(i1_), i2(i2_), i3(i3_), i4(i4_)
     {
         if (!empty())
             current = value_type(*i1, *i2, *i3, *i4);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -2084,7 +2211,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     make_tuple& operator ++ ()
     {
         ++i1;
@@ -2098,7 +2225,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() ||
@@ -2106,58 +2233,56 @@ public:
     }
 };
 
-//! Creates stream of 5-tuples from 5 input streams
+//! Creates stream of 5-tuples from 5 input streams.
 //!
-//! \tparam Input1_ type of the 1st input
-//! \tparam Input2_ type of the 2nd input
-//! \tparam Input3_ type of the 3rd input
-//! \tparam Input4_ type of the 4th input
-//! \tparam Input5_ type of the 5th input
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
+//! \tparam Input5 type of the 5th input
 //! \remark A specialization of \c make_tuple .
 template <
-    class Input1_,
-    class Input2_,
-    class Input3_,
-    class Input4_,
-    class Input5_
+    class Input1,
+    class Input2,
+    class Input3,
+    class Input4,
+    class Input5
     >
-class make_tuple<Input1_, Input2_, Input3_, Input4_, Input5_, Stopper>
+class make_tuple<Input1, Input2, Input3, Input4, Input5, Stopper>
 {
-    Input1_& i1;
-    Input2_& i2;
-    Input3_& i3;
-    Input4_& i4;
-    Input5_& i5;
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
+    Input5& i5;
 
 public:
-    //! Standard stream typedef
+    //! Standard stream typedef.
     typedef typename stxxl::tuple<
-            typename Input1_::value_type,
-            typename Input2_::value_type,
-            typename Input3_::value_type,
-            typename Input4_::value_type,
-            typename Input5_::value_type
+            typename Input1::value_type,
+            typename Input2::value_type,
+            typename Input3::value_type,
+            typename Input4::value_type,
+            typename Input5::value_type
             > value_type;
 
 private:
     value_type current;
 
 public:
-    //! Construction
-    make_tuple(
-        Input1_& i1_,
-        Input2_& i2_,
-        Input3_& i3_,
-        Input4_& i4_,
-        Input5_& i5_
-        )
+    //! Construction.
+    make_tuple(Input1& i1_,
+               Input2& i2_,
+               Input3& i3_,
+               Input4& i4_,
+               Input5& i5_)
         : i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_)
     {
         if (!empty())
             current = value_type(*i1, *i2, *i3, *i4, *i5);
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     const value_type& operator * () const
     {
         return current;
@@ -2168,7 +2293,7 @@ public:
         return &current;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     make_tuple& operator ++ ()
     {
         ++i1;
@@ -2183,7 +2308,7 @@ public:
         return *this;
     }
 
-    //! Standard stream method
+    //! Standard stream method.
     bool empty() const
     {
         return i1.empty() || i2.empty() || i3.empty() ||
