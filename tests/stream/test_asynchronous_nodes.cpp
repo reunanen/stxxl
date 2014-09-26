@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_asynchronous_nodes.cpp
+ *  tests/stream/test_asynchronous_nodes.cpp
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -35,7 +35,7 @@ stxxl::unsigned_type memory_to_use = 512 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::StartMode start_mode, bool wait_for_stop)
+void double_diamond(vector_type& input, bool asynchronous_pull, stxxl::stream::StartMode start_mode, bool wait_for_stop)
 {
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
@@ -71,8 +71,8 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 #ifdef BOOST_MSVC
         typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
 #else
-        typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
-#endif //BOOST_MSVC
+        typedef __typeof__ (streamify (input.begin(), input.end())) input_stream_type;
+#endif  //BOOST_MSVC
         input_stream_type input_stream = streamify(input.begin(), input.end()); //0
 
         typedef cmp_less_load cmp_4_type;
@@ -94,19 +94,19 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 
 #if SYMMETRIC
         typedef PUSH_PULL<my_type> runs_creator_stream_node1_type;
-        runs_creator_stream_node1_type runs_creator_stream_node1(buffer_size, start_mode);        //9
+        runs_creator_stream_node1_type runs_creator_stream_node1(buffer_size, start_mode);                  //9
         stxxl::STXXL_UNUSED(wait_for_stop);
 #else
         typedef runs_creator<use_push<my_type>, cmp_10_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream1_type;
-        runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size, asynchronous_pull, wait_for_stop);       //10a
+        runs_creator_stream1_type runs_creator_stream1(cmp_10, run_size, asynchronous_pull, wait_for_stop); //10a
 
 #if PIPELINED
         //runs_creator<use_push> will not pull asynchronously
         typedef PUSH_BATCH<runs_creator_stream1_type> runs_creator_stream_node1_type;
-        runs_creator_stream_node1_type runs_creator_stream_node1(run_size, runs_creator_stream1, asynchronous_pull, start_mode);     //9
+        runs_creator_stream_node1_type runs_creator_stream_node1(run_size, runs_creator_stream1, asynchronous_pull, start_mode); //9
 #else
         typedef runs_creator_stream1_type runs_creator_stream_node1_type;
-        runs_creator_stream_node1_type & runs_creator_stream_node1 = runs_creator_stream1;            //renaming
+        runs_creator_stream_node1_type& runs_creator_stream_node1 = runs_creator_stream1;                                        //renaming
 #endif
 
 #endif
@@ -114,14 +114,14 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 //split
 
         typedef pusher<accumulate_stream_type, runs_creator_stream_node1_type> split_stream_type;
-        split_stream_type split_stream(accumulate_stream, runs_creator_stream_node1);                //2
+        split_stream_type split_stream(accumulate_stream, runs_creator_stream_node1); //2
 
 #if PIPELINED
         typedef PULL<split_stream_type> split_stream_node_type;
-        split_stream_node_type split_stream_node(run_size, split_stream, start_mode);  //3
+        split_stream_node_type split_stream_node(run_size, split_stream, start_mode); //3
 #else
         typedef split_stream_type split_stream_node_type;
-        split_stream_node_type & split_stream_node = split_stream;         //renaming
+        split_stream_node_type& split_stream_node = split_stream;                     //renaming
 #endif
 
 //left flow
@@ -134,19 +134,16 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 
         sort_left_stream1_type sort_left_stream1(split_stream_node, cmp_4, run_size, asynchronous_pull, start_mode); //4
 
-
         typedef transform<accumulate<my_type>, sort_left_stream1_type> left_modifier_stream_type;
-        left_modifier_stream_type left_modifier_stream(acc_left, sort_left_stream1);    //5
-
+        left_modifier_stream_type left_modifier_stream(acc_left, sort_left_stream1);                                 //5
 
 #if PIPELINED
         typedef PULL_BATCH<left_modifier_stream_type> left_modifier_stream_node_type;
-        left_modifier_stream_node_type left_modifier_stream_node(buffer_size, left_modifier_stream, start_mode);  //6
+        left_modifier_stream_node_type left_modifier_stream_node(buffer_size, left_modifier_stream, start_mode);     //6
 #else
         typedef left_modifier_stream_type left_modifier_stream_node_type;
-        left_modifier_stream_node_type & left_modifier_stream_node = left_modifier_stream;            //renaming
+        left_modifier_stream_node_type& left_modifier_stream_node = left_modifier_stream;                            //renaming
 #endif
-
 
         STXXL_MSG("1/3 break in the DAG reached");
 
@@ -170,16 +167,15 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 #endif
 
         typedef transform<accumulate<my_type>, sort_right_stream1_type> right_modifier_stream_type;
-        right_modifier_stream_type right_modifier_stream(acc_right, sort_right_stream1);                        //11
+        right_modifier_stream_type right_modifier_stream(acc_right, sort_right_stream1);                            //11
 
 #if PIPELINED
         typedef PULL_BATCH<right_modifier_stream_type> right_modifier_stream_node_type;
-        right_modifier_stream_node_type right_modifier_stream_node(buffer_size, right_modifier_stream, start_mode);       //12
+        right_modifier_stream_node_type right_modifier_stream_node(buffer_size, right_modifier_stream, start_mode); //12
 #else
         typedef right_modifier_stream_type right_modifier_stream_node_type;
-        right_modifier_stream_node_type & right_modifier_stream_node = right_modifier_stream;                 //renaming
+        right_modifier_stream_node_type& right_modifier_stream_node = right_modifier_stream;                        //renaming
 #endif
-
 
 //left flow
 #if PIPELINED && BATCHED
@@ -188,14 +184,14 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
         typedef sort<left_modifier_stream_node_type, cmp_7_type, block_size> sort_left_stream2_type;
 #endif
 
-        sort_left_stream2_type sort_left_stream2(left_modifier_stream_node, cmp_7, run_size, asynchronous_pull, start_mode);  //7
+        sort_left_stream2_type sort_left_stream2(left_modifier_stream_node, cmp_7, run_size, asynchronous_pull, start_mode); //7
 
 #if PIPELINED
         typedef PULL_BATCH<sort_left_stream2_type> sort_left_stream_node2_type;
-        sort_left_stream_node2_type sort_left_stream_node2(buffer_size, sort_left_stream2, start_mode);   //8
+        sort_left_stream_node2_type sort_left_stream_node2(buffer_size, sort_left_stream2, start_mode);                      //8
 #else
         typedef sort_left_stream2_type sort_left_stream_node2_type;
-        sort_left_stream_node2_type & sort_left_stream_node2 = sort_left_stream2;             //renaming
+        sort_left_stream_node2_type& sort_left_stream_node2 = sort_left_stream2;                                             //renaming
 #endif
 
         STXXL_MSG("1/3 break in the DAG reached");
@@ -207,7 +203,6 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
         typedef runs_creator<right_modifier_stream_node_type, cmp_13_type, block_size, STXXL_DEFAULT_ALLOC_STRATEGY> runs_creator_stream2_type;
         runs_creator_stream2_type runs_creator_stream2(right_modifier_stream_node, cmp_13, run_size, asynchronous_pull, start_mode);  //13a
 #endif
-
 
 //right flow
 
@@ -221,41 +216,37 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
         typedef sort<right_modifier_stream_node_type, cmp_13_type, block_size> sort_right_stream2_type;
 #endif
 
-        sort_right_stream2_type sort_right_stream2(right_modifier_stream_node, cmp_13, run_size, asynchronous_pull, start_mode);      //13
-
+        sort_right_stream2_type sort_right_stream2(right_modifier_stream_node, cmp_13, run_size, asynchronous_pull, start_mode); //13
 
 #else
         typedef startable_runs_merger<runs_creator_stream2_type, cmp_13_type> sort_right_stream2_type;
-        sort_right_stream2_type sort_right_stream2(runs_creator_stream2, cmp_13, run_size, asynchronous_pull, start_mode);     //13b
+        sort_right_stream2_type sort_right_stream2(runs_creator_stream2, cmp_13, run_size, asynchronous_pull, start_mode);       //13b
 
 #endif
 
 #if PIPELINED
         typedef PULL_BATCH<sort_right_stream2_type> sort_right_stream_node2_type;
-        sort_right_stream_node2_type sort_right_stream_node2(buffer_size, sort_right_stream2, start_mode);        //14
+        sort_right_stream_node2_type sort_right_stream_node2(buffer_size, sort_right_stream2, start_mode); //14
 #else
         typedef sort_right_stream2_type sort_right_stream_node2_type;
-        sort_right_stream_node2_type & sort_right_stream_node2 = sort_right_stream2;                  //renaming
+        sort_right_stream_node2_type& sort_right_stream_node2 = sort_right_stream2;                        //renaming
 #endif
-
 
 //join
 
         typedef make_tuple<sort_left_stream_node2_type, sort_right_stream_node2_type> make_tuple_stream_type;
-        make_tuple_stream_type make_tuple_stream(sort_left_stream_node2, sort_right_stream_node2);    //15
-
+        make_tuple_stream_type make_tuple_stream(sort_left_stream_node2, sort_right_stream_node2);               //15
 
         typedef transform<accumulate_tuple<my_type>, make_tuple_stream_type> accumulate_tuple_stream_type;
-        accumulate_tuple_stream_type accumulate_tuple_stream(acc_tuple, make_tuple_stream);             //16
-
+        accumulate_tuple_stream_type accumulate_tuple_stream(acc_tuple, make_tuple_stream);                      //16
 
 #if BATCHED
-        o = materialize_batch(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, start_mode);       //17
+        o = materialize_batch(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, start_mode); //17
 #else
-        o = materialize(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, start_mode);             //17
+        o = materialize(accumulate_tuple_stream, tuple_output.begin(), tuple_output.end(), 0, start_mode);       //17
 #endif
     }
-    assert(o == tuple_output.end());
+    STXXL_ASSERT(o == tuple_output.end());
 #define STREAM_OUT tuple_output
 
 #if OUTPUT_STATS
@@ -275,12 +266,11 @@ void double_diamond(vector_type & input, bool asynchronous_pull, stxxl::stream::
 
     stats_begin = *stxxl::stats::get_instance();
     {
-
 #define STREAMED_CHECKING 0
 #if STREAMED_CHECKING
-        typedef __typeof__(streamify(tuple_output.begin(), tuple_output.end())) output_stream_type;
+        typedef __typeof__ (streamify (tuple_output.begin(), tuple_output.end())) output_stream_type;
 
-        output_stream_type * output_stream;
+        output_stream_type* output_stream;
 
         output_stream = new output_stream_type(tuple_output.begin(), tuple_output.end());
 

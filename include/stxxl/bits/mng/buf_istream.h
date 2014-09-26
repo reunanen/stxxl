@@ -143,8 +143,8 @@ public:
         return *this;
     }
 
-    //! \brief Batched stream method
-    buf_istream & operator += (unsigned_type length)
+    //! Batched stream method
+    buf_istream& operator += (unsigned_type length)
     {
         assert(0 < length && length <= batch_length());
         if (length > 0)
@@ -156,27 +156,27 @@ public:
         return *this;
     }
 
-    //! \brief Batched stream method
+    //! Batched stream method
     unsigned_type batch_length() const
     {
         //assert(block_type::size - current_elem > 0);
         return block_type::size - current_elem;
     }
 
-    //! \brief Batched stream method
+    //! Batched stream method
     value_type * batch_begin() const
     {
         return current_blk->elem + current_elem;
     }
 
-    //! \brief Batched stream method
-    value_type & operator [] (unsigned_type index) const
+    //! Batched stream method
+    value_type& operator [] (unsigned_type index) const
     {
         assert(current_elem + index < block_type::size);
         return current_blk->elem[current_elem + index];
     }
 
-    //! \brief Frees used internal objects
+    //! Frees used internal objects
     virtual ~buf_istream()
     {
         delete prefetcher;

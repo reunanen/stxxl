@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_asynchronous_pipelining_common.h
+ *  tests/stream/test_asynchronous_pipelining_common.h
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -37,32 +37,32 @@ struct my_type
     key_type key() const { return _key; }
 
     my_type() { }
-    my_type(key_type __key) : _key(__key) { }
-    my_type(key_type __key, key_type __load) : _key(__key), _load(__load) { }
+    my_type(key_type key) : _key(key) { }
+    my_type(key_type key, key_type load) : _key(key), _load(load) { }
 
-    void operator = (const key_type & __key)
+    void operator = (const key_type& key)
     {
-        _key = __key;
+        _key = key;
     }
 
-    void operator = (const my_type & mt)
+    void operator = (const my_type& mt)
     {
         _key = mt._key;
         _load = mt._load;
     }
 };
 
-std::ostream & operator << (std::ostream & o, const my_type & obj);
+std::ostream& operator << (std::ostream& o, const my_type& obj);
 
 typedef stxxl::tuple<my_type, my_type> my_tuple;
 
-std::ostream & operator << (std::ostream & o, const my_tuple & obj);
+std::ostream& operator << (std::ostream& o, const my_tuple& obj);
 
-bool operator < (const my_type & a, const my_type & b);
+bool operator < (const my_type& a, const my_type& b);
 
-bool operator > (const my_type & a, const my_type & b);
+bool operator > (const my_type& a, const my_type& b);
 
-bool operator != (const my_type & a, const my_type & b);
+bool operator != (const my_type& a, const my_type& b);
 
 struct cmp_less_key : public std::less<my_type>
 {
@@ -81,7 +81,7 @@ struct cmp_less_load : public std::binary_function<my_type, my_type, bool>
     my_type min_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::min)()); }
     my_type max_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::max)()); }
 
-    bool operator () (const my_type & mt1, const my_type & mt2) const
+    bool operator () (const my_type& mt1, const my_type& mt2) const
     {
         return mt1._load < mt2._load;
     }
@@ -92,7 +92,7 @@ struct cmp_greater_load : public std::binary_function<my_type, my_type, bool>
     my_type min_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::max)()); }
     my_type max_value() const { return my_type(MAGIC, (std::numeric_limits<my_type::key_type>::min)()); }
 
-    bool operator () (const my_type & mt1, const my_type & mt2) const
+    bool operator () (const my_type& mt1, const my_type& mt2) const
     {
         return mt1._load > mt2._load;
     }
@@ -100,7 +100,7 @@ struct cmp_greater_load : public std::binary_function<my_type, my_type, bool>
 
 struct cmp_less_tuple : public std::binary_function<my_tuple, my_tuple, bool>
 {
-    bool operator () (const my_tuple & t1, const my_tuple & t2);
+    bool operator () (const my_tuple& t1, const my_tuple& t2);
 };
 
 struct random_my_type
@@ -115,7 +115,7 @@ public:
         stxxl::srandom_number32(seed);     //global variable
     }
 
-    const my_type & operator () ()
+    const my_type& operator () ()
     {
         mt._key = static_cast<unsigned long long>(rng()) << 32 | rng();
         mt._load = static_cast<unsigned long long>(rng()) << 32 | rng();
@@ -154,7 +154,7 @@ class identity : public std::unary_function<T, void>
 public:
     typedef T value_type;
 
-    const T & operator () (const T & t) const
+    const T& operator () (const T& t) const
     {
         return t;
     }
@@ -178,17 +178,17 @@ public:
 
     accumulate() : sum(0), number(0) { }
 
-    const T & operator () (const T & t) const
+    const T& operator () (const T& t) const
     {
         sum += t._key;
         ++number;
         //std::cerr << "+ " << t._key << " " << sum << std::endl;
-        assert(t._key != 0);
-        assert(t._load != 0);
-        assert(t._key != (std::numeric_limits<my_type::key_type>::min)());
-        assert(t._key != (std::numeric_limits<my_type::key_type>::max)());
-        assert(t._load != (std::numeric_limits<my_type::key_type>::min)());
-        assert(t._load != (std::numeric_limits<my_type::key_type>::max)());
+        STXXL_ASSERT(t._key != 0);
+        STXXL_ASSERT(t._load != 0);
+        STXXL_ASSERT(t._key != (std::numeric_limits<my_type::key_type>::min)());
+        STXXL_ASSERT(t._key != (std::numeric_limits<my_type::key_type>::max)());
+        STXXL_ASSERT(t._load != (std::numeric_limits<my_type::key_type>::min)());
+        STXXL_ASSERT(t._load != (std::numeric_limits<my_type::key_type>::max)());
         return t;
     }
 
@@ -204,7 +204,6 @@ public:
     { }
 };
 
-
 /** @brief Accumulate arguments. */
 template <typename T, class Op = identity<T> >
 class accumulate_tuple : public std::unary_function<stxxl::tuple<T, T>, void>
@@ -217,16 +216,16 @@ public:
     typedef stxxl::tuple<T, T> value_type;
 
     accumulate_tuple() : sum1(0), sum2(0) { }
-    accumulate_tuple(Op & op) : sum1(0), sum2(0), op(op) { }
+    accumulate_tuple(Op& op) : sum1(0), sum2(0), op(op) { }
 
-    inline const stxxl::tuple<T, T> & operator () (const stxxl::tuple<T, T> & t) const
+    inline const stxxl::tuple<T, T>& operator () (const stxxl::tuple<T, T>& t) const
     {
         sum1 += op(t.first)._key;
         sum2 += op(t.second)._key;
-        assert(op(t.first)._key != 0);
-        assert(op(t.first)._load != 0);
-        assert(op(t.second)._key != 0);
-        assert(op(t.second)._load != 0);
+        STXXL_ASSERT(op(t.first)._key != 0);
+        STXXL_ASSERT(op(t.first)._load != 0);
+        STXXL_ASSERT(op(t.second)._key != 0);
+        STXXL_ASSERT(op(t.second)._load != 0);
         //std::cerr << "+ " << t.first._key << " " << sum1 << " " << "+ " << t.second._key << " " << sum2 << std::endl;
         return t;
     }
@@ -244,7 +243,7 @@ public:
 };
 
 /** @brief Code snippet to keep the compiler from optimizing away the operations on @c res. */
-#define ANTI_DEAD_CODE_ELIMINATION volatile unsigned long long * memory = new unsigned long long; *memory = res; delete memory;
+#define ANTI_DEAD_CODE_ELIMINATION volatile unsigned long long* memory = new unsigned long long; *memory = res; delete memory;
 
 /** @brief Delayed by a user-defined amount of time. */
 template <typename T>
@@ -259,7 +258,7 @@ public:
     some_delay(unsigned long long duration) : duration(duration)
     { }
 
-    const T & operator () (const T & t) const
+    const T& operator () (const T& t) const
     {
         unsigned long long res = 0;
         for (unsigned long long i = 0; i < duration; i++)
@@ -271,7 +270,6 @@ public:
     }
 };
 
-
 /** @brief Check order. */
 template <typename T, class Comparator>
 class check_order : public std::unary_function<T, void>
@@ -279,14 +277,14 @@ class check_order : public std::unary_function<T, void>
 private:
     bool first, ordered;
     T last;
-    Comparator & comp;
+    Comparator& comp;
 
 public:
     typedef T value_type;
 
-    check_order(Comparator & comp) : first(true), ordered(true), comp(comp) { }
+    check_order(Comparator& comp) : first(true), ordered(true), comp(comp) { }
 
-    const T & operator () (const T & t)
+    const T& operator () (const T& t)
     {
         //std::cerr << t << std::endl;
         if (!first)
@@ -302,7 +300,6 @@ public:
     }
 };
 
-
 /** @brief Exclusive or argument. */
 template <typename T>
 class exclusive_or : public std::unary_function<T, void>
@@ -317,7 +314,7 @@ public:
     exclusive_or(unsigned long long operand) : operand(operand)
     { }
 
-    const T & operator () (const T & t) const
+    const T& operator () (const T& t) const
     {
         result = t;
         //std::cout << "before " << std::hex << result << std::endl;
@@ -333,37 +330,36 @@ public:
     { }
 };
 
-
 extern stxxl::unsigned_type buffer_size;
 
-std::ostream & operator << (std::ostream & o, const my_type & obj)
+std::ostream& operator << (std::ostream& o, const my_type& obj)
 {
     o << obj._key << "/" << obj._load;
     return o;
 }
 
-inline std::ostream & operator << (std::ostream & o, const my_tuple & obj)
+inline std::ostream& operator << (std::ostream& o, const my_tuple& obj)
 {
     o << obj.first << " " << obj.second;
     return o;
 }
 
-inline bool operator < (const my_type & a, const my_type & b)
+inline bool operator < (const my_type& a, const my_type& b)
 {
     return a.key() < b.key();
 }
 
-inline bool operator > (const my_type & a, const my_type & b)
+inline bool operator > (const my_type& a, const my_type& b)
 {
     return b < a;
 }
 
-inline bool operator != (const my_type & a, const my_type & b)
+inline bool operator != (const my_type& a, const my_type& b)
 {
     return a.key() != b.key();
 }
 
-inline bool cmp_less_tuple::operator () (const my_tuple & t1, const my_tuple & t2)
+inline bool cmp_less_tuple::operator () (const my_tuple& t1, const my_tuple& t2)
 {
     return t1.first < t2.first;
 }

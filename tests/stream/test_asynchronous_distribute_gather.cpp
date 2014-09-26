@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_asynchronous_distribute_gather.cpp
+ *  tests/stream/test_asynchronous_distribute_gather.cpp
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -31,7 +31,7 @@ stxxl::unsigned_type memory_to_use = 2048 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-void distribute_gather(vector_type & input, stxxl::stream::StartMode start_mode)
+void distribute_gather(vector_type& input, stxxl::stream::StartMode start_mode)
 {
     using stxxl::stream::deterministic_round_robin;
     using stxxl::stream::deterministic_distribute;
@@ -58,7 +58,7 @@ void distribute_gather(vector_type & input, stxxl::stream::StartMode start_mode)
 #ifdef BOOST_MSVC
     typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
 #else
-    typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
+    typedef __typeof__ (streamify (input.begin(), input.end())) input_stream_type;
 #endif //BOOST_MSVC
 
     stxxl::stats_data stats_begin(*stxxl::stats::get_instance());
@@ -77,18 +77,17 @@ void distribute_gather(vector_type & input, stxxl::stream::StartMode start_mode)
 
     typedef push_pull<my_type> bucket_type;
 
-    bucket_type * buckets[num_workers];
+    bucket_type* buckets[num_workers];
 #if INTERMEDIATE
     typedef transform<identity<my_type>, bucket_type> worker_stream_type;
     typedef pull<worker_stream_type> worker_stream_node_type;
     identity<my_type> id;
-    worker_stream_type * workers[num_workers];
-    worker_stream_node_type * worker_nodes[num_workers];
+    worker_stream_type* workers[num_workers];
+    worker_stream_node_type* worker_nodes[num_workers];
 #else
     typedef bucket_type worker_stream_node_type;
-    worker_stream_node_type ** worker_nodes = buckets;
+    worker_stream_node_type** worker_nodes = buckets;
 #endif
-
 
     for (unsigned int w = 0; w < num_workers; ++w)
     {
@@ -129,7 +128,7 @@ void distribute_gather(vector_type & input, stxxl::stream::StartMode start_mode)
     o = materialize(accumulate_stream2, output.begin(), output.end(), 0, start_mode);
 #endif
 
-    assert(o == output.end());
+    STXXL_ASSERT(o == output.end());
 
     for (unsigned int w = 0; w < num_workers; ++w)
     {

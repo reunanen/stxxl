@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_materialize.cpp
+ *  tests/stream/test_materialize2.cpp
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -14,10 +14,9 @@
 #include <stxxl/stream>
 #include <stxxl/vector>
 
-
 struct forty_two
 {
-    typedef const int * const_iterator;
+    typedef const int* const_iterator;
     unsigned counter;
 
     static int ft;
@@ -28,13 +27,13 @@ struct forty_two
 
     int operator * ()
     {
-        assert(!empty());
+        STXXL_ASSERT(!empty());
         return 42;
     }
 
-    forty_two & operator ++ ()
+    forty_two& operator ++ ()
     {
-        assert(!empty());
+        STXXL_ASSERT(!empty());
         ++counter;
         return *this;
     }
@@ -56,8 +55,8 @@ struct forty_two
     }
 
     void operator += (int length)
-    { 
-    	counter += length;
+    {
+        counter += length;
     }
 };
 

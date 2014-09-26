@@ -1,5 +1,5 @@
 /***************************************************************************
- *  stream/test_asynchronous_stream_sort.cpp
+ *  tests/stream/test_asynchronous_stream_sort.cpp
  *
  *  Part of the STXXL. See http://stxxl.sourceforge.net
  *
@@ -38,7 +38,7 @@ stxxl::unsigned_type memory_to_use = 2048 * megabyte;
 stxxl::unsigned_type run_size = memory_to_use / 4;
 stxxl::unsigned_type buffer_size = 16 * megabyte;
 
-stxxl::unsigned_type checksum(vector_type & input)
+stxxl::unsigned_type checksum(vector_type& input)
 {
     stxxl::unsigned_type sum = 0;
     for (vector_type::const_iterator i = input.begin(); i != input.end(); ++i)
@@ -46,7 +46,7 @@ stxxl::unsigned_type checksum(vector_type & input)
     return sum;
 }
 
-void linear_sort_streamed(vector_type & input, vector_type & output, bool asynchronous_pull, stxxl::stream::StartMode start_mode)
+void linear_sort_streamed(vector_type& input, vector_type& output, bool asynchronous_pull, stxxl::stream::StartMode start_mode)
 {
     using stxxl::stream::generator2stream;
     using stxxl::stream::round_robin;
@@ -72,11 +72,10 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
 #ifdef BOOST_MSVC
     typedef stxxl::stream::streamify_traits<vector_type::iterator>::stream_type input_stream_type;
 #else
-    typedef __typeof__(streamify(input.begin(), input.end())) input_stream_type;
+    typedef __typeof__ (streamify (input.begin(), input.end())) input_stream_type;
 #endif //BOOST_MSVC
 
     input_stream_type input_stream = streamify(input.begin(), input.end());
-
 
     typedef cmp_less_key comparator_type;
     comparator_type cl;
@@ -100,7 +99,6 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
     std::cout << stxxl::stats_data(*stxxl::stats::get_instance()) - stats_begin;
 #endif
 
-
     stxxl::unsigned_type sum2 = checksum(output);
 
     std::cout << sum1 << " ?= " << sum2 << std::endl;
@@ -111,7 +109,6 @@ void linear_sort_streamed(vector_type & input, vector_type & output, bool asynch
 
     std::cout << "Linear sorting streamed done." << std::endl;
 }
-
 
 int main()
 {
