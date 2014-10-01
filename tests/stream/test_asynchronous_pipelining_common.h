@@ -11,7 +11,7 @@
  **************************************************************************/
 
 #include <limits>
-#include <stxxl/bits/mng/mng.h>
+#include <stxxl/bits/mng/block_manager.h>
 #include <stxxl/vector>
 #include <stxxl/bits/algo/sort.h>
 #include <stxxl/bits/stream/sort_stream.h>
@@ -55,8 +55,6 @@ struct my_type
 std::ostream& operator << (std::ostream& o, const my_type& obj);
 
 typedef stxxl::tuple<my_type, my_type> my_tuple;
-
-std::ostream& operator << (std::ostream& o, const my_tuple& obj);
 
 bool operator < (const my_type& a, const my_type& b);
 
@@ -335,12 +333,6 @@ extern stxxl::unsigned_type buffer_size;
 std::ostream& operator << (std::ostream& o, const my_type& obj)
 {
     o << obj._key << "/" << obj._load;
-    return o;
-}
-
-inline std::ostream& operator << (std::ostream& o, const my_tuple& obj)
-{
-    o << obj.first << " " << obj.second;
     return o;
 }
 

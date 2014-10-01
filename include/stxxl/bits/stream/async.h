@@ -131,7 +131,7 @@ void basic_pull_empty<StreamOperation>::start_pulling()
 #ifdef STXXL_BOOST_THREADS
     puller_thread = new boost::thread(boost::bind(call_async_pull_empty<StreamOperation>, this));
 #else
-    check_pthread_call(pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this));
+    STXXL_CHECK_PTHREAD_CALL(pthread_create(&puller_thread, NULL, call_async_pull_empty<StreamOperation>, this));
 #endif
 }
 
@@ -176,8 +176,8 @@ protected:
 };
 
 //! Node enabling asynchronous pipelining.
-//!
-//! This node pulls asynchronously, one batch of elements at a time, and throws away the data.
+//! This node pulls asynchronously, one batch of elements at a time, and throws
+//! away the data.
 template <class StreamOperation>
 class pull_empty_batch : public basic_pull_empty<StreamOperation>
 {
@@ -237,7 +237,8 @@ protected:
     mutable typed_buffer* incoming_buffer;
     //! Buffer that is currently output from.
     mutable typed_buffer* outgoing_buffer;
-    //! The incoming buffer has been filled (completely, or the input stream has run empty).
+    //! The incoming buffer has been filled (completely, or the input stream
+    //! has run empty).
     mutable volatile bool input_buffer_filled;
     //! The outgoing buffer has been consumed.
     mutable volatile bool output_buffer_consumed;
@@ -245,7 +246,8 @@ protected:
     mutable bool input_finished;
     //! The output is finished.
     mutable bool output_finished;
-    //! The input stream has run empty, the last swap_buffers() has been performed already.
+    //! The input stream has run empty, the last swap_buffers() has been
+    //! performed already.
     mutable volatile bool last_swap_done;
     StartMode start_mode;
 #ifdef STXXL_BOOST_THREADS
@@ -279,7 +281,8 @@ protected:
 public:
     //! Generic Constructor for zero passed arguments.
     //! \param buffer_size Total size of the buffers in bytes.
-    push_pull(unsigned_type buffer_size, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    push_pull(unsigned_type buffer_size,
+              StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : block1(buffer_size / 2),
           block2(buffer_size / 2),
           incoming_buffer(&block1),
@@ -304,8 +307,8 @@ public:
         update_last_swap_done();
 
 #ifndef STXXL_BOOST_THREADS
-        check_pthread_call(pthread_mutex_init(&mutex, 0));
-        check_pthread_call(pthread_cond_init(&cond, 0));
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_init(&mutex, 0));
+        STXXL_CHECK_PTHREAD_CALL(pthread_cond_init(&cond, 0));
 #endif
     }
 
@@ -313,8 +316,8 @@ public:
     virtual ~push_pull()
     {
 #ifndef STXXL_BOOST_THREADS
-        /*check_pthread_call(*/ pthread_mutex_destroy(&mutex) /*)*/;
-        /*check_pthread_call(*/ pthread_cond_destroy(&cond) /*)*/;
+        /*STXXL_CHECK_PTHREAD_CALL(*/ pthread_mutex_destroy(&mutex) /*)*/;
+        /*STXXL_CHECK_PTHREAD_CALL(*/ pthread_cond_destroy(&cond) /*)*/;
 #endif
     }
 
@@ -335,7 +338,8 @@ protected:
         update_last_swap_done();
     }
 
-    //! Check whether outgoing buffer has been consumed and possibly wait for new data to come in.
+    //! Check whether outgoing buffer has been consumed and possibly wait for
+    //! new data to come in.
     //!
     //! Should not be called in operator++(), but in empty() (or operator*()),
     //! because should not block if iterator is only advanced, but not accessed.
@@ -346,36 +350,44 @@ protected:
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
 
-            update_output_buffer_consumed();                    //sets true
+            // sets true
+            update_output_buffer_consumed();
 
             if (input_buffer_filled)
             {
                 swap_buffers();
-                cond.notify_one();                                                      //wake up other thread
+                // wake up other thread
+                cond.notify_one();
             }
             else
-                while (!last_swap_done && output_buffer_consumed)                       //to be swapped by other thread
-                    cond.wait(mutex);                                                   //wait for other thread to swap in some input
+                // to be swapped by other thread
+                while (!last_swap_done && output_buffer_consumed)
+                    cond.wait(mutex);
 
+            // wait for other thread to swap in some input
             mutex.unlock();
 #else
-            check_pthread_call(pthread_mutex_lock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
 
-            update_output_buffer_consumed();                    //sets true
+            // sets true
+            update_output_buffer_consumed();
 
             if (input_buffer_filled)
             {
                 swap_buffers();
-                check_pthread_call(pthread_cond_signal(&cond));                         //wake up other thread
+                // wake up other thread
+                STXXL_CHECK_PTHREAD_CALL(pthread_cond_signal(&cond));
             }
             else
-                while (!last_swap_done && output_buffer_consumed)                       //to be swapped by other thread
-                    check_pthread_call(pthread_cond_wait(&cond, &mutex));               //wait for other thread to swap in some input
+                // to be swapped by other thread
+                while (!last_swap_done && output_buffer_consumed)
+                    // wait for other thread to swap in some input
+                    STXXL_CHECK_PTHREAD_CALL(pthread_cond_wait(&cond, &mutex));
 
-            check_pthread_call(pthread_mutex_unlock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
 #endif
         }
-        //otherwise, at least one element available
+        // otherwise, at least one element available
     }
 
 public:
@@ -386,7 +398,7 @@ public:
         if (start_mode == start_deferred)
             STXXL_VERBOSE0("push_pull " << this << " starts.");
 #endif
-        //do nothing
+        // do nothing
     }
 
     //! Standard stream method.
@@ -394,7 +406,8 @@ public:
     {
         reload();
 
-        return batch_length() == 0;         //output_buffer_consumed;
+        // output_buffer_consumed;
+        return batch_length() == 0;
     }
 
     //! Standard stream method.
@@ -452,12 +465,14 @@ public:
         if (!output_finished)
         {
             output_finished = true;
-            update_last_swap_done();            //sets true
+            // sets true
+            update_last_swap_done();
 
 #ifdef STXXL_BOOST_THREADS
             cond.notify_one();
 #else
-            check_pthread_call(pthread_cond_signal(&cond));                 //wake up other thread
+            // wake up other thread
+            STXXL_CHECK_PTHREAD_CALL(pthread_cond_signal(&cond));
 #endif
         }
     }
@@ -473,33 +488,41 @@ protected:
 #ifdef STXXL_BOOST_THREADS
             mutex.lock();
 
-            update_input_buffer_filled();             //sets true
+            // sets true
+            update_input_buffer_filled();
 
             if (output_buffer_consumed)
             {
                 swap_buffers();
-                cond.notify_one();                                              //wake up other thread
+                // wake up other thread
+                cond.notify_one();
             }
             else
-                while (!last_swap_done && input_buffer_filled)                  //to be swapped by other thread
-                    cond.wait(mutex);                                           //wait for other thread to take the input
+                // to be swapped by other thread
+                while (!last_swap_done && input_buffer_filled)
+                    // wait for other thread to take the input
+                    cond.wait(mutex);
 
             mutex.unlock();
 #else
-            check_pthread_call(pthread_mutex_lock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
 
-            update_input_buffer_filled();             //sets true
+            // sets true
+            update_input_buffer_filled();
 
             if (output_buffer_consumed)
             {
                 swap_buffers();
-                check_pthread_call(pthread_cond_signal(&cond));                                     //wake up other thread
+                // wake up other thread
+                STXXL_CHECK_PTHREAD_CALL(pthread_cond_signal(&cond));
             }
             else
-                while (!last_swap_done && input_buffer_filled)                                      //to be swapped by other thread
-                    check_pthread_call(pthread_cond_wait(&cond, &mutex));                           //wait for other thread to take the input
+                // to be swapped by other thread
+                while (!last_swap_done && input_buffer_filled)
+                    // wait for other thread to take the input
+                    STXXL_CHECK_PTHREAD_CALL(pthread_cond_wait(&cond, &mutex));
 
-            check_pthread_call(pthread_mutex_unlock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
 #endif
         }
     }
@@ -511,7 +534,7 @@ public:
         if (start_mode == start_deferred)
             STXXL_VERBOSE0("push_pull " << this << " starts push.");
 #endif
-        //do nothing
+        // do nothing
     }
 
     //! Standard push stream method.
@@ -600,7 +623,7 @@ public:
         delete puller_thread;
 #else
         void* return_code;
-        check_pthread_call(pthread_join(puller_thread, &return_code));
+        STXXL_CHECK_PTHREAD_CALL(pthread_join(puller_thread, &return_code));
 #endif
     }
 
@@ -640,13 +663,14 @@ void basic_pull<StreamOperation>::start_pulling()
 #ifdef STXXL_BOOST_THREADS
     puller_thread = new boost::thread(boost::bind(call_async_pull<StreamOperation>, this));
 #else
-    check_pthread_call(pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this));
+    STXXL_CHECK_PTHREAD_CALL(pthread_create(&puller_thread, NULL, call_async_pull<StreamOperation>, this));
 #endif
 }
 
 //! Node enabling asynchronous pipelining.
 //!
-//! This node pulls asynchronously, one element at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one element at a time, and writes the data
+//! to a buffer.
 template <class StreamOperation>
 class pull : public basic_pull<StreamOperation>
 {
@@ -686,12 +710,14 @@ protected:
 
 //! Node enabling asynchronous pipelining.
 //!
-//! This node pulls asynchronously, one batch of elements at a time, and writes the data to a buffer.
+//! This node pulls asynchronously, one batch of elements at a time, and writes
+//! the data to a buffer.
 template <class StreamOperation>
 class pull_batch : public basic_pull<StreamOperation>
 {
 public:
-    pull_batch(unsigned_type buffer_size, StreamOperation& so, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    pull_batch(unsigned_type buffer_size, StreamOperation& so,
+               StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : basic_pull<StreamOperation>(buffer_size, so, start_mode)
     {
         if (start_mode != start_deferred)
@@ -784,7 +810,7 @@ public:
             delete pusher_thread;
 #else
             void* return_code;
-            check_pthread_call(pthread_join(pusher_thread, &return_code));
+            STXXL_CHECK_PTHREAD_CALL(pthread_join(pusher_thread, &return_code));
 #endif
         }
     }
@@ -810,7 +836,7 @@ void basic_push<StreamOperation>::start_pushing()
 #ifdef STXXL_BOOST_THREADS
     pusher_thread = new boost::thread(boost::bind(call_async_push<StreamOperation>, this));
 #else
-    check_pthread_call(pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this));
+    STXXL_CHECK_PTHREAD_CALL(pthread_create(&pusher_thread, NULL, call_async_push<StreamOperation>, this));
 #endif
 }
 
@@ -821,7 +847,8 @@ template <class StreamOperation>
 class push : public basic_push<StreamOperation>
 {
 public:
-    push(unsigned_type buffer_size, StreamOperation& so, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    push(unsigned_type buffer_size, StreamOperation& so,
+         StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : basic_push<StreamOperation>(buffer_size, so, start_mode)
     {
         if (start_mode != start_deferred)
@@ -855,12 +882,14 @@ protected:
 
 //! Node enabling asynchronous pipelining.
 //!
-//! This node reads the data from a buffer asynchronously, one batch of elements at a time, and pushes.
+//! This node reads the data from a buffer asynchronously, one batch of
+//! elements at a time, and pushes.
 template <class StreamOperation>
 class push_batch : public basic_push<StreamOperation>
 {
 public:
-    push_batch(unsigned_type buffer_size, StreamOperation& so, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    push_batch(unsigned_type buffer_size, StreamOperation& so,
+               StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : basic_push<StreamOperation>(buffer_size, so, start_mode)
     {
         if (start_mode != start_deferred)
@@ -894,7 +923,8 @@ protected:
     }
 };
 
-//! Dummy node as drop-in replacement as drop-in replacement to switch off asynchronous pipelining by a typedef.
+//! Dummy node as drop-in replacement as drop-in replacement to switch off
+//! asynchronous pipelining by a typedef.
 template <class StreamOperation>
 class dummy_pull
 {
@@ -909,7 +939,8 @@ public:
     //! Generic Constructor for zero passed arguments.
     //! \param buffer_size Total size of the buffers in bytes.
     //! \param so Input stream operation.
-    dummy_pull(unsigned_type buffer_size, StreamOperation& so, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    dummy_pull(unsigned_type buffer_size, StreamOperation& so,
+               StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : so(so), start_mode(start_mode)
     {
         STXXL_UNUSED(buffer_size);
@@ -975,7 +1006,8 @@ public:
     }
 };
 
-//! Dummy node as drop-in replacement to switch off asynchronous pipelining by a typedef.
+//! Dummy node as drop-in replacement to switch off asynchronous pipelining by
+//! a typedef.
 template <class StreamOperation, class ConnectedStreamOperation>
 class connect_pull
 {
@@ -991,7 +1023,8 @@ public:
     //! Generic Constructor for zero passed arguments.
     //! \param so Input stream operation.
     //! \param cso Stream operation to connect to.
-    connect_pull(StreamOperation& so, ConnectedStreamOperation& cso, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    connect_pull(StreamOperation& so, ConnectedStreamOperation& cso,
+                 StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : so(so), cso(cso), start_mode(start_mode)
     {
         if (start_mode != start_deferred)
@@ -1073,7 +1106,8 @@ public:
     //! Generic Constructor for zero passed arguments.
     //! \param buffer_size Total size of the buffers in bytes.
     //! \param so Input stream operation.
-    dummy_push(unsigned_type buffer_size, StreamOperation& so, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+    dummy_push(unsigned_type buffer_size, StreamOperation& so,
+               StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : so(so), start_mode(start_mode)
     { }
 

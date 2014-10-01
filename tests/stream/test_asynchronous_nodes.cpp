@@ -51,8 +51,8 @@ void double_diamond(vector_type& input, bool asynchronous_pull, stxxl::stream::S
     using stxxl::stream::sort;
     using stxxl::stream::runs_creator;
     using stxxl::stream::runs_creator_batch;
-    using stxxl::stream::startable_runs_merger;
-    using stxxl::stream::make_tuple;
+    using stxxl::stream::runs_merger;
+    using stxxl::stream::make_batched_tuple;
     using stxxl::stream::use_push;
     using stxxl::stream::pusher;
 
@@ -161,7 +161,7 @@ void double_diamond(vector_type& input, bool asynchronous_pull, stxxl::stream::S
 
 #else
 
-        typedef startable_runs_merger<runs_creator_stream1_type, cmp_10_type> sort_right_stream1_type;
+        typedef runs_merger<runs_creator_stream1_type, cmp_10_type> sort_right_stream1_type;
         sort_right_stream1_type sort_right_stream1(runs_creator_stream1, cmp_10, run_size, start_mode); //10a
 
 #endif
@@ -219,7 +219,7 @@ void double_diamond(vector_type& input, bool asynchronous_pull, stxxl::stream::S
         sort_right_stream2_type sort_right_stream2(right_modifier_stream_node, cmp_13, run_size, asynchronous_pull, start_mode); //13
 
 #else
-        typedef startable_runs_merger<runs_creator_stream2_type, cmp_13_type> sort_right_stream2_type;
+        typedef runs_merger<runs_creator_stream2_type, cmp_13_type> sort_right_stream2_type;
         sort_right_stream2_type sort_right_stream2(runs_creator_stream2, cmp_13, run_size, asynchronous_pull, start_mode);       //13b
 
 #endif
@@ -234,7 +234,7 @@ void double_diamond(vector_type& input, bool asynchronous_pull, stxxl::stream::S
 
 //join
 
-        typedef make_tuple<sort_left_stream_node2_type, sort_right_stream_node2_type> make_tuple_stream_type;
+        typedef make_batched_tuple<sort_left_stream_node2_type, sort_right_stream_node2_type> make_tuple_stream_type;
         make_tuple_stream_type make_tuple_stream(sort_left_stream_node2, sort_right_stream_node2);               //15
 
         typedef transform<accumulate_tuple<my_type>, make_tuple_stream_type> accumulate_tuple_stream_type;

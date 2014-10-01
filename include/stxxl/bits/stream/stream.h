@@ -1864,63 +1864,6 @@ public:
     }
 };
 
-#if TODO
-template <class Input1Iterator, class Input2Iterator>
-class make_tuple_iterator : std::iterator<
-                                std::random_access_iterator_tag,
-                                tuple<
-                                    typename std::iterator_traits<Input1Iterator>::value_type,
-                                    typename std::iterator_traits<Input2Iterator>::value_type
-                                    >
-                                >
-{
-public:
-    typedef typename std::iterator_traits<Input1Iterator>::value_type input1_type;
-    typedef typename std::iterator_traits<Input2Iterator>::value_type input2_type;
-
-    typedef tuple<typename input1_type, typename input2_type> value_type;
-
-private:
-    Input1Iterator i1;
-    Input2Iterator i2;
-    mutable value_type current;
-
-public:
-    make_tuple_iterator(const Input1Iterator& i1, const Input2Iterator& i2)
-        : i1(i1), i2(i2)
-    { }
-
-    const value_type& operator * () const       //RETURN BY VALUE
-    {
-        current = value_type(*i1, *i2);
-        return current;
-    }
-
-    const value_type* operator -> () const
-    {
-        return &(operator * ());
-    }
-
-    make_tuple_iterator& operator ++ ()
-    {
-        ++i1;
-        ++i2;
-
-        return *this;
-    }
-
-    make_tuple_iterator operator + (unsigned_type addend) const
-    {
-        return make_tuple_iterator(i1 + addend, i2 + addend);
-    }
-
-    bool operator != (const make_tuple_iterator& mti) const
-    {
-        return mti.i1 != i1 || mti.i2 != i2;
-    }
-};
-#endif
-
 //! Creates stream of 2-tuples (pairs) from 2 input streams.
 //!
 //! \tparam Input1 type of the 1st input
@@ -1984,15 +1927,156 @@ public:
     }
 };
 
-#if 0
+template <class Input1Iterator, class Input2Iterator>
+class make_tuple_iterator : std::iterator<
+                                std::random_access_iterator_tag,
+                                tuple<
+                                    typename std::iterator_traits<Input1Iterator>::value_type,
+                                    typename std::iterator_traits<Input2Iterator>::value_type
+                                    >
+                                >
+{
+public:
+    typedef typename std::iterator_traits<Input1Iterator>::value_type input1_type;
+    typedef typename std::iterator_traits<Input2Iterator>::value_type input2_type;
+
+    typedef tuple<input1_type, input2_type> value_type;
+
+private:
+    Input1Iterator i1;
+    Input2Iterator i2;
+    mutable value_type current;
+
+public:
+    make_tuple_iterator(const Input1Iterator& i1, const Input2Iterator& i2)
+        : i1(i1), i2(i2)
+    { }
+
+    const value_type& operator * () const       //RETURN BY VALUE
+    {
+        current = value_type(*i1, *i2);
+        return current;
+    }
+
+    const value_type* operator -> () const
+    {
+        return &(operator * ());
+    }
+
+    make_tuple_iterator& operator ++ ()
+    {
+        ++i1;
+        ++i2;
+
+        return *this;
+    }
+
+    make_tuple_iterator operator + (unsigned_type addend) const
+    {
+        return make_tuple_iterator(i1 + addend, i2 + addend);
+    }
+
+    bool operator != (const make_tuple_iterator& mti) const
+    {
+        return mti.i1 != i1 || mti.i2 != i2;
+    }
+};
+
+//! Creates stream of 6-tuples from 6 input streams.
+//!
+//! \tparam Input1 type of the 1st input
+//! \tparam Input2 type of the 2nd input
+//! \tparam Input3 type of the 3rd input
+//! \tparam Input4 type of the 4th input
+//! \tparam Input5 type of the 5th input
+//! \tparam Input6 type of the 6th input
+template <class Input1,
+          class Input2,
+          class Input3 = Stopper,
+          class Input4 = Stopper,
+          class Input5 = Stopper,
+          class Input6 = Stopper>
+class make_batched_tuple
+{
+    Input1& i1;
+    Input2& i2;
+    Input3& i3;
+    Input4& i4;
+    Input5& i5;
+    Input6& i6;
+
+public:
+    //! Standard stream typedef.
+    typedef typename stxxl::tuple<
+            typename Input1::value_type,
+            typename Input2::value_type,
+            typename Input3::value_type,
+            typename Input4::value_type,
+            typename Input5::value_type,
+            typename Input6::value_type
+            > value_type;
+
+private:
+    value_type current;
+
+public:
+    //! Construction.
+    make_batched_tuple(Input1& i1_,
+                       Input2& i2_,
+                       Input3& i3_,
+                       Input4& i4_,
+                       Input5& i5_,
+                       Input6& i6_)
+        : i1(i1_), i2(i2_), i3(i3_), i4(i4_), i5(i5_), i6(i6_)
+    {
+        if (!empty())
+            current = value_type(*i1, *i2, *i3, *i4, *i5, *i6);
+    }
+
+    //! Standard stream method.
+    const value_type& operator * () const
+    {
+        return current;
+    }
+
+    const value_type* operator -> () const
+    {
+        return &current;
+    }
+
+    //! Standard stream method.
+    make_batched_tuple& operator ++ ()
+    {
+        ++i1;
+        ++i2;
+        ++i3;
+        ++i4;
+        ++i5;
+        ++i6;
+
+        if (!empty())
+            current = value_type(*i1, *i2, *i3, *i4, *i5, *i6);
+
+        return *this;
+    }
+
+    //! Standard stream method.
+    bool empty() const
+    {
+        return i1.empty() || i2.empty() || i3.empty() ||
+               i4.empty() || i5.empty() || i6.empty();
+    }
+};
+
 //! Creates batchable stream of 2-tuples (pairs) from 2 input streams.
 //!
 //! \tparam Input1 type of the 1st input
 //! \tparam Input2 type of the 2nd input
 //! \remark A specialization of \c make_tuple .
-template <class Input1,
-          class Input2
-          >
+template <
+    class Input1,
+    class Input2
+    >
 class make_batched_tuple<Input1, Input2, Stopper, Stopper, Stopper, Stopper>
 {
 public:
@@ -2086,7 +2170,6 @@ public:
         return value_type(i1[index], i2[index]);
     }
 };
-#endif
 
 //! Creates stream of 3-tuples from 3 input streams.
 //!

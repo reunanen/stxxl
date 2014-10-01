@@ -32,3 +32,20 @@ stxxl_test(test_push_sort)
 stxxl_test(test_sorted_runs)
 stxxl_test(test_stream)
 stxxl_test(test_stream1)
+
+stxxl_build_test(test_asynchronous_stream_sort)
+stxxl_build_test(test_asynchronous_nodes)
+stxxl_build_test(test_asynchronous_distribute_gather)
+
+# additional compilation settings
+stxxl_build2_test(test_asynchronous_stream_sort_as test_asynchronous_stream_sort.cpp)
+add_define(test_asynchronous_stream_sort_as "STXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1")
+
+stxxl_build2_test(test_asynchronous_stream_sort_as_ba test_asynchronous_stream_sort.cpp)
+add_define(test_asynchronous_stream_sort_as_ba "STXXL_STREAM_SORT_ASYNCHRONOUS_PULL=1" "BATCHED=1")
+
+stxxl_test(test_asynchronous_stream_sort)
+stxxl_test(test_asynchronous_stream_sort_as)
+stxxl_test(test_asynchronous_stream_sort_as_ba)
+stxxl_test(test_asynchronous_nodes)
+stxxl_test(test_asynchronous_distribute_gather)

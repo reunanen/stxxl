@@ -119,12 +119,12 @@ STXXL_BEGIN_NAMESPACE
 ////////////////////////////////////////////////////////////////////////////
 
 //! Checks pthread call, if return != 0, throws stxxl::resource_error with "Error in [function] : [pthread_expr] : [errno message]
-#define STXXL_CHECK_PTHREAD_CALL(expr)                             \
-    do {                                                           \
-        int res = (expr);                                          \
-        if (res != 0) {                                            \
-            STXXL_THROW_ERRNO2(stxxl::resource_error, #expr, res); \
-        }                                                          \
+#define STXXL_CHECK_PTHREAD_CALL(expr)                           \
+    do {                                                         \
+        int r = (expr);                                          \
+        if (r != 0) {                                            \
+            STXXL_THROW_ERRNO2(stxxl::resource_error, #expr, r); \
+        }                                                        \
     } while (false)
 
 ////////////////////////////////////////////////////////////////////////////

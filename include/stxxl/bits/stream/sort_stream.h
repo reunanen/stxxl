@@ -206,16 +206,16 @@ public:
             }
             mutex.unlock();
 #else
-            check_pthread_call(pthread_mutex_lock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
             //wait for fully_written to become false, or termination being requested
             while (fully_written && !termination_requested)
-                check_pthread_call(pthread_cond_wait(&cond, &mutex));           //wait for a state change
+                STXXL_CHECK_PTHREAD_CALL(pthread_cond_wait(&cond, &mutex));           //wait for a state change
             if (termination_requested)
             {
-                check_pthread_call(pthread_mutex_unlock(&mutex));
+                STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
                 return;
             }
-            check_pthread_call(pthread_mutex_unlock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
 #endif
 
             //fully_written == false
@@ -248,10 +248,10 @@ public:
             cond.notify_one();
             mutex.unlock();
 #else
-            check_pthread_call(pthread_mutex_lock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
             fully_written = true;
-            check_pthread_call(pthread_cond_signal(&cond));     //wake up other thread, if necessary
-            check_pthread_call(pthread_mutex_unlock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_cond_signal(&cond));     //wake up other thread, if necessary
+            STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
 #endif
         }
     }
@@ -272,10 +272,10 @@ public:
         mutex.unlock();
         cond.notify_one();
 #else
-        check_pthread_call(pthread_mutex_lock(&mutex));
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
         fully_written = false;
-        check_pthread_call(pthread_mutex_unlock(&mutex));
-        check_pthread_call(pthread_cond_signal(&cond));     //wake up other thread
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
+        STXXL_CHECK_PTHREAD_CALL(pthread_cond_signal(&cond));     //wake up other thread
 #endif
     }
 
@@ -290,11 +290,11 @@ public:
             cond.wait(mutex);       //wait for other thread
         mutex.unlock();
 #else
-        check_pthread_call(pthread_mutex_lock(&mutex));
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_lock(&mutex));
         //wait for fully_written to become true
         while (!fully_written)
-            check_pthread_call(pthread_cond_wait(&cond, &mutex));       //wait for other thread
-        check_pthread_call(pthread_mutex_unlock(&mutex));
+            STXXL_CHECK_PTHREAD_CALL(pthread_cond_wait(&cond, &mutex));       //wait for other thread
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_unlock(&mutex));
 #endif
 
         return wait_fetch_job.end;
@@ -330,8 +330,8 @@ public:
         sort_helper::verify_sentinel_strict_weak_ordering(cmp);
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifndef STXXL_BOOST_THREADS
-        check_pthread_call(pthread_mutex_init(&mutex, 0));
-        check_pthread_call(pthread_cond_init(&cond, 0));
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_init(&mutex, 0));
+        STXXL_CHECK_PTHREAD_CALL(pthread_cond_init(&cond, 0));
 #endif
 #else
         STXXL_UNUSED(asynchronous_pull);
@@ -353,8 +353,8 @@ public:
     {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
 #ifndef STXXL_BOOST_THREADS
-        check_pthread_call(pthread_mutex_destroy(&mutex));
-        check_pthread_call(pthread_cond_destroy(&cond));
+        STXXL_CHECK_PTHREAD_CALL(pthread_mutex_destroy(&mutex));
+        STXXL_CHECK_PTHREAD_CALL(pthread_cond_destroy(&cond));
 #endif
 #endif      //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
     }
@@ -368,7 +368,7 @@ public:
         {
 #if STXXL_START_PIPELINE_DEFERRED
             if (start_mode == start_deferred)
-                input.start_pull();
+                m_input.start_pull();
 #endif
             compute_result();
             m_result_computed = true;
@@ -482,7 +482,7 @@ void basic_runs_creator<Input, CompareType, BlockSize, AllocStr>::compute_result
     {
         blocks2_length = wait_write_read();
 
-        already_empty_after_2_runs = input.empty();
+        already_empty_after_2_runs = m_input.empty();
         start_write_read(write_reqs, Blocks1, cur_run_size, m2);
     }
 #endif  //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -679,7 +679,7 @@ void basic_runs_creator<Input, CompareType, BlockSize, AllocStr>::start_waiting_
 #ifdef STXXL_BOOST_THREADS
     waiter_and_fetcher = new boost::thread(boost::bind(call_async_wait_and_fetch<Input, CompareType, BlockSize, AllocStr>, this));
 #else
-    check_pthread_call(pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input, CompareType, BlockSize, AllocStr>, this));
+    STXXL_CHECK_PTHREAD_CALL(pthread_create(&waiter_and_fetcher, NULL, call_async_wait_and_fetch<Input, CompareType, BlockSize, AllocStr>, this));
 #endif
 }
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
@@ -736,7 +736,7 @@ public:
     {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         if (asynchronous_pull)
-            base::start_waiting_and_fetching();     //start second thread
+            base_type::start_waiting_and_fetching();     //start second thread
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
     }
 };
@@ -756,25 +756,25 @@ template <
 class runs_creator_batch : public basic_runs_creator<Input, CompareType, BlockSize, AllocStr>
 {
 private:
-    typedef basic_runs_creator<Input, CompareType, BlockSize, AllocStr> base;
-    typedef typename base::block_type block_type;
+    typedef basic_runs_creator<Input, CompareType, BlockSize, AllocStr> base_type;
+    typedef typename base_type::block_type block_type;
 
-    using base::input;
+    using base_type::m_input;
 
     virtual blocked_index<block_type::size>
     fetch(block_type* Blocks, blocked_index<block_type::size> pos, unsigned_type limit)
     {
         unsigned_type length, pos_in_block = pos.get_offset(), block_no = pos.get_block();
-        while (((length = input.batch_length()) > 0) && pos != limit)
+        while (((length = m_input.batch_length()) > 0) && pos != limit)
         {
             length = STXXL_MIN(length, STXXL_MIN(limit - pos, block_type::size - pos_in_block));
             typename block_type::iterator bi = Blocks[block_no].begin() + pos_in_block;
-            for (typename Input::const_iterator i = input.batch_begin(), end = input.batch_begin() + length; i != end; ++i)
+            for (typename Input::const_iterator i = m_input.batch_begin(), end = m_input.batch_begin() + length; i != end; ++i)
             {
                 *bi = *i;
                 ++bi;
             }
-            input += length;
+            m_input += length;
             pos += length;
             pos_in_block += length;
             if (pos_in_block == block_type::size)
@@ -794,11 +794,11 @@ public:
     runs_creator_batch(Input& i, CompareType c, unsigned_type memory_to_use,
                        bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT,
                        StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
-        : base(i, c, memory_to_use, asynchronous_pull, start_mode)
+        : base_type(i, c, memory_to_use, asynchronous_pull, start_mode)
     {
 #if STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
         if (asynchronous_pull)
-            base::start_waiting_and_fetching();     //start second thread
+            base_type::start_waiting_and_fetching();     //start second thread
 #endif //STXXL_STREAM_SORT_ASYNCHRONOUS_PULL
     }
 };
@@ -2118,57 +2118,11 @@ public:
         : base_type(cmp, memory_to_use)
     { }
 
-#if TODO
     void start_pull()
     {
         STXXL_VERBOSE0("runs_merger " << this << " starts.");
-        base_type::initialize(sruns, memory_to_use);
+        // TODO ? base_type::initialize(sruns);
         STXXL_VERBOSE0("runs_merger " << this << " run formation done.");
-    }
-#endif
-};
-
-//! Merges sorted runs
-//!
-//! Template parameters:
-//! - \c RunsType type of the sorted runs, available as \c runs_creator::sorted_runs_type ,
-//! - \c CompareType type of comparison object used for merging
-//! - \c AllocStr allocation strategy used to allocate the blocks for
-//! storing intermediate results if several merge passes are required
-template <class RunsCreator,
-          class CompareType,
-          class AllocStr = STXXL_DEFAULT_ALLOC_STRATEGY>
-class startable_runs_merger : public basic_runs_merger<typename RunsCreator::sorted_runs_type, CompareType, AllocStr>
-{
-private:
-    typedef basic_runs_merger<typename RunsCreator::sorted_runs_type, CompareType, AllocStr> base;
-    typedef typename base::value_cmp value_cmp;
-    typedef typename base::block_type block_type;
-
-    unsigned_type memory_to_use;
-    RunsCreator& rc;
-
-public:
-    //! Creates a runs merger object
-    //! \param rc Runs creator.
-    //! \param c Comparison object.
-    //! \param memory_to_use Amount of memory available for the merger in bytes.
-    startable_runs_merger(RunsCreator& rc, value_cmp c,
-                          unsigned_type memory_to_use,
-                          StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
-        : base(c),
-          memory_to_use(memory_to_use),
-          rc(rc)
-    {
-        if (start_mode == start_immediately)
-            base::initialize(rc.result(), memory_to_use);
-    }
-
-    void start_pull()
-    {
-        STXXL_VERBOSE1("runs_merger " << this << " starts.");
-        base::initialize(rc.result(), memory_to_use);
-        STXXL_VERBOSE1("runs_merger " << this << " run formation done.");
     }
 };
 
@@ -2194,8 +2148,6 @@ class sort : public noncopyable
 {
     typedef RunsCreatorType runs_creator_type;
     typedef typename runs_creator_type::sorted_runs_type sorted_runs_type;
-    // TODO!
-    //typedef startable_runs_merger<runs_creator_type, CompareType, AllocStr> runs_merger_type;
     typedef runs_merger<sorted_runs_type, CompareType, AllocStr> runs_merger_type;
 
     runs_creator_type creator;
@@ -2216,8 +2168,8 @@ public:
          bool asynchronous_pull = STXXL_STREAM_SORT_ASYNCHRONOUS_PULL_DEFAULT,
          StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
         : creator(in, c, memory_to_use, asynchronous_pull, start_mode),
-//TODO          merger(creator, c, memory_to_use, start_mode)
-          merger(creator.result(), c, memory_to_use)
+          merger(creator.result(), c, memory_to_use, start_mode)
+          //merger(creator.result(), c, memory_to_use)
     {
         sort_helper::verify_sentinel_strict_weak_ordering(c);
     }

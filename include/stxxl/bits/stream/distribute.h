@@ -25,10 +25,10 @@ namespace stream {
 ////////////////////////////////////////////////////////////////////////
 
 //! Helper function to call basic_push::push() in a Pthread thread.
-template <class Output_>
+template <class Output>
 void * call_stop_push(void* param)
 {
-    static_cast<Output_*>(param)->stop_push();
+    static_cast<Output*>(param)->stop_push();
     return NULL;
 }
 
@@ -36,16 +36,16 @@ void * call_stop_push(void* param)
 //!
 //! Template parameters:
 //! - \c Input_ type of the input
-template <class Output_>
+template <class Output>
 class basic_distribute
 {
 public:
     //! Standard stream typedef
-    typedef typename Output_::value_type value_type;
+    typedef typename Output::value_type value_type;
 
 protected:
-    Output_** outputs;
-    Output_* current_output;
+    Output** outputs;
+    Output* current_output;
     int num_outputs;
     value_type current;
     int pos;
@@ -63,7 +63,10 @@ protected:
 
 public:
     //! Construction
-    basic_distribute(/*Input_ input, */ Output_** outputs, int num_outputs, StartMode start_mode) : /*input(input),*/ outputs(outputs), num_outputs(num_outputs), start_mode(start_mode)
+    basic_distribute(/*Input_ input, */ Output** outputs, int num_outputs,
+                                        StartMode start_mode)
+        : /*input(input),*/ outputs(outputs),
+          num_outputs(num_outputs), start_mode(start_mode)
     {
         empty_count = 0;
         if (start_mode == start_deferred)
@@ -100,9 +103,9 @@ public:
 #endif
         for (int i = 0; i < num_outputs; ++i)
 #ifdef STXXL_BOOST_THREADS
-            threads[i] = new boost::thread(boost::bind(call_stop_push<Output_>, outputs[i]));
+            threads[i] = new boost::thread(boost::bind(call_stop_push<Output>, outputs[i]));
 #else
-            check_pthread_call(pthread_create(&(threads[i]), NULL, call_stop_push<Output_>, outputs[i]));
+            STXXL_CHECK_PTHREAD_CALL(pthread_create(&(threads[i]), NULL, call_stop_push<Output>, outputs[i]));
 #endif
 
         for (int i = 0; i < num_outputs; ++i)
@@ -126,16 +129,17 @@ public:
 //!
 //! Template parameters:
 //! - \c Input_ type of the input
-template <class Output_>
-class distribute : public basic_distribute<Output_>
+template <class Output>
+class distribute : public basic_distribute<Output>
 {
-    typedef basic_distribute<Output_> base;
+    typedef basic_distribute<Output> base;
     typedef typename base::value_type value_type;
     using base::current_output;
     using base::next;
 
 public:
-    distribute(Output_** outputs, int num_outputs) : base(outputs, num_outputs)
+    distribute(Output** outputs, int num_outputs)
+        : base(outputs, num_outputs)
     { }
 
     //! Standard stream method.
@@ -163,10 +167,10 @@ public:
 //!
 //! Template parameters:
 //! - \c Input_ type of the input
-template <class Output_>
-class deterministic_distribute : public basic_distribute<Output_>
+template <class Output>
+class deterministic_distribute : public basic_distribute<Output>
 {
-    typedef basic_distribute<Output_> base;
+    typedef basic_distribute<Output> base;
     using base::current_output;
     using base::next;
 
@@ -175,7 +179,10 @@ class deterministic_distribute : public basic_distribute<Output_>
 public:
     typedef typename base::value_type value_type;
 
-    deterministic_distribute(Output_** outputs, int num_outputs, unsigned_type elements_per_chunk, StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT) : base(outputs, num_outputs, start_mode)
+    deterministic_distribute(Output** outputs, int num_outputs,
+                             unsigned_type elements_per_chunk,
+                             StartMode start_mode = STXXL_START_PIPELINE_DEFERRED_DEFAULT)
+        : base(outputs, num_outputs, start_mode)
     {
         this->elements_per_chunk = elements_per_chunk;
         elements_left = elements_per_chunk;

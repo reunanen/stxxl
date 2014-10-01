@@ -575,6 +575,16 @@ macro(stxxl_build_test TESTNAME)
 
 endmacro(stxxl_build_test)
 
+# macro for building stxxl tests with detailed source list
+macro(stxxl_build2_test PROGNAME)
+
+  if(BUILD_TESTS)
+    add_executable(${PROGNAME} ${ARGN})
+    target_link_libraries(${PROGNAME} ${STXXL_LIBRARIES})
+  endif(BUILD_TESTS)
+
+endmacro(stxxl_build2_test)
+
 # macro for registering stxxl tests
 macro(stxxl_test TESTNAME)
 
