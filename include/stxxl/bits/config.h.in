@@ -28,6 +28,13 @@
 #cmakedefine STXXL_VERSION_GIT_REFSPEC "${STXXL_VERSION_GIT_REFSPEC}"
 #cmakedefine STXXL_VERSION_GIT_SHA1 "${STXXL_VERSION_GIT_SHA1}"
 
+#ifndef STXXL_DEBUG_ASSERTIONS
+#cmakedefine STXXL_DEBUG_ASSERTIONS ${STXXL_DEBUG_ASSERTIONS}
+#endif
+// default: off
+// cmake:   option
+// effect:  enable more costly assertions and checks for debugging the library
+
 #cmakedefine STXXL_DIRECT_IO_OFF ${STXXL_DIRECT_IO_OFF}
 // default: 0/1 (platform dependent)
 // cmake:   detection of platform and flag
@@ -73,7 +80,12 @@
 // cmake:   detection of __sync_add_and_fetch() intrinsic
 // effect:  enables use of atomics in counting_ptr
 
-#cmakedefine STXXL_PARALLEL_MODE_EXPLICIT ${STXXL_PARALLEL_MODE_EXPLICIT}
+#cmakedefine STXXL_PARALLEL ${STXXL_PARALLEL}
+// default: on/off (depends on compiler and platform)
+// cmake:   -DUSE_PARALLEL=ON
+// effect:  enable parallelized algorithms using OpenMP like multiway_merge and sort
+
+#cmakedefine STXXL_WITH_GNU_PARALLEL ${STXXL_WITH_GNU_PARALLEL}
 // default: off
 // cmake:   -DUSE_GNU_PARALLEL=ON
 // effect:  explicitly enables use of __gnu_parallel algorithms

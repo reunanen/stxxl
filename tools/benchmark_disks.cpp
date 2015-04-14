@@ -62,6 +62,9 @@ int benchmark_disks_blocksize_alloc(uint64 length, uint64 batch_size,
     bool do_read = (optrw.find('r') != std::string::npos);
     bool do_write = (optrw.find('w') != std::string::npos);
 
+    // initialize disk configuration
+    stxxl::block_manager::get_instance();
+
     // construct block type
 
     const unsigned_type raw_block_size = RawBlockSize;
@@ -83,7 +86,7 @@ int benchmark_disks_blocksize_alloc(uint64 length, uint64 batch_size,
     stxxl::request_ptr* reqs = new stxxl::request_ptr[num_blocks_per_batch];
     std::vector<BID_type> blocks;
     double totaltimeread = 0, totaltimewrite = 0;
-    stxxl::int64 totalsizeread = 0, totalsizewrite = 0;
+    uint64 totalsizeread = 0, totalsizewrite = 0;
 
     std::cout << "# Batch size: "
               << stxxl::add_IEC_binary_multiplier(batch_size, "B") << " ("
@@ -101,9 +104,9 @@ int benchmark_disks_blocksize_alloc(uint64 length, uint64 batch_size,
         AllocStrategy alloc;
         while (offset < endpos)
         {
-            const stxxl::int64 current_batch_size = std::min<stxxl::int64>(batch_size, endpos - offset);
+            const uint64 current_batch_size = std::min<uint64>(batch_size, endpos - offset);
 #if CHECK_AFTER_READ
-            const stxxl::int64 current_batch_size_int = current_batch_size / sizeof(int);
+            const uint64 current_batch_size_int = current_batch_size / sizeof(int);
 #endif
             const unsigned_type current_num_blocks_per_batch = (unsigned_type)stxxl::div_ceil(current_batch_size, raw_block_size);
 
@@ -248,12 +251,19 @@ int benchmark_disks(int argc, char* argv[])
     unsigned_type block_size = 8 * MiB;
     std::string optrw = "rw", allocstr;
 
-    cp.add_param_bytes("size", "Amount of data to write/read from disks (e.g. 10GiB)", length);
-    cp.add_opt_param_string("r|w", "Only read or write blocks (default: both write and read)", optrw);
-    cp.add_opt_param_string("alloc", "Block allocation strategy: RC, SR, FR, striping. (default: RC)", allocstr);
+    cp.add_param_bytes("size", length,
+                       "Amount of data to write/read from disks (e.g. 10GiB)");
+    cp.add_opt_param_string(
+        "r|w", optrw,
+        "Only read or write blocks (default: both write and read)");
+    cp.add_opt_param_string(
+        "alloc", allocstr,
+        "Block allocation strategy: RC, SR, FR, striping. (default: RC)");
 
-    cp.add_uint('b', "batch", "Number of blocks written/read in one batch (default: D * B)", batch_size);
-    cp.add_bytes('B', "block_size", "Size of blocks written in one syscall. (default: B = 8MiB)", block_size);
+    cp.add_uint('b', "batch", batch_size,
+                "Number of blocks written/read in one batch (default: D * B)");
+    cp.add_bytes('B', "block_size", block_size,
+                 "Size of blocks written in one syscall. (default: B = 8MiB)");
 
     cp.set_description(
         "This program will benchmark the disks configured by the standard "
@@ -262,8 +272,7 @@ int benchmark_disks(int argc, char* argv[])
         "size describes how many blocks are written/read in one batch. The "
         "are taken from block_manager using given the specified allocation "
         "strategy. If size == 0, then writing/reading operation are done "
-        "until an error occurs. "
-        );
+        "until an error occurs. ");
 
     if (!cp.process(argc, argv))
         return -1;

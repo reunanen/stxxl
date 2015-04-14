@@ -255,7 +255,8 @@ unsigned_type loser_tree<ValueType, CompareType, MaxArity>::initWinner(unsigned_
 {
     if (root >= k) {     // leaf reached
         return root - k;
-    } else {
+    }
+    else {
         unsigned_type left = initWinner(2 * root);
         unsigned_type right = initWinner(2 * root + 1);
         Element lk = *(current[left]);
@@ -264,7 +265,8 @@ unsigned_type loser_tree<ValueType, CompareType, MaxArity>::initWinner(unsigned_
             entry[root].index = right;
             entry[root].key = rk;
             return left;
-        } else {
+        }
+        else {
             entry[root].index = left;
             entry[root].key = lk;
             return right;
@@ -295,7 +297,8 @@ void loser_tree<ValueType, CompareType, MaxArity>::update_on_insert(
             entry[node].key = newKey;
             entry[node].index = newIndex;
         }
-    } else {
+    }
+    else {
         update_on_insert(node >> 1, newKey, newIndex, winnerKey, winnerIndex, mask);
         Element loserKey = entry[node].key;
         unsigned_type loserIndex = entry[node].index;
@@ -304,7 +307,8 @@ void loser_tree<ValueType, CompareType, MaxArity>::update_on_insert(
                 if (cmp(*winnerKey, newKey)) {                  // old winner loses here
                     entry[node].key = *winnerKey;
                     entry[node].index = *winnerIndex;
-                } else {                                        // new entry loses here
+                }
+                else {                                          // new entry loses here
                     entry[node].key = newKey;
                     entry[node].index = newIndex;
                 }
@@ -448,7 +452,8 @@ insert_segment(Element* target, unsigned_type length)
         update_on_insert((index + k) >> 1, *target, index,
                          &dummyKey, &dummyIndex, &dummyMask);
 #endif      //STXXL_PQ_INTERNAL_LOSER_TREE
-    } else {
+    }
+    else {
         // immediately deallocate
         // this is not only an optimization
         // but also needed to keep free segments from
@@ -543,7 +548,8 @@ multi_merge(Element* target, unsigned_type length)
                 std::make_pair(current[0], current_end[0]),
                 std::make_pair(current[1], current_end[1])
             };
-            parallel::multiway_merge_sentinel(seqs, seqs + 2, target, inv_cmp, length);
+            parallel::multiway_merge_sentinels(
+                seqs, seqs + 2, target, length, inv_cmp);
             current[0] = seqs[0].first;
             current[1] = seqs[1].first;
         }
@@ -569,7 +575,8 @@ multi_merge(Element* target, unsigned_type length)
                 std::make_pair(current[2], current_end[2]),
                 std::make_pair(current[3], current_end[3])
             };
-            parallel::multiway_merge_sentinel(seqs, seqs + 4, target, inv_cmp, length);
+            parallel::multiway_merge_sentinels(
+                seqs, seqs + 4, target, length, inv_cmp);
             current[0] = seqs[0].first;
             current[1] = seqs[1].first;
             current[2] = seqs[2].first;
@@ -628,7 +635,8 @@ multi_merge(Element* target, unsigned_type length)
                 }
             }
 
-            parallel::multiway_merge_sentinel(seqs.begin(), seqs.end(), target, inv_cmp, length);
+            parallel::multiway_merge_sentinels(
+                seqs.begin(), seqs.end(), target, length, inv_cmp);
 
             for (unsigned int i = 0; i < seqs.size(); ++i)
             {

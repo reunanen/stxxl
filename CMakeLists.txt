@@ -80,8 +80,15 @@ else()
   option(USE_BOOST "Use Boost libraries for threads,config,filesystem,random and date_time" OFF)
 endif()
 
+option(USE_OPENMP "Use OpenMP for multi-core parallelism" ON)
+
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   option(USE_GNU_PARALLEL "Use GNU parallel extensions for multi-core parallelism" ON)
+
+  # GNU parallel mode but NOT OpenMP is impossible.
+  if(USE_GNU_PARALLEL AND NOT USE_OPENMP)
+    set(USE_GNU_PARALLEL OFF)
+  endif()
 endif()
 
 option(TRY_COMPILE_HEADERS "Test stxxl header files for self-sufficiency: try to compile them." OFF)
@@ -94,7 +101,14 @@ option(NO_CXX11 "Build without C++11 flags" OFF)
 
 option(USE_VALGRIND "Run tests with valgrind, pre-initialize some memory buffers." OFF)
 
+option(USE_MALLOC_COUNT "Compile all programs with included malloc_count heap profiler." OFF)
+
 option(USE_GCOV "Compile and run tests with gcov for coverage analysis." OFF)
+
+option(STXXL_DEBUG_ASSERTIONS "Enable more costly assertions for internal debugging." OFF)
+if(STXXL_DEBUG_ASSERTIONS)
+  set(STXXL_DEBUG_ASSERTIONS "1") # change from ON/OFF to 1/0
+endif()
 
 # see tools/benchmarks about older TPIE benchmarks.
 option(USE_TPIE "Try to compile extra benchmarks from the 2007 S&PE paper with an old TPIE version." OFF)
@@ -473,11 +487,39 @@ if(USE_BOOST)
 endif(USE_BOOST)
 
 ###############################################################################
+# optional OpenMP parallelization
+
+if(USE_GNU_PARALLEL AND NOT USE_OPENMP)
+  message(FATAL_ERROR "Configuration selects GNU parallel mode but not OpenMP."
+    "This is impossible.")
+endif()
+
+if(USE_OPENMP OR USE_GNU_PARALLEL)
+
+  include(FindOpenMP)
+
+  if(NOT OPENMP_FOUND)
+    message(STATUS "OpenMP not found. Continuing without parallel algorithm support.")
+  else()
+    set(STXXL_PARALLEL 1)
+    message(STATUS "OpenMP found, enabling built-in parallel algorithms.")
+
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  endif()
+
+else()
+
+  message(STATUS "OpenMP disabled in STXXL (no parallelism is used).")
+  set(STXXL_PARALLEL 0)
+
+endif(USE_OPENMP OR USE_GNU_PARALLEL)
+
+###############################################################################
 # optional GNU parallel STL mode
 
 if(USE_GNU_PARALLEL)
-
-  include(FindOpenMP)
 
   if(NOT OPENMP_FOUND)
     message(FATAL_ERROR "OpenMP not found. Try compilation without GNU parallel mode.")
@@ -487,12 +529,7 @@ if(USE_GNU_PARALLEL)
     if(NOT HAVE_PARALLEL_ALGORITHM_H)
       message(FATAL_ERROR "GNU parallel mode header not found. Try compilation without parallel mode.")
     else()
-      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-
-      set(STXXL_PARALLEL_MODE_EXPLICIT "1")
-
+      set(STXXL_WITH_GNU_PARALLEL 1)
     endif()
   endif()
 
@@ -524,6 +561,12 @@ include(CheckSymbolExists)
 check_symbol_exists(mallinfo "malloc.h" STXXL_HAVE_MALLINFO_PROTO)
 check_symbol_exists(mlock "sys/mman.h" STXXL_HAVE_MLOCK_PROTO)
 
+if(USE_MALLOC_COUNT)
+  # malloc_count requires the linux dl (dynamic linker) library
+  find_library(DL_LIBRARIES NAMES dl)
+  set(STXXL_EXTRA_LIBRARIES ${STXXL_EXTRA_LIBRARIES} ${DL_LIBRARIES})
+endif()
+
 ###############################################################################
 # configure environment for building
 
@@ -538,7 +581,7 @@ set(STXXL_INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include/ ${PROJECT_BINARY_DIR}/incl
 include_directories(${STXXL_INCLUDE_DIRS})
 
 # for targets using stxxl library
-set(STXXL_EXTRA_LIBRARIES ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+set(STXXL_EXTRA_LIBRARIES ${STXXL_EXTRA_LIBRARIES} ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 set(STXXL_LIBRARIES stxxl ${STXXL_EXTRA_LIBRARIES})
 
 # export STXXL_INCLUDE_DIRS and STXXL_LIBRARIES to global CACHE

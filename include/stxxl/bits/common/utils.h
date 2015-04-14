@@ -251,6 +251,16 @@ inline void swap_1D_arrays(Type* a, Type* b, unsigned_type size)
 
 ////////////////////////////////////////////////////////////////////////////
 
+template <typename Integral>
+static inline Integral round_up_to_power_of_two(Integral n)
+{
+    --n;
+    for (int k = 1; !(k & (2 << sizeof(n))); k <<= 1)
+        n |= n >> k;
+    ++n;
+    return n;
+}
+
 //! round n up to next larger multiple of 2^power. example: (48,4) = 64, (48,3) = 48.
 template <typename Integral>
 inline Integral round_up_to_power_of_two(Integral n, unsigned_type power)

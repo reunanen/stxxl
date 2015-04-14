@@ -76,6 +76,20 @@ STXXL_END_NAMESPACE
  #define STXXL_MSG(x) _STXXL_NOT_VERBOSE(x)
 #endif
 
+// STXXL_VARDUMP(x) prints the name of x together with its value.
+#if STXXL_VERBOSE_LEVEL > -10
+ #define STXXL_VARDUMP(x) _STXXL_PRINT("STXXL-MSG", #x " = " << x, _STXXL_PRINT_FLAGS_DEFAULT)
+#else
+ #define STXXL_VARDUMP(x) _STXXL_NOT_VERBOSE
+#endif
+
+// STXXL_MEMDUMP(x) prints the name of x together with its value as an amount of memory in IEC units.
+#if STXXL_VERBOSE_LEVEL > -10
+ #define STXXL_MEMDUMP(x) _STXXL_PRINT("STXXL-MSG", #x " = " << stxxl::format_IEC_size(x) << "B", _STXXL_PRINT_FLAGS_DEFAULT)
+#else
+ #define STXXL_MEMDUMP(x) _STXXL_NOT_VERBOSE
+#endif
+
 #if STXXL_VERBOSE_LEVEL > -100
  #define STXXL_ERRMSG(x) _STXXL_PRINT("STXXL-ERRMSG", x, _STXXL_PRINT_FLAGS_ERROR)
 #else
@@ -128,9 +142,30 @@ STXXL_END_NAMESPACE
 #define STXXL_VERBOSE3_THIS(x) \
     STXXL_VERBOSE3("[" << static_cast<void*>(this) << "] " << x)
 
-// STXXL_CHECK is an assertion macro for unit tests, which contrarily to
-// assert() also works in release builds. These macros should ONLY be used in
-// UNIT TESTS, not in the library source. Use usual assert() there.
+//! STXXL_DEBUG_COND is a macro which prints iff the passed variable "debug" is
+//! true. Use this for conditional debug variables.
+#define STXXL_DEBUG_COND(dbg, x)                                        \
+    do {                                                                \
+        if (dbg) {                                                      \
+            _STXXL_PRINT("STXXL-DEBUG", x, _STXXL_PRINT_FLAGS_DEFAULT); \
+        }                                                               \
+    } while (0)
+
+//! STXXL_DEBUG is a macro which prints iff the locally defined variable
+//! "debug" is true. Use this for scoped-based debug variables.
+#define STXXL_DEBUG(x) STXXL_DEBUG_COND(debug, x)
+
+//! STXXL_DEBUG0 is a macro which never prints the debug message, used to
+//! temporarily disable STXXL_DEBUG occurrences.
+#define STXXL_DEBUG0(x) STXXL_DEBUG_COND(false, x)
+
+//! STXXL_DEBUG1 is a macro which always prints the debug message, used to
+//! temporarily enable STXXL_DEBUG occurrences.
+#define STXXL_DEBUG1(x) STXXL_DEBUG_COND(true, x)
+
+//! STXXL_CHECK is an assertion macro for unit tests, which contrarily to
+//! assert() also works in release builds. These macros should ONLY be used in
+//! UNIT TESTS, not in the library source. Use usual assert() there.
 
 #define STXXL_CHECK(condition)                                               \
     do {                                                                     \
@@ -148,6 +183,20 @@ STXXL_END_NAMESPACE
                          text << " - " #condition " - FAILED @ " __FILE__ ":" << __LINE__, \
                          _STXXL_PRINT_FLAGS_ERROR); abort();                               \
         }                                                                                  \
+    } while (0)
+
+//! STXXL_CHECK_EQUAL(a,b) is an assertion macro for unit tests, similar to
+//! STXXL_CHECK(a==b). The difference is that STXXL_CHECK_EQUAL(a,b) also
+//! prints the values of a and b. Attention: a and b must be printable with
+//! std::cout!
+#define STXXL_CHECK_EQUAL(a, b)                                                 \
+    do {                                                                        \
+        if (!(a == b)) {                                                        \
+            _STXXL_PRINT("STXXL-CHECK",                                         \
+                         "\"" << a << "\" = " #a " == " #b " = \"" << b << "\"" \
+                         " - FAILED @ " __FILE__ ":" << __LINE__,               \
+                         _STXXL_PRINT_FLAGS_ERROR); abort();                    \
+        }                                                                       \
     } while (0)
 
 // STXXL_ASSERT is an assertion macro almost identical to assert(). The only
@@ -172,6 +221,36 @@ STXXL_END_NAMESPACE
     do { if (1) {                                                                 \
              if (!(condition)) {                                                  \
                  _STXXL_PRINT("STXXL-ASSERT",                                     \
+                              #condition " - FAILED @ " __FILE__ ":" << __LINE__, \
+                              _STXXL_PRINT_FLAGS_ERROR); abort();                 \
+             }                                                                    \
+         }                                                                        \
+    } while (0)
+
+#endif
+
+// STXXL_DEBUG_ASSERT is an assertions, that is only active if the compile flag
+// STXXL_DEBUG_ASSERTIONS=1 is true. This macro should be used for more costly
+// assertions inside the library, that can be deactivated after development.
+
+#if STXXL_DEBUG_ASSERTIONS
+
+#define STXXL_DEBUG_ASSERT(condition)                                             \
+    do { if (true) {                                                              \
+             if (!(condition)) {                                                  \
+                 _STXXL_PRINT("STXXL-DEBUG-ASSERT",                               \
+                              #condition " - FAILED @ " __FILE__ ":" << __LINE__, \
+                              _STXXL_PRINT_FLAGS_ERROR); abort();                 \
+             }                                                                    \
+         }                                                                        \
+    } while (0)
+
+#else
+
+#define STXXL_DEBUG_ASSERT(condition)                                             \
+    do { if (false) {                                                             \
+             if (!(condition)) {                                                  \
+                 _STXXL_PRINT("STXXL-DEBUG-ASSERT",                               \
                               #condition " - FAILED @ " __FILE__ ":" << __LINE__, \
                               _STXXL_PRINT_FLAGS_ERROR); abort();                 \
              }                                                                    \

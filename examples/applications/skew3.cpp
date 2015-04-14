@@ -58,8 +58,8 @@ typedef external_size_type size_type;
  * ideas of Kaerkkaeinen und Burghardt, originally implemented in STXXL by Jens
  * Mehnert (2004), reimplemented using triples by Timo Bingmann (2012).
  *
- * @param InputT is the original text, from which the suffix array was build
- * @param InputSA is the suffix array from InputT
+ * \param InputT is the original text, from which the suffix array was build
+ * \param InputSA is the suffix array from InputT
  *
  * Note: ISA := The inverse of SA
  */
@@ -201,7 +201,7 @@ bool sacheck_vectors(InputT& inputT, InputSA& inputSA)
  *         c) merge mod0-quints, mod1-quads and mod2-quints (-> merge_sa class)
  * Step 3: a) return Suffix Array of T
  *
- * @param offset_type later suffix array data type
+ * \param offset_type later suffix array data type
  */
 template <typename offset_type>
 class skew
@@ -327,7 +327,8 @@ public:
             quad_type curr = *A;
             if (!quad_eq(prev, curr)) {
                 ++lexname;
-            } else {
+            }
+            else {
                 if (!A.empty() && curr.second != offset_type(0)) {
                     unique = false;
                 }
@@ -396,9 +397,9 @@ public:
      * i. Since we need at least one unique endcaracter, we free the first
      * characters i.e. we map (t_i) -> (i,t_i,t_{i+1},t_{i+2})
      *
-     * @param Input holds all characters t_i from input string t
-     * @param alphabet_type
-     * @param add_alphabet
+     * \param Input holds all characters t_i from input string t
+     * \param alphabet_type
+     * \param add_alphabet
      */
     template <class Input, typename alphabet_type, const int add_alphabet = 0>
     class make_quads
@@ -544,9 +545,9 @@ public:
      *  comparison-based merging.  More precisely: compare characters(out of
      *  text t) and ranks(out of ISA12) of the following constellation:
      *  Input constellation:
-     *  @param Mod0 5-tuple (quint): <i, t_i, t_{i+1}, ISA12[i+1], ISA12[i+2]>
-     *  @param Mod1 4-tuple (quad): <i, ISA12[i], t_i, ISA12[i+1]>
-     *  @param Mod2 5-tuple (quint): <i, ISA[i], t_i, t_{i+1}, ISA12[i+1]>
+     *  \param Mod0 5-tuple (quint): <i, t_i, t_{i+1}, ISA12[i+1], ISA12[i+2]>
+     *  \param Mod1 4-tuple (quad): <i, ISA12[i], t_i, ISA12[i+1]>
+     *  \param Mod2 5-tuple (quint): <i, ISA[i], t_i, t_{i+1}, ISA12[i+1]>
      */
     template <class Mod0, class Mod1, class Mod2>
     class merge_sa
@@ -719,9 +720,9 @@ public:
     /**
      * Sort mod0-quints / mod1-quads / mod2-quints and run merge_sa class to
      * merge them together.
-     * @param S input string pipe type.
-     * @param Mod1 mod1 tuples input pipe type.
-     * @param Mod2 mod2 tuples input pipe type.
+     * \param S input string pipe type.
+     * \param Mod1 mod1 tuples input pipe type.
+     * \param Mod2 mod2 tuples input pipe type.
      */
     template <class S, class Mod1, class Mod2>
     class build_sa
@@ -942,7 +943,7 @@ public:
     };
 
     /** The skew algorithm.
-     *  @param Input type of the input pipe. */
+     *  \param Input type of the input pipe. */
     template <class Input>
     class algorithm
     {
@@ -1052,7 +1053,8 @@ public:
                     if (tmp.first < mod2_pos) {
                         if (tmp.first + special < mod2_pos) // else: special sentinel tuple is dropped
                             isa1_pair.push(tmp);            // sorter #1
-                    } else {
+                    }
+                    else {
                         isa2_pair.push(tmp);                // sorter #2
                     }
                     ++isa_pairs;
@@ -1341,8 +1343,13 @@ int main(int argc, char* argv[])
 {
     stxxl::cmdline_parser cp;
 
-    cp.set_description("DC3 aka skew3 algorithm for external memory suffix array construction.");
-    cp.set_author("Jens Mehnert <jmehnert@mpi-sb.mpg.de>, Timo Bingmann <tb@panthema.net>, Daniel Feist <daniel.feist@student.kit.edu>");
+    cp.set_description(
+        "DC3 aka skew3 algorithm for external memory suffix array construction."
+        );
+    cp.set_author(
+        "Jens Mehnert <jmehnert@mpi-sb.mpg.de>, "
+        "Timo Bingmann <tb@panthema.net>, "
+        "Daniel Feist <daniel.feist@student.kit.edu>");
 
     std::string input_filename, output_filename;
     size_type sizelimit = std::numeric_limits<size_type>::max();
@@ -1351,28 +1358,43 @@ int main(int argc, char* argv[])
     bool input_verbatim = false;
     unsigned wordsize = 32;
 
-    cp.add_param_string("input", "Path to input file (or verbatim text).\n  The special inputs 'random' and 'unary' generate such text on-the-fly.", input_filename);
-    cp.add_flag('c', "check", "Check suffix array for correctness.", check_flag);
-    cp.add_flag('t', "text", "Print out suffix array in readable text.", text_output_flag);
-    cp.add_string('o', "output", "Output suffix array to given path.", output_filename);
-    cp.add_flag('v', "verbatim", "Consider \"input\" as verbatim text to construct suffix array on.", input_verbatim);
-    cp.add_bytes('s', "size", "Cut input text to given size, e.g. 2 GiB.", sizelimit);
-    cp.add_bytes('M', "memuse", "Amount of RAM to use, default: 1 GiB.", ram_use);
-    cp.add_uint('w', "wordsize", "Set word size of suffix array to 32, 40 or 64 bit, default: 32-bit.", wordsize);
+    cp.add_param_string("input", input_filename,
+                        "Path to input file (or verbatim text).\n"
+                        "  The special inputs 'random' and 'unary' generate "
+                        "such text on-the-fly.");
+    cp.add_flag('c', "check", check_flag,
+                "Check suffix array for correctness.");
+    cp.add_flag('t', "text", text_output_flag,
+                "Print out suffix array in readable text.");
+    cp.add_string('o', "output", output_filename,
+                  "Output suffix array to given path.");
+    cp.add_flag('v', "verbatim", input_verbatim,
+                "Consider \"input\" as verbatim text to construct "
+                "suffix array on.");
+    cp.add_bytes('s', "size", sizelimit,
+                 "Cut input text to given size, e.g. 2 GiB.");
+    cp.add_bytes('M', "memuse", ram_use,
+                 "Amount of RAM to use, default: 1 GiB.");
+    cp.add_uint('w', "wordsize", wordsize,
+                "Set word size of suffix array to 32, 40 or 64 bit, "
+                "default: 32-bit.");
 
     // process command line
     if (!cp.process(argc, argv))
         return -1;
 
     if (wordsize == 32)
-        return process<stxxl::uint32>(input_filename, output_filename, sizelimit,
-                                      text_output_flag, check_flag, input_verbatim);
+        return process<stxxl::uint32>(
+            input_filename, output_filename, sizelimit,
+            text_output_flag, check_flag, input_verbatim);
     else if (wordsize == 40)
-        return process<stxxl::uint40>(input_filename, output_filename, sizelimit,
-                                      text_output_flag, check_flag, input_verbatim);
+        return process<stxxl::uint40>(
+            input_filename, output_filename, sizelimit,
+            text_output_flag, check_flag, input_verbatim);
     else if (wordsize == 64)
-        return process<stxxl::uint64>(input_filename, output_filename, sizelimit,
-                                      text_output_flag, check_flag, input_verbatim);
+        return process<stxxl::uint64>(
+            input_filename, output_filename, sizelimit,
+            text_output_flag, check_flag, input_verbatim);
     else
         std::cerr << "Invalid wordsize for suffix array: 32, 40 or 64 are allowed." << std::endl;
 

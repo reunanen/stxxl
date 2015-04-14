@@ -12,6 +12,7 @@
 
 add_subdirectory(btree)
 add_subdirectory(hash_map)
+add_subdirectory(ppq)
 
 stxxl_build_test(test_deque)
 stxxl_build_test(test_ext_merger)
@@ -29,6 +30,7 @@ stxxl_build_test(test_stack)
 stxxl_build_test(test_vector)
 stxxl_build_test(test_vector_buf)
 stxxl_build_test(test_vector_export)
+stxxl_build_test(test_vector_resize)
 stxxl_build_test(test_vector_sizes)
 
 stxxl_test(test_deque 3333333)
@@ -48,6 +50,7 @@ stxxl_test(test_stack 1024)
 stxxl_test(test_vector)
 stxxl_test(test_vector_buf)
 stxxl_test(test_vector_export)
+stxxl_test(test_vector_resize)
 stxxl_test(test_vector_sizes "${STXXL_TMPDIR}/out" syscall)
 if(STXXL_HAVE_MMAP_FILE)
   stxxl_test(test_vector_sizes "${STXXL_TMPDIR}/out" mmap)
