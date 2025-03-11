@@ -14,6 +14,7 @@
  **************************************************************************/
 
 #include <algorithm>
+#include <functional>
 
 #include <stxxl/bits/config.h>
 #include <stxxl/bits/common/error_handling.h>

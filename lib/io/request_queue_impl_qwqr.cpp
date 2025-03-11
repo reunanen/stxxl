@@ -14,6 +14,7 @@
  **************************************************************************/
 
 #include <algorithm>
+#include <functional>
 
 #include <stxxl/bits/common/error_handling.h>
 #include <stxxl/bits/io/request_queue_impl_qwqr.h>

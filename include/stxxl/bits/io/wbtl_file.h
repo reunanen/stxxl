@@ -23,6 +23,7 @@
 #if STXXL_HAVE_WBTL_FILE
 
 #include <map>
+#include <functional>
 
 #include <stxxl/bits/io/disk_queued_file.h>
 
